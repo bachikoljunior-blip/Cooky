@@ -1230,25 +1230,14 @@ const Run = (() => {
   function updateInteractions(dt){
     const p = R.player;
     R.interact = null;
-
-    // 基地
     R.baseChannel = null;
+
+    // 基地: 未解放ならクエストへ(E)。解放済みは安全地帯(微回復)
     for (const b of World.bases) {
       const d = Math.hypot(p.x - b.x, p.y - b.y);
-      if (d < 90) {
-        if (!SaveSys.data.bases[b.id]) {
-          // チャネリング解放
-          b._ch = (b._ch || 0) + dt;
-          R.baseChannel = { base:b, t:b._ch, need:8 };
-          if (b._ch >= 8) {
-            SaveSys.data.bases[b.id] = true;
-            SaveSys.save();
-            Sfx.unlock();
-            R.warnMsg = '✦ 基地「' + b.name + '」を解放した!魂の広場にゲートが開いた'; R.warnT = 5;
-          }
-        }
-      } else if (b._ch) b._ch = 0;
-      // 解放済み基地は安全地帯(微回復)
+      if (d < 90 && !SaveSys.data.bases[b.id]) {
+        R.interact = { type:'basequest', base:b, label:'E: 「' + b.name + '」を調べる(クエスト)' };
+      }
       if (d < 150 && SaveSys.data.bases[b.id]) {
         p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
       }
@@ -1262,7 +1251,7 @@ const Run = (() => {
           if (SaveSys.data.ports[port.id]) {
             R.interact = { type:'board', port, label:'E: 「' + port.name + '」から出航する' };
           } else {
-            R.interact = { type:'repair', port, label:'E: 壊れた船を調べる(' + port.name + ')' };
+            R.interact = { type:'portquest', port, label:'E: 船大工と話す(' + port.name + ')' };
           }
           break;
         }
@@ -1281,7 +1270,8 @@ const Run = (() => {
     const p = R.player;
     const it = R.interact;
     if (!it) return;
-    if (it.type === 'repair') openRepairPanel(it.port);
+    if (it.type === 'portquest') Game.enterQuest('port', it.port.id);
+    else if (it.type === 'basequest') Game.enterQuest('base', it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
   }
@@ -1320,40 +1310,6 @@ const Run = (() => {
       }
     }
     popup(p.x, p.y - 30, '上陸!(海の仲間は沿岸で待機)', '#7ee787');
-  }
-
-  // 修理パネル
-  function openRepairPanel(port){
-    Game.pauseFor('station');
-    const body = document.getElementById('station-body');
-    document.getElementById('station-title').textContent = '🛠 ' + port.name + ' ― 壊れた船の修理';
-    const rep = port.repair;
-    let matsH = '<div class="cost-line">';
-    let ok = walletTotal() >= rep.coins;
-    matsH += `<span class="cost-item ${walletTotal() >= rep.coins ? 'ok':'ng'}">🪙 ${fmtNum(walletTotal())}/${fmtNum(rep.coins)}</span>`;
-    for (const m in rep.mats) {
-      const have = Skills.matCount(m);
-      const md = DATA.MATERIALS[m];
-      if (have < rep.mats[m]) ok = false;
-      matsH += `<span class="cost-item ${have >= rep.mats[m] ? 'ok':'ng'}">
-        <span class="mat-dot" style="background:${md.color}"></span>${md.name} ${have}/${rep.mats[m]}</span>`;
-    }
-    matsH += '</div>';
-    body.innerHTML = `<div class="up-card"><div class="info">
-      <div class="name">修理条件</div>
-      <div class="desc">お金と素材を集めて船を直そう。修理は恒久的(次の周回でも使える)。所持金は銀行残高+今回の獲得分。</div>
-      ${matsH}</div>
-      <button class="buy-btn" id="repair-btn" ${ok ? '' : 'disabled'}>修理する</button></div>`;
-    document.getElementById('repair-btn').onclick = () => {
-      if (!ok) return;
-      for (const m in rep.mats) Skills.mats()[m] -= rep.mats[m];
-      walletPay(rep.coins);
-      SaveSys.data.ports[port.id] = true;
-      SaveSys.save();
-      Sfx.unlock();
-      R.warnMsg = '⚓ ' + port.name + 'の船を修理した!出航できるぞ'; R.warnT = 5;
-      Game.closeStation();
-    };
   }
 
   // ---------------- 更新メイン ----------------
@@ -1639,14 +1595,6 @@ const Run = (() => {
     if (R.shield.stocks > 0) {
       g.strokeStyle = 'rgba(88,166,255,.7)'; g.lineWidth = 2 + R.shield.stocks;
       g.beginPath(); g.arc(p.x, p.y, 24, 0, 7); g.stroke();
-    }
-    // 基地チャネリング
-    if (R.baseChannel) {
-      const bc = R.baseChannel;
-      g.strokeStyle = '#ffd766'; g.lineWidth = 5;
-      g.beginPath(); g.arc(p.x, p.y - 40, 14, -Math.PI/2, -Math.PI/2 + bc.t/bc.need * Math.PI*2); g.stroke();
-      g.fillStyle = '#ffd766'; g.font = '12px sans-serif'; g.textAlign = 'center';
-      g.fillText('基地解放中… ' + Math.ceil(bc.need - bc.t) + 's', p.x, p.y - 62);
     }
 
     // オービット描画

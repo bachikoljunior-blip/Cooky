@@ -34,6 +34,16 @@
     <button id="btn-act" class="tbtn hidden">実行</button>
   </div>
 
+  <!-- クエストUI -->
+  <div id="quest-obj" class="hidden"></div>
+  <button id="quest-exit" class="hidden">クエストを離れる</button>
+  <div id="dialog-box" class="hidden">
+    <div id="dialog-name"></div>
+    <div id="dialog-text"></div>
+    <div id="dialog-choices"></div>
+    <div id="dialog-hint">タップ / E で進む ▼</div>
+  </div>
+
   <!-- インタラクトのヒント -->
   <div id="interact-hint" class="hidden"></div>
 
@@ -82,8 +92,8 @@
       <p>■ 敵を倒すと一定確率で<b>仲間</b>になり、ついてきて一緒に戦う。仲間にもHPがある。</p>
       <p>■ 敵は<b>時間経過</b>と<b>危険度</b>(初期地点からの距離。HUDに表示)で強くなり、時間とともに数も増える。30分を過ぎると終焉の刻 ― ボス級が大量出現する。</p>
       <p>■ 死ぬと<b>魂の広場</b>へ。集めたお金で恒久強化・スキル解放・上限解放・新素材解放など。</p>
-      <p>■ 遠方の<b>基地</b>を解放すると、魂の広場からワープ出撃でき、特別な強化も買える。</p>
-      <p>■ 海辺の<b>港</b>で壊れた船を修理すると海へ出られる。海の先には別大陸が…。陸の仲間は乗船中、港で待機する。</p>
+      <p>■ 未解放の<b>基地</b>や壊れた<b>船</b>を調べると、周回を止めて<b>クエストマップ</b>へ転移。NPCの依頼(討伐・収集・防衛・納品)をこなすと解放される。解放した基地からはワープ出撃でき、特別な強化も買える。</p>
+      <p>■ 船を直すと海へ出られる。海の先には別大陸が…。陸の仲間は乗船中、港で待機する。</p>
       <p>■ 敵は強くなるほど<b>オーラ</b>をまとう(白→金→赤→紫)。仲間は上限なし ― 軍勢を率いて敵とぶつかれ。</p>
       <p>■ 世界は超広大で、大陸ごとに<b>砂漠・魔界・灼熱地帯・氷原</b>など見た目も違う。ミニマップは<b>Nキーかタップ</b>で切替。遠くへは死に戻り強化を重ねて挑もう。</p>
       <p>■ 仲間が増えると自動で<b>カメラが引いて</b>軍勢全体が映る。書庫では解放済みスキルを周回中に非表示にする設定もできる。</p>
@@ -110,6 +120,7 @@
 <script src="js/world.js"></script>
 <script src="js/skills.js"></script>
 <script src="js/run.js"></script>
+<script src="js/quest.js"></script>
 <script src="js/hub.js"></script>
 <script src="js/main.js"></script>
 </body>

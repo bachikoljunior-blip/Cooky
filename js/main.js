@@ -43,6 +43,42 @@ const Game = (() => {
     Sfx.setScene('run');
   }
 
+  // クエスト転移(周回は一時停止したまま保持される)
+  function enterQuest(kind, id){
+    if (state !== 'run') return;
+    if (!Quest.start(kind, id)) return;
+    state = 'quest';
+    hide('hud');
+    el('interact-hint').classList.add('hidden');
+    el('btn-act').classList.remove('hidden');   // 会話送りに使う
+    Sfx.setScene('hub');
+  }
+  function exitQuest(success){
+    document.getElementById('dialog-box').classList.add('hidden');
+    document.getElementById('quest-obj').classList.add('hidden');
+    document.getElementById('quest-exit').classList.add('hidden');
+    state = 'run';
+    show('hud');
+    const R = Run.state;
+    if (success) {
+      const q = Quest.state;
+      if (q.kind === 'base') {
+        SaveSys.data.bases[q.id] = true;
+        const b = DATA.BASES.find(b => b.id === q.id);
+        R.warnMsg = '✦ 基地「' + (b ? b.name : '') + '」を解放した!魂の広場にゲートが開いた';
+      } else {
+        SaveSys.data.ports[q.id] = true;
+        const p = DATA.PORTS.find(p => p.id === q.id);
+        R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ';
+      }
+      R.warnColor = null; R.warnT = 5;
+      SaveSys.save();
+      SaveSys.checkAchievements();
+      Sfx.unlock();
+    }
+    Sfx.setScene('run');
+  }
+
   function pauseFor(kind){
     overlay = kind;
     if (kind === 'station') show('station-panel');
@@ -93,19 +129,21 @@ const Game = (() => {
 
   // ---------------- 入力(フレーム毎) ----------------
   function handleKeys(){
-    if (Input.once('Tab')) toggleSkillPanel();
+    if (Input.once('Tab') && state !== 'quest') toggleSkillPanel();
     if (Input.once('KeyN') && state === 'run') Run.toggleMap();
     if (Input.once('KeyM')) {
       const m = Sfx.toggleMute();
       if (state === 'run') { Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON'; Run.state.warnT = 1.2; }
     }
     if (Input.once('KeyE') || Input.once('Space')) {
-      if (!overlay) {
+      if (state === 'quest') Quest.doInteract();
+      else if (!overlay) {
         if (state === 'run') Run.doInteract();
         else if (state === 'hub') Hub.doInteract();
       }
     }
     if (Input.once('KeyP') || Input.once('Escape')) {
+      if (state === 'quest') { exitQuest(false); return; }
       if (overlay === 'skill') toggleSkillPanel();
       else if (overlay === 'station') closeStation();
       else togglePause();
@@ -129,6 +167,9 @@ const Game = (() => {
       Run.updateHud(dt);
       Sfx.setScene(R.time >= DATA.REAPER_AT ? 'reaper' : (R.bossAlive && !R.bossAlive.dead) ? 'boss' : 'run');
       if (R.over && overlay !== 'result') endRun(false);
+    } else if (state === 'quest') {
+      Quest.update(dt);
+      Quest.draw(g, W, H);
     } else if (state === 'hub') {
       if (!overlay) Hub.update(dt);
       Hub.draw(g, W, H);
@@ -187,11 +228,17 @@ const Game = (() => {
   el('pause-retire').onclick = () => { endRun(true); };
   el('btn-skill').onclick = () => toggleSkillPanel();
   el('btn-act').onclick = () => {
+    if (state === 'quest') { Quest.doInteract(); return; }
     if (!overlay) {
       if (state === 'run') Run.doInteract();
       else if (state === 'hub') Hub.doInteract();
     }
   };
+  el('dialog-box').addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('dlg-choice')) return;   // 選択肢は自身のonclick
+    Quest.doInteract();
+  });
+  el('quest-exit').onclick = () => { if (state === 'quest') exitQuest(false); };
 
   // ---------------- 起動 ----------------
   SaveSys.load();
@@ -203,5 +250,5 @@ const Game = (() => {
   setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成
   requestAnimationFrame(loop);
 
-  return { startRun, pauseFor, closeStation, toHub, get state(){ return state; } };
+  return { startRun, pauseFor, closeStation, toHub, enterQuest, exitQuest, get state(){ return state; } };
 })();
