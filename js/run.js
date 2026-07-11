@@ -126,6 +126,7 @@ const Run = (() => {
   function start(startPos){
     Skills.reset();
     World.resetRun();
+    Quest.reset();
     R.time = 0;
     R.player = { x:startPos.x, y:startPos.y, hp:1, dir:1, moveA:0,
                  onBoat:false, boatAnchor:null, invuln:0 };
@@ -204,6 +205,7 @@ const Run = (() => {
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
     if (e.def.rare) { R.rareKills++; R.warnMsg = '✨ レアモンスターを倒した!'; R.warnT = 3; }
+    Quest.notifyKill(e.defKey);   // 討伐クエストの進行
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
@@ -376,8 +378,16 @@ const Run = (() => {
       }
       if (d < 26) {
         if (pk.type === 'coin') { R.coins += pk.value; Sfx.coin(); effect('spark', pk.x, pk.y, { color:'#ffd766' }); }
-        else if (pk.type === 'mat') { Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat();
-          effect('spark', pk.x, pk.y, { color: DATA.MATERIALS[pk.mat].color }); }
+        else if (pk.type === 'mat') {
+          Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat();
+          effect('spark', pk.x, pk.y, { color: DATA.MATERIALS[pk.mat].color });
+          // 「〜を手に入れた」テキスト(同じ素材の連続入手は間引く)
+          R.matPopT = R.matPopT || {};
+          if (R.time - (R.matPopT[pk.mat] || -9) > 0.8) {
+            R.matPopT[pk.mat] = R.time;
+            popup(p.x, p.y - 34, DATA.MATERIALS[pk.mat].name + ' を手に入れた', DATA.MATERIALS[pk.mat].color);
+          }
+        }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         R.pickups.splice(i, 1);
       }
@@ -467,6 +477,9 @@ const Run = (() => {
       let pick = pool[0].k;
       for (const q of pool) { r -= q.w; if (r <= 0) { pick = q.k; break; } }
       if (Math.random() < 0.006) pick = 'rainbow';   // レアモンスター
+      // 討伐クエスト中は対象の敵が湧きやすい
+      const qe = Quest.wantSpawn();
+      if (qe && Math.random() < 0.35 && R.enemies.filter(e => e.defKey === qe).length < 6) pick = qe;
       spawnEnemy(pick);
     }
     // ボス
@@ -646,6 +659,19 @@ const Run = (() => {
     }
   }
 
+  // 同心円スロット: リング0=密着(34px)、以降+24pxずつ。定員はリングごとに増える
+  function slotPos(i){
+    let ring = 0, cap = 6, start = 0;
+    while (i >= start + cap) { start += cap; ring++; cap = 6 + ring * 4; }
+    const idx = i - start;
+    const ang = idx / cap * Math.PI * 2 + ring * 0.5;
+    const rad = 34 + ring * 24;
+    return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
+  }
+  function formationRadius(n){
+    return n <= 0 ? 0 : slotPos(n - 1).rad;
+  }
+
   function updateAllies(dt){
     const p = R.player;
     const wb = Skills.stat('warbanner');
@@ -668,11 +694,12 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      // ターゲット探索: プレイヤー周辺の敵のみ(仲間は常に主人公の周りを追尾)
-      let tgt = null, td = 380;
+      // ターゲット探索: 陣形半径+αの敵のみ(仲間は主人公から一定以上離れない)
+      const leash = formationRadius(n) + 110;
+      let tgt = null, td = leash;
       for (const e of R.enemies) {
         if (e.dead) continue;
-        if (Math.hypot(e.x - p.x, e.y - p.y) > 380) continue;   // リーシュ: 主から離れる敵は追わない
+        if (Math.hypot(e.x - p.x, e.y - p.y) > leash) continue;
         const d = Math.hypot(e.x - a.x, e.y - a.y);
         if (d < td) { tgt = e; td = d; }
       }
@@ -702,16 +729,13 @@ const Run = (() => {
           dest = null;
         }
       } else {
-        // 固定陣形スロット(周囲リング状)。主人公が動くと同じように動く
+        // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる
         if (a.slot === undefined) a.slot = i;
-        const ringIdx = Math.floor(a.slot / 10);
-        const ang = (a.slot % 10) / 10 * Math.PI * 2 + ringIdx * 0.32;
-        const rad = 62 + ringIdx * 36;
-        dest = { x: p.x + Math.cos(ang) * rad, y: p.y + Math.sin(ang) * rad };
+        const sp2 = slotPos(a.slot);
+        dest = { x: p.x + sp2.x, y: p.y + sp2.y };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-        if (d < 8) dest = null;
-        if (d > 520) { a.x = p.x + rnd(-40, 40); a.y = p.y + rnd(-40, 40); dest = null; } // ワープ追従
-        spd = Math.max(spd, R.stats.speed * 1.25);   // 陣形追従は主人公に置いていかれない速度
+        if (d < 6) dest = null;
+        spd = Math.max(spd, R.stats.speed * 1.3);   // 陣形追従は主人公に置いていかれない速度
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
@@ -721,6 +745,15 @@ const Run = (() => {
         if (canStand(a.def, nx, ny)) { a.x = nx; a.y = ny; }
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
+      }
+      // ハードリーシュ: 主人公から一定以上は絶対に離れない
+      {
+        const maxD = formationRadius(n) + 150;
+        const dd = Math.hypot(a.x - p.x, a.y - p.y);
+        if (dd > maxD) {
+          a.x = p.x + (a.x - p.x) / dd * maxD;
+          a.y = p.y + (a.y - p.y) / dd * maxD;
+        }
       }
       // ヒーラー仲間: プレイヤーと仲間を回復
       if (a.def.heal) {
@@ -1249,11 +1282,17 @@ const Run = (() => {
     for (const b of World.bases) {
       const d = Math.hypot(p.x - b.x, p.y - b.y);
       if (d < 90 && !SaveSys.data.bases[b.id]) {
-        R.interact = { type:'basequest', base:b, label:'E: 「' + b.name + '」を調べる(クエスト)' };
+        const qa = Quest.activeFor('base', b.id);
+        const lbl = qa && Quest.active.phase === 'return' ? 'E: 報告する ❗'
+                  : qa ? 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す(依頼進行中)'
+                  : 'E: 「' + b.name + '」を調べる';
+        R.interact = { type:'basequest', base:b, label:lbl };
       } else if (d < 90 && SaveSys.data.bases[b.id] && DATA.QUESTS[b.id]) {
+        const q2ret = Quest.activeFor('base2', b.id) && Quest.active.phase === 'return';
         const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]);
         R.interact = { type:'npctalk', base:b,
-          label:'E: ' + DATA.QUESTS[b.id].npcName + 'と話す' + (q2left ? ' ❗依頼あり' : '') };
+          label: q2ret ? 'E: 報告する ❗'
+               : 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す' + (q2left && !Quest.active ? ' ❗依頼あり' : '') };
       }
       if (d < 150 && SaveSys.data.bases[b.id]) {
         p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
@@ -1287,8 +1326,8 @@ const Run = (() => {
     const p = R.player;
     const it = R.interact;
     if (!it) return;
-    if (it.type === 'portquest') Game.enterQuest('port', it.port.id);
-    else if (it.type === 'basequest') Game.enterQuest('base', it.base.id);
+    if (it.type === 'portquest') Quest.offer('port', it.port.id);
+    else if (it.type === 'basequest') Quest.offer('base', it.base.id);
     else if (it.type === 'npctalk') Game.npcTalk(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
@@ -1404,15 +1443,15 @@ const Run = (() => {
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
-    // カメラズーム: 仲間が増えるほど引く + 射程が画面からはみ出すなら引く
-    const allyZ = 1 - Math.max(0, R.allies.length - 5) * 0.022;
-    const maxRangePx = 440 * st.range + 80;
-    const rangeZ = (R.viewMin || 800) / (2 * maxRangePx);
-    const zTarget = Math.max(0.5, Math.min(1, allyZ, rangeZ));
-    R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 2);
-    // 射程の画面内キャップを更新
+    // カメラ: 仲間が全員映る最小の視界。最初は狭く、軍勢が育つほど広がる
+    const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
+    const need = Math.max(250, formR + 190);
+    const zTarget = Math.max(0.5, Math.min(1.35, (R.viewMin || 800) / (2 * need)));
+    R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
+    // 射程は見えている範囲まで(視界が広がると射程も活きる)
     R.rangeCapPx = (R.viewMin || 800) / (2 * (R.zoom || 1)) - 40;
 
+    Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
     updateEnemies(dt);
     updateAllies(dt);
@@ -1792,8 +1831,8 @@ const Run = (() => {
   }
 
   function drawMinimap(g, W){
-    // マップ機能は基地を2つ解放するまで存在しない
-    if (Object.keys(SaveSys.data.bases).length < 2) return;
+    // マップは最初の基地を解放する(=古い地図をもらう)まで存在しない
+    if (Object.keys(SaveSys.data.bases).length < 1) return;
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     const x0 = W - sz - 10, y0 = 10;
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
@@ -1815,6 +1854,20 @@ const Run = (() => {
     const seen = SaveSys.data.seen || {};
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
+      else if (SaveSys.data.nextHint === b.id) {
+        // 地図に記された「次の拠点」: 点滅する目印
+        if (view.inView(b.x, b.y)) {
+          const q = view.toMM(b.x, b.y);
+          if (q.x >= 0 && q.x <= World.MM_SIZE && q.y >= 0 && q.y <= World.MM_SIZE) {
+            g.fillStyle = '#ffd766';
+            g.globalAlpha = 0.6 + 0.4 * Math.sin(R.time * 5);
+            g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, 4, 0, 7); g.fill();
+            g.globalAlpha = 1;
+            g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ffd766';
+            g.fillText('?', x0 + q.x * mmScale, y0 + q.y * mmScale + 3);
+          }
+        }
+      }
       else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
     }
     for (const port of World.ports) {
@@ -1872,6 +1925,12 @@ const Run = (() => {
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
+    // マップ内クエストの目標表示
+    const qObj = document.getElementById('quest-obj');
+    if (Quest.active) {
+      qObj.textContent = Quest.objText();
+      qObj.classList.remove('hidden');
+    } else qObj.classList.add('hidden');
     if (R.warnT > 0) {
       warnEl.textContent = R.warnMsg;
       warnEl.style.color = R.warnColor || '';

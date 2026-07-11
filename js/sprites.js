@@ -67,7 +67,6 @@ const Sprites = (() => {
     npc_sailor: { kind:'humanoid',c:'#1f6feb', a:'#e6edf3', opt:{} },
     npc_sage:   { kind:'ghost',   c:'#6e40c9', a:'#d2a8ff', opt:{hood:true} },
     npc_scholar:{ kind:'humanoid',c:'#3fb950', a:'#a5d8ff', opt:{} },
-    q_item:     { kind:'m_star',  c:'#ffd766', a:'#ffffff' },
     st_altar:   { kind:'building',c:'#f0883e', a:'#ffd766', opt:{sym:'⚔'} },
     st_lab:     { kind:'building',c:'#3fb950', a:'#7ee787', opt:{sym:'⚗'} },
     st_camp:    { kind:'building',c:'#58a6ff', a:'#a5d8ff', opt:{sym:'🏕'} },

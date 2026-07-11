@@ -8,7 +8,7 @@
 const Skills = (() => {
   let owned = {};      // id -> lv
   let mats = {};       // mat -> count
-  let revealed = {};   // 一度素材が揃って表示されたスキル(素材が減っても表示され続ける)
+  let revealed = {};   // 一度素材が揃って表示されたスキル(SaveSysに永続化: 周回をまたいでも表示され続ける)
   let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
   let tab = 'new';     // 強化 up / 新規 new / 効果 info / ステータス st
   let cat = 'all';     // カテゴリフィルタ
@@ -16,7 +16,8 @@ const Skills = (() => {
   function reset(){
     owned = { bolt: 1 };
     mats = {};
-    revealed = {};
+    SaveSys.data.skillsRevealed = SaveSys.data.skillsRevealed || {};
+    revealed = SaveSys.data.skillsRevealed;
     seenReady = {};
     tab = 'new'; cat = 'all';
     // 出撃支度+保存術: 基本素材を持って開始
@@ -73,14 +74,17 @@ const Skills = (() => {
   function unseenReadyCount(){
     return readyIds().filter(id => !seenReady[id]).length;
   }
-  // 素材が揃ったスキルを開示済みに記録(以後は素材が減っても表示され続ける)
+  // 素材が揃ったスキルを開示済みに記録(以後は素材が減っても・周回をまたいでも表示され続ける)
   function refreshRevealed(){
+    let changed = false;
     for (const id in DATA.SKILLS) {
-      if (revealed[id] || lv(id) > 0) continue;
+      if (revealed[id]) continue;
+      if (lv(id) > 0) { revealed[id] = true; changed = true; continue; }
       if (!skillUnlocked(id) || !reqMet(id)) continue;
       const cost = nextCost(id);
-      if (cost && costMet(cost)) revealed[id] = true;
+      if (cost && costMet(cost)) { revealed[id] = true; changed = true; }
     }
+    if (changed) SaveSys.save();
   }
 
   function acquire(id){

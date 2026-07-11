@@ -202,10 +202,22 @@ const World = (() => {
   function minimapView(cx, cy, mode){
     const img = worldImage();
     if (mode === 'world') {
+      // 全体図は「知っている世界」の広さに合わせてズーム(序盤は初期の島が大きく映り、
+      // 発見が広がるほど地図も広がる)
+      let ext = 30000;
+      const seen = SaveSys.data.seen || {};
+      const consider = (x, y) => { ext = Math.max(ext, Math.abs(x) * 1.2, Math.abs(y) * 1.2); };
+      for (const b of bases) if (SaveSys.data.bases[b.id] || seen[b.id]) consider(b.x, b.y);
+      for (const p of ports) if (SaveSys.data.ports[p.id] || seen[p.id]) consider(p.x, p.y);
+      consider(cx, cy);
+      ext = Math.min(ext, MM_EXTENT);
+      const wScale = WM_RES / (MM_EXTENT * 2);
+      const sw = ext * 2 * wScale;
+      const sx = (MM_EXTENT - ext) * wScale;
       return {
-        img, sx: 0, sy: 0, sw: WM_RES,
-        toMM(x, y){ return { x: (x / MM_EXTENT + 1) / 2 * MM_SIZE, y: (y / MM_EXTENT + 1) / 2 * MM_SIZE }; },
-        inView(){ return true; },
+        img, sx, sy: sx, sw,
+        toMM(x, y){ return { x: (x / ext + 1) / 2 * MM_SIZE, y: (y / ext + 1) / 2 * MM_SIZE }; },
+        inView(x, y){ return Math.abs(x) < ext && Math.abs(y) < ext; },
       };
     }
     const scale = WM_RES / (MM_EXTENT * 2);           // world→画像px
