@@ -14,7 +14,7 @@ const Quest = (() => {
 
   // ---------------- 開始 ----------------
   function start(kind, id){
-    const def = DATA.QUESTS[id];
+    const def = kind === 'base2' ? DATA.QUESTS2[id] : DATA.QUESTS[id];
     if (!def) return false;
     Q.kind = kind; Q.id = id; Q.def = def;
     Q.w = 1500; Q.h = 1000;
@@ -27,7 +27,7 @@ const Quest = (() => {
     Q.timer = def.time || 0;
     Q.spawnAcc = 0; Q.time = 0;
     // 場所のバイオームと危険度(敵スケールに使用)
-    const loc = kind === 'base' ? DATA.BASES.find(b => b.id === id)
+    const loc = (kind === 'base' || kind === 'base2') ? DATA.BASES.find(b => b.id === id)
                                 : World.ports.find(p => p.id === id);
     Q.biome = loc ? (World.tileAt(loc.x, loc.y).biome || 'grass') : 'grass';
     Q.ring = loc ? World.ringOf(loc.x, loc.y) : 0;

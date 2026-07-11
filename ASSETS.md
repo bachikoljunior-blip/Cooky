@@ -159,6 +159,8 @@
 | `sk_confuse` | 混沌の瘴気(敵を同士討ちに・書庫で解放) |
 | `sk_curse` | 衰弱の呪印(敵の被ダメ増・書庫で解放) |
 | `sk_prism` | 虹の奔流(実績「幻を見た者」で解放) |
+| `sk_oath` | 老兵の誓い(クエスト報酬・仲間攻撃UP) |
+| `sk_relic` | 遺跡の加護(クエスト報酬・全能力UP) |
 | `sk_p_*` | 「心得」パッシブ群26種(未定義の場合は素材色の◆アイコンが自動生成される。個別に上書き可: sk_p_vital, sk_p_power, sk_p_swift, sk_p_guard, sk_p_mend, sk_p_reach, sk_p_greed, sk_p_forage, sk_p_keen, sk_p_haste, sk_p_might, sk_p_hunter, sk_p_slayer, sk_p_warder, sk_p_leader, sk_p_shepherd, sk_p_beacon, sk_p_thorn, sk_p_sea, sk_p_scholar, sk_p_flame, sk_p_ice, sk_p_storm, sk_p_veil, sk_p_epoch, sk_p_phantom) |
 | `sk_laser` | プリズムレーザー(書庫で解放) |
 | `sk_meteor` | メテオストーム(書庫で解放) |

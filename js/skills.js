@@ -34,6 +34,7 @@ const Skills = (() => {
   function skillUnlocked(id){
     const def = DATA.SKILLS[id];
     if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) return false;   // 実績で解放
+    if (def.unlockQuest && !(SaveSys.data.quests2 && SaveSys.data.quests2[def.unlockQuest])) return false; // クエスト報酬
     return def.innate || !def.unlock || SaveSys.metaLv(def.unlock) > 0;
   }
   // 前提スキル: 特定スキルを育てていないと出現しないスキル

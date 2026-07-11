@@ -1232,11 +1232,15 @@ const Run = (() => {
     R.interact = null;
     R.baseChannel = null;
 
-    // 基地: 未解放ならクエストへ(E)。解放済みは安全地帯(微回復)
+    // 基地: 未解放ならクエストへ(E)。解放済みはNPCと再会話でき、安全地帯(微回復)
     for (const b of World.bases) {
       const d = Math.hypot(p.x - b.x, p.y - b.y);
       if (d < 90 && !SaveSys.data.bases[b.id]) {
         R.interact = { type:'basequest', base:b, label:'E: 「' + b.name + '」を調べる(クエスト)' };
+      } else if (d < 90 && SaveSys.data.bases[b.id] && DATA.QUESTS[b.id]) {
+        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]);
+        R.interact = { type:'npctalk', base:b,
+          label:'E: ' + DATA.QUESTS[b.id].npcName + 'と話す' + (q2left ? ' ❗依頼あり' : '') };
       }
       if (d < 150 && SaveSys.data.bases[b.id]) {
         p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
@@ -1272,6 +1276,7 @@ const Run = (() => {
     if (!it) return;
     if (it.type === 'portquest') Game.enterQuest('port', it.port.id);
     else if (it.type === 'basequest') Game.enterQuest('base', it.base.id);
+    else if (it.type === 'npctalk') Game.npcTalk(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
   }
@@ -1501,6 +1506,7 @@ const Run = (() => {
     // 港・基地・停泊船
     for (const port of World.ports) {
       Sprites.draw(g, 'ob_dock', port.x, port.y, 56);
+      Sprites.draw(g, 'npc_sailor', port.x + 36, port.y - 14, 30);
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
       else Sprites.draw(g, 'ob_wreck', port.seaX, port.seaY, 44);
       g.fillStyle = '#e6edf3'; g.font = '11px sans-serif'; g.textAlign = 'center';
@@ -1509,6 +1515,13 @@ const Run = (() => {
     for (const b of World.bases) {
       const un = SaveSys.data.bases[b.id];
       Sprites.draw(g, 'ob_flag', b.x, b.y, 48);
+      if (un && DATA.QUESTS[b.id]) {
+        Sprites.draw(g, DATA.QUESTS[b.id].npc, b.x + 42, b.y + 8, 34);
+        if (DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id])) {
+          g.fillStyle = '#ffd766'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
+          g.fillText('❗', b.x + 42, b.y - 16);
+        }
+      }
       if (un) {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();

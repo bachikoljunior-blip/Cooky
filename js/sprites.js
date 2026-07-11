@@ -100,6 +100,8 @@ const Sprites = (() => {
     sk_confuse: { kind:'icon', c:'#c084fc', a:'#e6edf3', opt:{sym:'?' } },
     sk_curse:   { kind:'icon', c:'#6e40c9', a:'#a78bfa', opt:{sym:'†' } },
     sk_prism:   { kind:'icon', c:'#e879f9', a:'#fde047', opt:{sym:'✧' } },
+    sk_oath:    { kind:'icon', c:'#8b949e', a:'#ffd766', opt:{sym:'誓' } },
+    sk_relic:   { kind:'icon', c:'#3fb950', a:'#a5d8ff', opt:{sym:'遺' } },
     sk_laser:   { kind:'icon', c:'#d2a8ff', a:'#ffffff', opt:{sym:'≡' } },
     sk_meteor:  { kind:'icon', c:'#f0883e', a:'#f85149', opt:{sym:'☄' } },
     sk_sands:   { kind:'icon', c:'#d29922', a:'#fde047', opt:{sym:'⌛' } },

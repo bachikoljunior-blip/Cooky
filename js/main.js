@@ -43,6 +43,64 @@ const Game = (() => {
     Sfx.setScene('run');
   }
 
+  // ---------------- 周回中のNPC会話 ----------------
+  let runDlg = null;
+  function openRunDialog(name, lines, onDone){
+    overlay = 'dialog';
+    el('dialog-name').textContent = name;
+    el('dialog-choices').innerHTML = '';
+    runDlg = { lines: lines.slice(), onDone };
+    show('dialog-box');
+    advanceRunDialog();
+  }
+  function advanceRunDialog(){
+    if (!runDlg) {
+      // 選択肢の表示中などにE/Escで閉じる(「やめておく」扱い)
+      hide('dialog-box');
+      el('dialog-choices').innerHTML = '';
+      overlay = null;
+      return;
+    }
+    if (!runDlg.lines.length) {
+      hide('dialog-box');
+      const cb = runDlg.onDone; runDlg = null;
+      overlay = null;
+      if (cb) cb();
+      return;
+    }
+    el('dialog-text').textContent = runDlg.lines.shift();
+  }
+  // 解放済み基地のNPCと再会話(豆知識 + 2段階目クエストの提案)
+  function npcTalk(baseId){
+    const q = DATA.QUESTS[baseId];
+    if (!q) return;
+    const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
+    const lines = (q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。'])
+      .concat(['「' + tip + '」']);
+    const q2 = DATA.QUESTS2[baseId];
+    const done2 = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
+    openRunDialog(q.npcName, lines, () => {
+      if (!q2 || done2) return;
+      // 追加依頼の提案
+      overlay = 'dialog';
+      el('dialog-name').textContent = q.npcName;
+      el('dialog-text').textContent = q2.offer;
+      el('dialog-choices').innerHTML = `
+        <button class="dlg-choice" id="dlg-q2yes">依頼を受ける</button>
+        <button class="dlg-choice sub" id="dlg-q2no">やめておく</button>`;
+      show('dialog-box');
+      el('dlg-q2yes').onclick = () => {
+        el('dialog-choices').innerHTML = '';
+        hide('dialog-box'); overlay = null;
+        enterQuest('base2', baseId);
+      };
+      el('dlg-q2no').onclick = () => {
+        el('dialog-choices').innerHTML = '';
+        hide('dialog-box'); overlay = null;
+      };
+    });
+  }
+
   // クエスト転移(周回は一時停止したまま保持される)
   function enterQuest(kind, id){
     if (state !== 'run') return;
@@ -62,6 +120,21 @@ const Game = (() => {
     const R = Run.state;
     if (success) {
       const q = Quest.state;
+      if (q.kind === 'base2') {
+        // 追加依頼クリア: 報酬を獲得(限定スキルはquests2フラグで解放される)
+        SaveSys.data.quests2 = SaveSys.data.quests2 || {};
+        SaveSys.data.quests2[q.id] = true;
+        const rw = q.def.reward || {};
+        let txt = [];
+        if (rw.coins) { R.coins += rw.coins; txt.push('🪙' + rw.coins); }
+        for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
+        R.warnMsg = '🎁 依頼達成! 報酬: ' + txt.join('・');
+        R.warnColor = '#ffd766'; R.warnT = 5;
+        SaveSys.save();
+        Sfx.unlock();
+        Sfx.setScene('run');
+        return;
+      }
       if (q.kind === 'base') {
         SaveSys.data.bases[q.id] = true;
         const b = DATA.BASES.find(b => b.id === q.id);
@@ -136,13 +209,15 @@ const Game = (() => {
       if (state === 'run') { Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON'; Run.state.warnT = 1.2; }
     }
     if (Input.once('KeyE') || Input.once('Space')) {
-      if (state === 'quest') Quest.doInteract();
+      if (overlay === 'dialog') advanceRunDialog();
+      else if (state === 'quest') Quest.doInteract();
       else if (!overlay) {
         if (state === 'run') Run.doInteract();
         else if (state === 'hub') Hub.doInteract();
       }
     }
     if (Input.once('KeyP') || Input.once('Escape')) {
+      if (overlay === 'dialog') { advanceRunDialog(); return; }
       if (state === 'quest') { exitQuest(false); return; }
       if (overlay === 'skill') toggleSkillPanel();
       else if (overlay === 'station') closeStation();
@@ -228,6 +303,7 @@ const Game = (() => {
   el('pause-retire').onclick = () => { endRun(true); };
   el('btn-skill').onclick = () => toggleSkillPanel();
   el('btn-act').onclick = () => {
+    if (overlay === 'dialog') { advanceRunDialog(); return; }
     if (state === 'quest') { Quest.doInteract(); return; }
     if (!overlay) {
       if (state === 'run') Run.doInteract();
@@ -236,7 +312,8 @@ const Game = (() => {
   };
   el('dialog-box').addEventListener('pointerdown', e => {
     if (e.target.classList.contains('dlg-choice')) return;   // 選択肢は自身のonclick
-    Quest.doInteract();
+    if (overlay === 'dialog') advanceRunDialog();
+    else if (state === 'quest') Quest.doInteract();
   });
   el('quest-exit').onclick = () => { if (state === 'quest') exitQuest(false); };
 
@@ -250,5 +327,5 @@ const Game = (() => {
   setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成
   requestAnimationFrame(loop);
 
-  return { startRun, pauseFor, closeStation, toHub, enterQuest, exitQuest, get state(){ return state; } };
+  return { startRun, pauseFor, closeStation, toHub, enterQuest, exitQuest, npcTalk, get state(){ return state; } };
 })();

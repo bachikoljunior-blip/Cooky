@@ -15,6 +15,7 @@ const SaveSys = (() => {
       stats: { runs:0, kills:0, bestTime:0, totalCoins:0, recruits:0, bossKills:0, reaperKills:0, maxDist:0,
                matsCollected:0, objectsDestroyed:0, skillsAcquired:0, rareKills:0, maxAlliesEver:0, deaths:0 },
       ach: {},        // 解放済み実績 id -> true
+      quests2: {},    // クリア済みの2段階目クエスト id -> true
       explored: [],   // 行ったことのある場所(霧マップ用セル)
       settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
       seenHelp: false,
