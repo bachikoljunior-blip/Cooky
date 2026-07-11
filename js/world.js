@@ -6,20 +6,20 @@
 
 const World = (() => {
 
-  // 疑似ノイズ(角度ベースの海岸線ゆらぎ)
-  function wob(a, s){
-    return Math.sin(a*3 + s) * 0.5 + Math.sin(a*7 + s*2.3) * 0.3 + Math.sin(a*13 + s*4.1) * 0.2;
+  // 疑似ノイズ(角度ベースの海岸線ゆらぎ)。lobesで岬の数、ampで凹凸の激しさが変わる
+  function wob(a, s, lobes){
+    return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.3 + Math.sin(a * 13 + s * 4.1) * 0.2;
   }
   function edgeR(cont, angle){
-    return cont.r * (1 + 0.13 * wob(angle, cont.seed));
+    return cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
   }
 
-  // その座標を含む大陸を返す(なければ null)
+  // その座標を含む大陸を返す(なければ null)。sx/syの伸縮で多様な形になる
   function landAt(x, y){
     for (const c of DATA.CONTINENTS) {
-      const dx = x - c.x, dy = y - c.y;
+      const dx = (x - c.x) / (c.sx || 1), dy = (y - c.y) / (c.sy || 1);
       const d = Math.hypot(dx, dy);
-      if (d > c.r * 1.2) continue;
+      if (d > c.r * 1.55) continue;
       const e = edgeR(c, Math.atan2(dy, dx));
       if (d < e) return { cont: c, d, edge: e };
     }
@@ -31,25 +31,37 @@ const World = (() => {
   function terrainAt(x, y){
     const L = landAt(x, y);
     if (L) return (L.d > L.edge - 90) ? 'sand' : 'grass';
-    // 深海判定: どの大陸の縁からも遠い
     let minGap = 1e9;
     for (const c of DATA.CONTINENTS) {
-      const d = Math.hypot(x - c.x, y - c.y) - c.r;
+      const d = Math.hypot(x - c.x, y - c.y) - c.r * Math.max(c.sx || 1, c.sy || 1);
       if (d < minGap) minGap = d;
     }
     return minGap > 2200 ? 'deep' : 'sea';
+  }
+
+  // タイル情報: 地形タイプ + バイオーム(描画用)
+  function tileAt(x, y){
+    const L = landAt(x, y);
+    if (L) return { t: (L.d > L.edge - 90) ? 'sand' : 'grass', biome: L.cont.biome || 'grass' };
+    let minGap = 1e9;
+    for (const c of DATA.CONTINENTS) {
+      const d = Math.hypot(x - c.x, y - c.y) - c.r * Math.max(c.sx || 1, c.sy || 1);
+      if (d < minGap) minGap = d;
+    }
+    return { t: minGap > 2200 ? 'deep' : 'sea', biome: 'grass' };
   }
 
   // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
   const main = DATA.CONTINENTS[0];
   const ports = DATA.PORTS.map(p => {
     const e = edgeR(main, p.angle);
+    const sx = main.sx || 1, sy = main.sy || 1;
     return {
       ...p,
-      x: main.x + Math.cos(p.angle) * (e - 50),   // 陸側ドック
-      y: main.y + Math.sin(p.angle) * (e - 50),
-      seaX: main.x + Math.cos(p.angle) * (e + 90), // 出航ポイント(海側)
-      seaY: main.y + Math.sin(p.angle) * (e + 90),
+      x: main.x + Math.cos(p.angle) * (e - 60) * sx,   // 陸側ドック
+      y: main.y + Math.sin(p.angle) * (e - 60) * sy,
+      seaX: main.x + Math.cos(p.angle) * (e + 110) * sx, // 出航ポイント(海側)
+      seaY: main.y + Math.sin(p.angle) * (e + 110) * sy,
     };
   });
 
@@ -157,12 +169,13 @@ const World = (() => {
       for (let px = 0; px < WM_RES; px++){
         const wx = (px / WM_RES * 2 - 1) * MM_EXTENT;
         const wy = (py / WM_RES * 2 - 1) * MM_EXTENT;
-        const t = terrainAt(wx, wy);
+        const ti = tileAt(wx, wy);
         const i = (py * WM_RES + px) * 4;
         let c;
-        if (t === 'grass') c = [46, 100, 60];
-        else if (t === 'sand') c = [160, 140, 90];
-        else if (t === 'sea') c = [22, 50, 92];
+        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
+        if (ti.t === 'grass') c = bio.mm;
+        else if (ti.t === 'sand') c = [160, 140, 90];
+        else if (ti.t === 'sea') c = [22, 50, 92];
         else c = [12, 28, 58];
         img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 230;
       }
@@ -238,7 +251,7 @@ const World = (() => {
   // 距離リング(敵の強さ)
   function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
 
-  return { isLand, landAt, terrainAt, ports, bases, resetRun,
+  return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun,
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
            initExplored, recordExplore, exploredArray, fogCanvas };

@@ -55,6 +55,13 @@ const Sfx = (() => {
     }, 60000 / BGM_DEFS[name].tempo / 2);
   }
 
+  // ゲーム再開後に音が消える対策: タブ復帰や操作でAudioContextを再開する
+  function tryResume(){ if (ctx && ctx.state === 'suspended') ctx.resume(); }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) tryResume(); });
+  window.addEventListener('pointerdown', tryResume, { passive:true });
+  window.addEventListener('keydown', tryResume);
+  window.addEventListener('focus', tryResume);
+
   return {
     setScene,
     toggleMute(){ muted = !muted; return muted; },

@@ -6,12 +6,17 @@
 'use strict';
 
 const Skills = (() => {
-  let owned = {};   // id -> lv
-  let mats = {};    // mat -> count
+  let owned = {};      // id -> lv
+  let mats = {};       // mat -> count
+  let revealed = {};   // 一度素材が揃って表示されたスキル(素材が減っても表示され続ける)
+  let tab = 'new';     // 強化 up / 新規 new / 効果 info
+  let cat = 'all';     // カテゴリフィルタ
 
   function reset(){
     owned = { bolt: 1 };
     mats = {};
+    revealed = {};
+    tab = 'new'; cat = 'all';
     // 出撃支度+保存術: 基本素材を持って開始
     const s = SaveSys.metaLv('lab_starter') * 2 + SaveSys.metaLv('m_preserve');
     if (s > 0) for (const m of ['jelly','bone','hide','wood']) mats[m] = s;
@@ -48,14 +53,26 @@ const Skills = (() => {
     return true;
   }
   // 取得可能(=素材が全部揃っている)スキルの数。HUDのボタン通知に使う
+  function hiddenByUser(id){
+    return lv(id) === 0 && SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
+  }
   function readyCount(){
     let n = 0;
     for (const id in DATA.SKILLS) {
-      if (!skillUnlocked(id) || !reqMet(id)) continue;
+      if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) continue;
       const cost = nextCost(id);
       if (cost && costMet(cost)) n++;
     }
     return n;
+  }
+  // 素材が揃ったスキルを開示済みに記録(以後は素材が減っても表示され続ける)
+  function refreshRevealed(){
+    for (const id in DATA.SKILLS) {
+      if (revealed[id] || lv(id) > 0) continue;
+      if (!skillUnlocked(id) || !reqMet(id)) continue;
+      const cost = nextCost(id);
+      if (cost && costMet(cost)) revealed[id] = true;
+    }
   }
 
   function acquire(id){
@@ -65,6 +82,8 @@ const Skills = (() => {
     for (const m in cost) mats[m] -= cost[m];
     owned[id] = lv(id) + 1;
     SaveSys.data.stats.skillsAcquired = (SaveSys.data.stats.skillsAcquired || 0) + 1;   // 実績用
+    SaveSys.data.skillsSeen = SaveSys.data.skillsSeen || {};
+    SaveSys.data.skillsSeen[id] = true;   // 生涯解放記録(基地の表示設定に使う)
     Sfx.skill();
     return true;
   }
@@ -85,53 +104,104 @@ const Skills = (() => {
     return h + '</div>';
   }
 
+  const tabsEl = document.getElementById('skill-tabs');
+  const catsEl = document.getElementById('skill-cats');
+
+  function skillCard(id, opts = {}){
+    const def = DATA.SKILLS[id];
+    const l = lv(id);
+    const cost = nextCost(id);
+    const can = cost && costMet(cost);
+    const nextTxt = l === 0 ? def.desc : (cost ? 'Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化') : '最大レベル');
+    const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
+    return `<div class="skill-card ${can ? 'ready' : ''}">
+      <img class="icon" src="${iconUrl}" alt="">
+      <div class="info">
+        <div class="name">${def.name} ${l > 0 ? 'Lv' + l + (cost ? ' → Lv' + (l+1) : ' (MAX)') : '<span class="small">(新規)</span>'}</div>
+        <div class="desc">${nextTxt}</div>
+        ${cost ? costHtml(cost) : ''}
+      </div>
+      ${cost ? `<button class="buy-btn" data-skill="${id}" ${can ? '' : 'disabled'}>${l > 0 ? 'レベルUP' : '取得'}</button>` : ''}
+    </div>`;
+  }
+
+  // 効果タブ: 取得済みスキルの既存効果一覧
+  function infoCard(id){
+    const def = DATA.SKILLS[id];
+    const l = lv(id);
+    const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
+    let fx = '<div class="fx-line">Lv1: ' + def.desc + '</div>';
+    for (let i = 2; i <= l; i++) fx += '<div class="fx-line">Lv' + i + ': ' + (def.lvText[i-2] || '強化') + '</div>';
+    return `<div class="skill-card">
+      <img class="icon" src="${iconUrl}" alt="">
+      <div class="info"><div class="name">${def.name} Lv${l}</div>${fx}</div>
+    </div>`;
+  }
+
+  function catCount(catKey, ids){
+    return ids.filter(id => catKey === 'all' || DATA.SKILLS[id].cat === catKey)
+              .filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
+  }
+
   function render(){
-    // 所持スキル一覧
-    let oh = '';
-    for (const id in owned) {
-      oh += `<span class="owned-chip">${DATA.SKILLS[id].name} Lv${owned[id]}</span>`;
-    }
-    ownedEl.innerHTML = oh || '<span class="small">まだスキルなし</span>';
-
-    // 素材が揃ったスキルだけを表示(スキルは無数にあり、素材が集まるまで見えない)
-    const ready = [], maxed = [];
+    refreshRevealed();
+    // 対象リスト
+    const upIds = [], newIds = [];
     for (const id in DATA.SKILLS) {
-      if (!skillUnlocked(id) || !reqMet(id)) continue;
-      const cost = nextCost(id);
-      if (cost === null) { if (lv(id) > 0) maxed.push(id); continue; }
-      if (costMet(cost)) ready.push({ id, cost });
+      if (lv(id) > 0) { upIds.push(id); continue; }
+      if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) continue;
+      if (revealed[id]) newIds.push(id);
+    }
+    // 取得可能を先頭に
+    const sortReady = ids => ids.sort((a, b) => {
+      const ca = nextCost(a), cb = nextCost(b);
+      return ((cb && costMet(cb)) ? 1 : 0) - ((ca && costMet(ca)) ? 1 : 0);
+    });
+    sortReady(upIds); sortReady(newIds);
+
+    const upReady = upIds.filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
+    const newReady = newIds.filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
+
+    // タブバー
+    tabsEl.innerHTML = `
+      <button class="stab ${tab==='up'?'on':''}" data-tab="up">強化 <span class="stab-n">${upIds.length}</span>${upReady ? '<span class="stab-badge">'+upReady+'</span>' : ''}</button>
+      <button class="stab ${tab==='new'?'on':''}" data-tab="new">新規 <span class="stab-n">${newIds.length}</span>${newReady ? '<span class="stab-badge">'+newReady+'</span>' : ''}</button>
+      <button class="stab ${tab==='info'?'on':''}" data-tab="info">効果一覧</button>`;
+    tabsEl.querySelectorAll('.stab').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
+
+    // カテゴリタブ(取得/強化できるものがあるカテゴリには●)
+    if (tab === 'info') { catsEl.innerHTML = ''; }
+    else {
+      const ids = tab === 'up' ? upIds : newIds;
+      let ch = `<button class="scat ${cat==='all'?'on':''}" data-cat="all">全て${catCount('all', ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
+      for (const ck in DATA.SKILL_CATS) {
+        ch += `<button class="scat ${cat===ck?'on':''}" data-cat="${ck}">${DATA.SKILL_CATS[ck]}${catCount(ck, ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
+      }
+      catsEl.innerHTML = ch;
+      catsEl.querySelectorAll('.scat').forEach(b => b.onclick = () => { cat = b.dataset.cat; render(); });
     }
 
+    // 本文
     let h = '';
-    const card = (e, isReady) => {
-      const def = DATA.SKILLS[e.id];
-      const l = lv(e.id);
-      const nextTxt = l === 0 ? def.desc : ('Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化'));
-      const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
-      return `<div class="skill-card ${isReady ? 'ready' : ''}">
-        <img class="icon" src="${iconUrl}" alt="">
-        <div class="info">
-          <div class="name">${def.name} ${l > 0 ? 'Lv' + l + ' → Lv' + (l+1) : '<span class="small">(新規)</span>'}</div>
-          <div class="desc">${nextTxt}</div>
-          ${costHtml(e.cost)}
-        </div>
-        ${isReady ? `<button class="buy-btn" data-skill="${e.id}">${l > 0 ? 'レベルUP' : '取得'}</button>` : ''}
-      </div>`;
-    };
-    if (ready.length) {
-      h += '<div class="sec-head">✦ 素材が揃った!(' + ready.length + '件)</div>';
-      for (const e of ready) h += card(e, true);
+    if (tab === 'info') {
+      const ids = Object.keys(owned);
+      h = ids.length ? ids.map(infoCard).join('') : '<p class="small" style="padding:20px">まだスキルがない。</p>';
+    } else {
+      const ids = (tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat);
+      if (ids.length) h = ids.map(id => skillCard(id)).join('');
+      else h = tab === 'up'
+        ? '<p class="small" style="padding:20px">このカテゴリの取得済みスキルはまだない。</p>'
+        : '<p class="small" style="padding:20px">スキルは無数にある。素材を集めると、素材が揃ったスキルがここに現れる(一度現れたスキルは残り続ける)。</p>';
     }
-    if (maxed.length) {
-      h += '<div class="sec-head">上限到達(書庫で上限解放可能)</div>';
-      for (const id of maxed) h += `<div class="skill-card"><div class="info"><div class="name">${DATA.SKILLS[id].name} Lv${lv(id)} (MAX)</div></div></div>`;
-    }
-    if (!h) h = '<p class="small" style="padding:20px">スキルは無数にある。敵やオブジェクトを壊して素材を集めると、素材が揃ったスキルだけがここに現れる。</p>';
     listEl.innerHTML = h;
-
     listEl.querySelectorAll('.buy-btn').forEach(b => {
       b.onclick = () => { if (acquire(b.dataset.skill)) render(); };
     });
+
+    // 所持サマリ
+    let oh = '';
+    for (const id in owned) oh += `<span class="owned-chip">${DATA.SKILLS[id].name} Lv${owned[id]}</span>`;
+    ownedEl.innerHTML = oh || '<span class="small">まだスキルなし</span>';
   }
 
   function open(){ render(); panel.classList.remove('hidden'); }
@@ -139,6 +209,6 @@ const Skills = (() => {
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
   return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
-           nextCost, costMet, acquire, open, close, isOpen, render, readyCount, reqMet,
+           nextCost, costMet, acquire, open, close, isOpen, render, readyCount, reqMet, refreshRevealed,
            get owned(){ return owned; } };
 })();

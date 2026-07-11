@@ -43,7 +43,7 @@ function matCost(lv, base, extras){
 // lvText[lv-2] = lv へ上げた時の強化説明(レベルごとに違う強化)
 DATA.SKILLS = {
   bolt: {
-    name:'マジックボルト', icon:'sk_bolt', innate:true,
+    name:'マジックボルト', cat:'atk', icon:'sk_bolt', innate:true,
     desc:'最も近い敵へ自動で魔弾を放つ。最初から持っている基本攻撃。',
     cost:(lv)=>matCost(lv,{jelly:3,bone:2},[{from:4,mat:crystalKey(),qty:2},{from:7,mat:'magic',qty:2}]),
     lvText:['威力+50%','2連射になる','連射間隔-20%','威力+60%','3連射になる','貫通+1','連射間隔-25%','威力+80%','4連射・弾速アップ'],
@@ -52,7 +52,7 @@ DATA.SKILLS = {
       cd:0.9*(lv>=3?0.8:1)*(lv>=7?0.75:1), pierce:(lv>=6?1:0), speed:420*(lv>=9?1.3:1) }),
   },
   homing: {
-    name:'追尾ミサイル', icon:'sk_homing',
+    name:'追尾ミサイル', cat:'atk', icon:'sk_homing',
     desc:'敵を追尾する魔法ミサイルを放つ。',
     cost:(lv)=>matCost(lv,{bone:4,scrap:2},[{from:3,mat:'crystal',qty:2},{from:6,mat:'magic',qty:3}]),
     lvText:['同時発射+1','威力+70%','同時発射+1','追尾性能・弾速アップ','威力+80%','同時発射+2','爆発するようになる'],
@@ -60,7 +60,7 @@ DATA.SKILLS = {
       cd:1.6, turn:(lv>=5?7:3.5), speed:300*(lv>=5?1.3:1), blast:(lv>=8?70:0) }),
   },
   orbit: {
-    name:'オービットオーブ', icon:'sk_orbit',
+    name:'オービットオーブ', cat:'atk', icon:'sk_orbit',
     desc:'自分の周囲を回るオーブ。触れた敵にダメージ。',
     cost:(lv)=>matCost(lv,{jelly:4,crystal:2},[{from:4,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
     lvText:['オーブ+1','回転速度アップ','威力+75%','オーブ+1','範囲(半径)拡大','威力+80%','オーブ+2・巨大化'],
@@ -68,7 +68,7 @@ DATA.SKILLS = {
       radius:70+(lv>=6?35:0), spin:2+(lv>=3?1.2:0), size:12*(lv>=8?1.5:1) }),
   },
   chain: {
-    name:'チェインライトニング', icon:'sk_chain',
+    name:'チェインライトニング', cat:'atk', icon:'sk_chain',
     desc:'敵から敵へ連鎖する稲妻。集団に強い。',
     cost:(lv)=>matCost(lv,{scrap:4,crystal:3},[{from:3,mat:'magic',qty:2},{from:6,mat:'star',qty:1}]),
     lvText:['連鎖+2','威力+60%','連鎖+2','発動間隔-25%','威力+80%','連鎖+3・射程アップ'],
@@ -76,7 +76,7 @@ DATA.SKILLS = {
       cd:2.4*(lv>=5?0.75:1), range:240*(lv>=7?1.3:1) }),
   },
   flame: {
-    name:'フレイムリング', icon:'sk_flame',
+    name:'フレイムリング', cat:'atk', icon:'sk_flame',
     desc:'周囲に炎の波動を放ち、触れた敵を燃やす。',
     cost:(lv)=>matCost(lv,{hide:4,wood:3},[{from:3,mat:'scrap',qty:3},{from:6,mat:'magic',qty:3}]),
     lvText:['範囲拡大','延焼ダメージ追加','威力+70%','発動間隔-30%','範囲拡大・威力+50%','延焼強化・威力+70%'],
@@ -84,7 +84,7 @@ DATA.SKILLS = {
       radius:90+(lv>=2?30:0)+(lv>=6?40:0), cd:2.2*(lv>=5?0.7:1), burn:(lv>=3?4:0)*(lv>=7?2.5:1) }),
   },
   nova: {
-    name:'フロストノヴァ', icon:'sk_nova',
+    name:'フロストノヴァ', cat:'atk', icon:'sk_nova',
     desc:'氷の衝撃波で敵を減速させる。生存の要。',
     cost:(lv)=>matCost(lv,{crystal:4,jelly:3},[{from:4,mat:'shell',qty:3},{from:7,mat:'coral',qty:2}]),
     lvText:['減速強化','範囲拡大','威力+80%','短時間の凍結付与','発動間隔-30%','凍結時間+・威力+80%'],
@@ -92,7 +92,7 @@ DATA.SKILLS = {
       slow:0.35+(lv>=2?0.2:0), slowDur:2.5, freeze:(lv>=5?0.6:0)+(lv>=7?0.6:0), cd:3.5*(lv>=6?0.7:1) }),
   },
   poison: {
-    name:'ポイズンミスト', icon:'sk_poison',
+    name:'ポイズンミスト', cat:'atk', icon:'sk_poison',
     desc:'移動した跡に毒の霧を残す。触れた敵は継続ダメージ。',
     cost:(lv)=>matCost(lv,{jelly:5,hide:3},[{from:3,mat:'shell',qty:2},{from:6,mat:'coral',qty:2}]),
     lvText:['霧が大きくなる','持続時間+50%','毒ダメージ+80%','霧の発生間隔-40%','毒が敵の防御を下げる','毒ダメージ+100%・巨大化'],
@@ -100,7 +100,7 @@ DATA.SKILLS = {
       dur:4*(lv>=3?1.5:1), interval:0.55*(lv>=5?0.6:1), shred:(lv>=6?0.25:0) }),
   },
   axe: {
-    name:'ブーメランアクス', icon:'sk_axe',
+    name:'ブーメランアクス', cat:'atk', icon:'sk_axe',
     desc:'投げた斧が戻ってくる。往復で2回当たる。',
     cost:(lv)=>matCost(lv,{wood:4,scrap:3},[{from:4,mat:'hide',qty:4},{from:7,mat:'scale',qty:1}]),
     lvText:['同時投擲+1','威力+65%','飛距離アップ','同時投擲+1','威力+80%','巨大な斧になる(範囲+)'],
@@ -108,7 +108,7 @@ DATA.SKILLS = {
       cd:2.0, range:260+(lv>=4?90:0), size:14*(lv>=7?1.7:1) }),
   },
   thunder: {
-    name:'サンダーフォール', icon:'sk_thunder',
+    name:'サンダーフォール', cat:'atk', icon:'sk_thunder',
     desc:'ランダムな敵の頭上に落雷。単体高火力。',
     cost:(lv)=>matCost(lv,{crystal:5,magic:1},[{from:3,mat:'magic',qty:3},{from:6,mat:'star',qty:2}]),
     lvText:['落雷数+1','威力+70%','落雷数+1','範囲(爆風)追加','威力+90%','落雷数+2・爆風拡大'],
@@ -116,7 +116,7 @@ DATA.SKILLS = {
       cd:2.8, blast:(lv>=5?60:26)*(lv>=7?1.5:1) }),
   },
   turret: {
-    name:'オートタレット', icon:'sk_turret',
+    name:'オートタレット', cat:'atk', icon:'sk_turret',
     desc:'その場に自動砲台を設置する。設置数に上限あり。',
     cost:(lv)=>matCost(lv,{scrap:6,wood:4},[{from:3,mat:'crystal',qty:3},{from:6,mat:'magic',qty:4}]),
     lvText:['設置上限+1','連射速度アップ','威力+70%','設置上限+1','射程アップ','威力+90%・2丁掃射'],
@@ -124,7 +124,7 @@ DATA.SKILLS = {
       fireCd:0.8*(lv>=3?0.6:1), range:280+(lv>=6?100:0), dual:(lv>=7), placeCd:9, life:20 }),
   },
   shield: {
-    name:'ガーディアンシールド', icon:'sk_shield',
+    name:'ガーディアンシールド', cat:'sup', icon:'sk_shield',
     desc:'ダメージを1回無効化するバリアを張る。',
     cost:(lv)=>matCost(lv,{bone:5,crystal:3},[{from:3,mat:'shell',qty:3},{from:6,mat:'scale',qty:1}]),
     lvText:['再展開が早くなる','バリア展開時に周囲を弾き飛ばす','ストック+1','再展開がさらに早く','割れた時に爆発ダメージ','ストック+1'],
@@ -132,7 +132,7 @@ DATA.SKILLS = {
       knock:(lv>=3), burst:(lv>=6?60:0) }),
   },
   sanctuary: {
-    name:'サンクチュアリ', icon:'sk_sanct',
+    name:'サンクチュアリ', cat:'sup', icon:'sk_sanct',
     desc:'自分と仲間のHPを徐々に回復するオーラ。',
     cost:(lv)=>matCost(lv,{jelly:6,shell:2},[{from:3,mat:'magic',qty:2},{from:6,mat:'coral',qty:3}]),
     lvText:['回復量+60%','範囲拡大(仲間に届きやすく)','回復量+60%','オーラ内の敵を微減速','回復量+80%・範囲拡大'],
@@ -140,21 +140,21 @@ DATA.SKILLS = {
       radius:110+(lv>=3?50:0)+(lv>=6?50:0), slow:(lv>=5?0.15:0) }),
   },
   magnetSk: {
-    name:'マグネットフィールド', icon:'sk_magnet',
+    name:'マグネットフィールド', cat:'sup', icon:'sk_magnet',
     desc:'アイテムの回収範囲が広がる。',
     cost:(lv)=>matCost(lv,{scrap:3,jelly:3}),
     lvText:['回収範囲+40%','たまに全画面吸引(30秒毎)','回収範囲+50%','全画面吸引の間隔-10秒'],
     stats:(lv)=>({ mult:1.5+(lv>=2?0.4:0)+(lv>=4?0.5:0), vacuum:(lv>=3), vacuumCd:(lv>=5?20:30) }),
   },
   boots: {
-    name:'ヘルメスの靴', icon:'sk_boots',
+    name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
     desc:'移動速度が上がる。逃げる敵(ヒーラー等)を追うのに必須級。',
     cost:(lv)=>matCost(lv,{hide:4,bone:3}),
     lvText:['移動速度+8%','ダッシュの残像が敵にダメージ','移動速度+10%','移動速度+12%'],
     stats:(lv)=>({ mult:1.1+(lv>=2?0.08:0)+(lv>=4?0.10:0)+(lv>=5?0.12:0), trail:(lv>=3?5:0) }),
   },
   warbanner: {
-    name:'ウォーバナー', icon:'sk_banner',
+    name:'ウォーバナー', cat:'ally', icon:'sk_banner',
     desc:'仲間の攻撃力とHPを強化する軍旗。仲間主体の戦術に。',
     cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:3,mat:'magic',qty:2}]),
     lvText:['仲間攻撃+20%','仲間HP+30%','仲間攻撃+25%','仲間の移動速度+20%','仲間攻撃+35%・HP+35%'],
@@ -163,7 +163,7 @@ DATA.SKILLS = {
   },
   // ---- 多角スキル: 仲間・敵・武器・経済 ----
   charisma: {
-    name:'カリスマの歌', icon:'sk_charisma',
+    name:'カリスマの歌', cat:'ally', icon:'sk_charisma',
     desc:'【仲間】歌声で敵の心を掴む。敵が仲間になる確率が上がる(仲間数に上限なし)。',
     cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:4,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
     lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
@@ -171,7 +171,7 @@ DATA.SKILLS = {
       allyMul:Math.pow(1.08,(lv>=3?1:0)+(lv>=5?1:0)+(lv>=7?1:0)) }),
   },
   bond: {
-    name:'魂の共鳴', icon:'sk_bond',
+    name:'魂の共鳴', cat:'ally', icon:'sk_bond',
     desc:'【仲間】絆が力になる。仲間1体につき自分の攻撃力が上がる。',
     cost:(lv)=>matCost(lv,{bone:4,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'star',qty:1}]),
     lvText:['攻撃+4%/体に強化','仲間1体につき被ダメ-1%','攻撃+5%/体に強化','仲間になった敵のHP+20%','攻撃+7%/体に強化'],
@@ -179,7 +179,7 @@ DATA.SKILLS = {
       defPerAlly:(lv>=3?0.01:0), allyHp:1+(lv>=5?0.2:0) }),
   },
   fear: {
-    name:'威圧のオーラ', icon:'sk_fear',
+    name:'威圧のオーラ', cat:'foe', icon:'sk_fear',
     desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
     cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
     lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
@@ -187,7 +187,7 @@ DATA.SKILLS = {
       reduce:Math.min(0.6, 0.15+(lv>=2?0.10:0)+(lv>=4?0.05:0)+(lv>=5?0.10:0)), flee:(lv>=7) }),
   },
   sharpen: {
-    name:'武器研磨', icon:'sk_sharpen',
+    name:'武器研磨', cat:'sup', icon:'sk_sharpen',
     desc:'【武器】すべての攻撃の威力が上がる。',
     cost:(lv)=>matCost(lv,{scrap:5,wood:3},[{from:4,mat:'crystal',qty:4},{from:7,mat:'scale',qty:1}]),
     lvText:['威力+8%','威力+10%','会心率+5%','威力+12%','会心率+7%','威力+15%'],
@@ -195,7 +195,7 @@ DATA.SKILLS = {
       crit:(lv>=4?0.05:0)+(lv>=6?0.07:0) }),
   },
   focus: {
-    name:'集中詠唱', icon:'sk_focus',
+    name:'集中詠唱', cat:'sup', icon:'sk_focus',
     desc:'【武器】スキルの発動間隔が短くなる。',
     cost:(lv)=>matCost(lv,{crystal:4,bone:4},[{from:4,mat:'magic',qty:3},{from:6,mat:'star',qty:1}]),
     lvText:['発動間隔-5%','効果範囲+10%','発動間隔-5%','効果範囲+10%','発動間隔-6%'],
@@ -203,7 +203,7 @@ DATA.SKILLS = {
       area:(lv>=3?1.1:1)*(lv>=5?1.1:1) }),
   },
   vampire: {
-    name:'吸血の刻印', icon:'sk_vampire',
+    name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
     desc:'【主人公】敵を倒すとHPを吸収する。',
     cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
@@ -211,7 +211,7 @@ DATA.SKILLS = {
       lifesteal:(lv>=3?0.01:0)+(lv>=5?0.01:0)+(lv>=7?0.01:0) }),
   },
   treasure: {
-    name:'トレジャーハント', icon:'sk_treasure',
+    name:'トレジャーハント', cat:'sup', icon:'sk_treasure',
     desc:'【経済】コインと素材のドロップが増える。',
     cost:(lv)=>matCost(lv,{wood:4,scrap:4},[{from:4,mat:'shell',qty:4},{from:6,mat:'star',qty:1}]),
     lvText:['素材ドロップ+15%','コイン+15%','素材が2個落ちる確率+5%','素材ドロップ+20%','素材2個の確率+8%'],
@@ -219,7 +219,7 @@ DATA.SKILLS = {
       luck:(lv>=4?0.05:0)+(lv>=6?0.08:0) }),
   },
   confuse: {
-    name:'混沌の瘴気', icon:'sk_confuse', unlock:'lib_sk_confuse',
+    name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
     desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:4,mat:'star',qty:2}]),
     lvText:['混乱数+1','混乱時間+50%','混乱数+2','発動間隔-25%','混乱数+2・時間さらに+'],
@@ -227,7 +227,7 @@ DATA.SKILLS = {
       dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340 }),
   },
   curse: {
-    name:'衰弱の呪印', icon:'sk_curse', unlock:'lib_sk_curse',
+    name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',
     desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:3,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
     lvText:['被ダメ増+10%','減速強化','発動間隔-25%','被ダメ増+15%','範囲拡大'],
@@ -236,7 +236,7 @@ DATA.SKILLS = {
   },
   // ---- 魂の広場で解放するスキル ----
   laser: {
-    name:'プリズムレーザー', icon:'sk_laser', unlock:'lib_sk_laser', requires:{skill:'bolt', lv:4},
+    name:'プリズムレーザー', cat:'atk', icon:'sk_laser', unlock:'lib_sk_laser', requires:{skill:'bolt', lv:4},
     desc:'貫通する極太レーザーを一直線に放つ。【要解放】',
     cost:(lv)=>matCost(lv,{magic:4,crystal:6},[{from:4,mat:'star',qty:2}]),
     lvText:['威力+70%','照射時間+','2方向に発射','威力+90%','4方向に発射'],
@@ -244,7 +244,7 @@ DATA.SKILLS = {
       beams:1+(lv>=4?1:0)+(lv>=6?2:0), width:18 }),
   },
   meteor: {
-    name:'メテオストーム', icon:'sk_meteor', unlock:'lib_sk_meteor', requires:{skill:'thunder', lv:3},
+    name:'メテオストーム', cat:'atk', icon:'sk_meteor', unlock:'lib_sk_meteor', requires:{skill:'thunder', lv:3},
     desc:'広範囲に隕石を降らせる大火力スキル。【要解放】',
     cost:(lv)=>matCost(lv,{magic:5,scale:1},[{from:3,mat:'star',qty:2},{from:5,mat:'abyss',qty:1}]),
     lvText:['隕石+2','威力+80%','隕石+2','爆発範囲拡大','隕石+3・威力+100%'],
@@ -252,7 +252,7 @@ DATA.SKILLS = {
       cd:6, blast:80*(lv>=5?1.4:1) }),
   },
   sands: {
-    name:'時の砂', icon:'sk_sands', unlock:'lib_sk_sands', requires:{skill:'nova', lv:3},
+    name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands', requires:{skill:'nova', lv:3},
     desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:3,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','発動間隔-25%','ほぼ静止級の減速'],
@@ -260,7 +260,7 @@ DATA.SKILLS = {
       radius:220+(lv>=4?120:0), cd:12*(lv>=5?0.75:1) }),
   },
   dragonbreath: {
-    name:'ドラゴンブレス', icon:'sk_breath', unlock:'lib_sk_breath', requires:{skill:'flame', lv:3},
+    name:'ドラゴンブレス', cat:'atk', icon:'sk_breath', unlock:'lib_sk_breath', requires:{skill:'flame', lv:3},
     desc:'移動方向へ焼き尽くす吐息を放つ。【要解放】',
     cost:(lv)=>matCost(lv,{scale:2,magic:4},[{from:4,mat:'abyss',qty:1}]),
     lvText:['威力+70%','範囲(角度)拡大','持続+','威力+90%','超射程・威力+80%'],
@@ -268,7 +268,7 @@ DATA.SKILLS = {
       arc:0.6+(lv>=3?0.35:0), range:170+(lv>=6?130:0), dur:1.4*(lv>=4?1.5:1), cd:5 }),
   },
   prism_ray: {
-    name:'虹の奔流', icon:'sk_prism', unlockAch:'ach_rare', requires:{skill:'laser', lv:2},
+    name:'虹の奔流', cat:'atk', icon:'sk_prism', unlockAch:'ach_rare', requires:{skill:'laser', lv:2},
     desc:'【実績解放】回転する虹の光線が全てを薙ぎ払う。レインボースライムの落とす「虹のかけら」が必要。',
     cost:(lv)=>matCost(lv,{prism:1,crystal:8},[{from:4,mat:'star',qty:2}]),
     lvText:['威力+70%','光線+1','回転が速くなる','威力+90%','光線+2'],
@@ -312,7 +312,7 @@ const PASSIVE_DEFS = [
 ];
 for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) {
   DATA.SKILLS[id] = {
-    name, icon: 'sk_' + id,
+    name, icon: 'sk_' + id, cat: 'kokoroe',
     desc: `【心得】${effDesc} ${unit}/Lv。素材を集め直すたびに積み重なる。`,
     cost: (lv) => matCost(lv, { [ma]: qa, [mb]: qb }),
     lvText: Array.from({ length: 9 }, (_, i) => `${effDesc} ${unit}(累計${i + 2}段)`),
@@ -320,6 +320,7 @@ for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) 
   };
 }
 
+DATA.SKILL_CATS = { atk:'攻撃', sup:'補助', ally:'仲間', foe:'敵干渉', kokoroe:'心得' };
 DATA.SKILL_BASE_CAP = 5; // 書庫の上限解放で +1 ずつ(最大10)
 DATA.SKILL_CAP_MAX = 10;
 
@@ -366,31 +367,52 @@ DATA.BOSSES = [
 // 多重リング構造: 初期大陸 → 第1環(~10,000) → 中間の小島(~17,000)
 //   → 第2環(~26,000) → 第3環(~52,000) → 最果て(~80,000)
 // 遠環は死に戻り強化(健脚・帆・ワープゲート)を重ねないと到達できない距離
+// biome=見た目, lobes=岬の数, amp=海岸線の凹凸, sx/sy=伸縮(多様な形)
 DATA.CONTINENTS = [
-  { id:'main',  x:0,      y:0,      r:2600, seed:11,  name:'始まりの大陸' },
+  { id:'main',  x:0,      y:0,      r:2600, seed:11,  name:'始まりの大陸', biome:'grass',  lobes:5, amp:0.22, sx:1.15, sy:0.95 },
   // --- 第1環 ---
-  { id:'east',  x:10500,  y:800,    r:2100, seed:23,  name:'竜骨の大陸' },
-  { id:'west',  x:-10200, y:-900,   r:2100, seed:37,  name:'黄昏の大陸' },
-  { id:'north', x:900,    y:-10600, r:2000, seed:41,  name:'星降りの大陸' },
-  { id:'south', x:-700,   y:10400,  r:2000, seed:53,  name:'深緑の大陸' },
-  { id:'ne',    x:7800,   y:-7600,  r:1500, seed:67,  name:'白亜の島' },
-  { id:'sw',    x:-7500,  y:7900,   r:1500, seed:71,  name:'黒曜の島' },
+  { id:'east',  x:10500,  y:800,    r:2100, seed:23,  name:'竜骨の大陸',   biome:'volcano', lobes:7, amp:0.30, sx:1.5,  sy:0.75 },
+  { id:'west',  x:-10200, y:-900,   r:2100, seed:37,  name:'黄昏の大陸',   biome:'twilight',lobes:4, amp:0.28, sx:0.8,  sy:1.35 },
+  { id:'north', x:900,    y:-10600, r:2000, seed:41,  name:'星降りの大陸', biome:'frost',   lobes:6, amp:0.33, sx:1.2,  sy:1.0 },
+  { id:'south', x:-700,   y:10400,  r:2000, seed:53,  name:'深緑の大陸',   biome:'jungle',  lobes:8, amp:0.26, sx:1.0,  sy:1.25 },
+  { id:'ne',    x:7800,   y:-7600,  r:1500, seed:67,  name:'白亜の島',     biome:'chalk',   lobes:3, amp:0.35, sx:1.3,  sy:0.8 },
+  { id:'sw',    x:-7500,  y:7900,   r:1500, seed:71,  name:'黒曜の島',     biome:'obsidian',lobes:5, amp:0.38, sx:0.85, sy:1.2 },
   // --- 中間の小島(航海の中継地) ---
-  { id:'i_mist',  x:17000,  y:-5200,  r:1000, seed:83,  name:'霧の小島' },
-  { id:'i_bones', x:-16600, y:6300,   r:1000, seed:89,  name:'骨の小島' },
-  { id:'i_ember', x:5600,   y:17400,  r:1000, seed:97,  name:'燃えさしの小島' },
-  { id:'i_frost', x:-6100,  y:-16800, r:1000, seed:101, name:'霜の小島' },
+  { id:'i_mist',  x:17000,  y:-5200,  r:1000, seed:83,  name:'霧の小島',       biome:'mist',   lobes:4, amp:0.3 },
+  { id:'i_bones', x:-16600, y:6300,   r:1000, seed:89,  name:'骨の小島',       biome:'bones',  lobes:6, amp:0.35 },
+  { id:'i_ember', x:5600,   y:17400,  r:1000, seed:97,  name:'燃えさしの小島', biome:'volcano',lobes:5, amp:0.32 },
+  { id:'i_frost', x:-6100,  y:-16800, r:1000, seed:101, name:'霜の小島',       biome:'frost',  lobes:4, amp:0.3 },
   // --- 第2環(初期大陸から2つ離れた大陸) ---
-  { id:'r2_forge', x:26500,  y:4000,   r:2400, seed:103, name:'鍛冶神の大陸' },
-  { id:'r2_moon',  x:-25800, y:-5000,  r:2400, seed:107, name:'月影の大陸' },
-  { id:'r2_storm', x:4600,   y:-26600, r:2300, seed:109, name:'嵐の大陸' },
-  { id:'r2_grave', x:-4200,  y:26200,  r:2300, seed:113, name:'墓標の大陸' },
+  { id:'r2_forge', x:26500,  y:4000,   r:2400, seed:103, name:'鍛冶神の大陸', biome:'magma',  lobes:9, amp:0.34, sx:1.4, sy:0.85 },
+  { id:'r2_moon',  x:-25800, y:-5000,  r:2400, seed:107, name:'月影の大陸',   biome:'moon',   lobes:5, amp:0.3,  sx:0.9, sy:1.3 },
+  { id:'r2_storm', x:4600,   y:-26600, r:2300, seed:109, name:'嵐の大陸',     biome:'storm',  lobes:7, amp:0.36, sx:1.25, sy:0.9 },
+  { id:'r2_grave', x:-4200,  y:26200,  r:2300, seed:113, name:'墓標の大陸',   biome:'makai',  lobes:6, amp:0.33, sx:1.1, sy:1.1 },
   // --- 第3環 ---
-  { id:'r3_sun',  x:52500,  y:-8000, r:2800, seed:127, name:'太陽の大陸' },
-  { id:'r3_void', x:-51600, y:9000,  r:2800, seed:131, name:'虚無の大陸' },
+  { id:'r3_sun',  x:52500,  y:-8000, r:2800, seed:127, name:'太陽の大陸', biome:'desert', lobes:4, amp:0.3, sx:1.6, sy:0.8 },
+  { id:'r3_void', x:-51600, y:9000,  r:2800, seed:131, name:'虚無の大陸', biome:'void',   lobes:8, amp:0.4, sx:0.9, sy:1.4 },
   // --- 最果て ---
-  { id:'r4_end',  x:200, y:-80500, r:3200, seed:137, name:'最果ての大陸' },
+  { id:'r4_end',  x:200, y:-80500, r:3200, seed:137, name:'最果ての大陸', biome:'end', lobes:10, amp:0.42, sx:1.2, sy:1.0 },
 ];
+
+// バイオーム: エリアごとのフィールドの見た目(地面2色/砂浜2色/装飾色/ミニマップ色)
+DATA.BIOMES = {
+  grass:   { g1:'#274d33', g2:'#2a5237', s1:'#8a7a50', s2:'#93835a', deco:['#3fb950','#f0883e','#e6edf3'], mm:[46,100,60],   name:'草原' },
+  volcano: { g1:'#3a2018', g2:'#41251b', s1:'#5c3a28', s2:'#64412e', deco:['#f85149','#ffa657','#484f58'], mm:[90,45,35],    name:'灼熱地帯' },
+  magma:   { g1:'#451510', g2:'#4d1a12', s1:'#6b2c1a', s2:'#733220', deco:['#ff6b35','#fde047','#8b1e24'], mm:[110,40,25],   name:'溶岩地帯' },
+  desert:  { g1:'#8a6d35', g2:'#93763c', s1:'#a8894a', s2:'#b09252', deco:['#d29922','#57ab5a','#e6edf3'], mm:[150,120,70],  name:'砂漠' },
+  makai:   { g1:'#2a1a3d', g2:'#2f1f44', s1:'#463059', s2:'#4d3661', deco:['#c084fc','#f85149','#6e40c9'], mm:[60,40,90],    name:'魔界' },
+  void:    { g1:'#1a1028', g2:'#1f142e', s1:'#33244a', s2:'#3a2a52', deco:['#a78bfa','#76e3ea','#0d1117'], mm:[40,28,64],    name:'虚無' },
+  twilight:{ g1:'#3d2f42', g2:'#443548', s1:'#5c4a5e', s2:'#645166', deco:['#f778ba','#d2a8ff','#8b949e'], mm:[85,68,92],    name:'黄昏' },
+  jungle:  { g1:'#1a3d22', g2:'#1e4527', s1:'#6b6b35', s2:'#73733c', deco:['#7ee787','#ff8fa3','#2ea043'], mm:[30,85,42],    name:'密林' },
+  frost:   { g1:'#5a7585', g2:'#617d8e', s1:'#8fa8b5', s2:'#97b0bd', deco:['#e6edf3','#a5d8ff','#76e3ea'], mm:[130,165,180], name:'氷原' },
+  chalk:   { g1:'#8f8a78', g2:'#979282', s1:'#b0a890', s2:'#b8b098', deco:['#e6edf3','#d29922','#8b949e'], mm:[170,165,150], name:'白亜' },
+  obsidian:{ g1:'#1c2126', g2:'#20262c', s1:'#333c44', s2:'#3a434c', deco:['#2dd4bf','#484f58','#76e3ea'], mm:[38,45,52],    name:'黒曜' },
+  mist:    { g1:'#4a5548', g2:'#515d4f', s1:'#6e7a6a', s2:'#758271', deco:['#8b949e','#a5d8ff','#57ab5a'], mm:[95,108,95],   name:'霧' },
+  bones:   { g1:'#6e6656', g2:'#766e5d', s1:'#8f8570', s2:'#978d78', deco:['#e6edf3','#b08968','#8b949e'], mm:[130,122,105], name:'骨の荒野' },
+  moon:    { g1:'#1e2645', g2:'#232c4e', s1:'#3a4468', s2:'#414b70', deco:['#a5d8ff','#f1f5f9','#58a6ff'], mm:[45,55,95],    name:'月影' },
+  storm:   { g1:'#37413a', g2:'#3d4840', s1:'#5a655c', s2:'#616c63', deco:['#fde047','#8b949e','#76e3ea'], mm:[75,88,80],    name:'嵐の平原' },
+  end:     { g1:'#2d0f14', g2:'#331217', s1:'#4d1f26', s2:'#54242c', deco:['#f85149','#0d1117','#ffd766'], mm:[75,25,32],    name:'終焉' },
+};
 
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
@@ -447,6 +469,7 @@ DATA.META = {
   altar_regen:  { st:'altar', name:'自然治癒',     desc:'HP自動回復 +0.5/秒',    max:20, cost:gcost(40,1.42),  },
   altar_armor:  { st:'altar', name:'鉄の皮膚',     desc:'被ダメージ -2%(最大60%)', max:30, cost:gcost(35,1.4) },
   altar_crit:   { st:'altar', name:'会心の心得',   desc:'クリティカル率 +2%(2倍ダメージ)', max:25, cost:gcost(50,1.42) },
+  altar_range:  { st:'altar', name:'眼力',         desc:'攻撃の射程 +4%',        max:20, cost:gcost(40,1.4) },
   altar_revive: { st:'altar', name:'不死鳥の羽',   desc:'周回中に1回復活(HP50%)', max:3,  cost:gcost(3000,6) },
   // --- 素材研究所(経済) ---
   lab_drop:     { st:'lab', name:'採集の心得',     desc:'素材ドロップ率 +10%',   max:30, cost:gcost(25,1.36) },
@@ -461,7 +484,7 @@ DATA.META = {
   lab_mat_star: { st:'lab', name:'【解放】星のかけら', desc:'新素材「星のかけら」が出現する', max:1, cost:gcost(15000,1) },
   lab_mat_abyss:{ st:'lab', name:'【解放】深淵の核', desc:'新素材「深淵の核」が出現する', max:1, cost:gcost(50000,1) },
   // --- 仲間の宿舎 ---
-  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1.5%(基本8%・上限なし)', max:22, cost:gcost(40,1.38) },
+  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1.5%(基本4.5%・上限なし)', max:22, cost:gcost(40,1.38) },
   camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +15%',           max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +12%',       max:30, cost:gcost(30,1.35) },

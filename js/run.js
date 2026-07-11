@@ -34,6 +34,7 @@ const Run = (() => {
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
       crit: 0.02*m('altar_crit') + 0.015*m('m_ashura'),
+      range: 1 + 0.04*m('altar_range'),   // 攻撃射程(眼力で強化)
       dodge: 0.01*m('g_mist_dodge'),
       invulnPlus: 0.06*m('g_moon_shadow'),
       burnChance: 0.04*m('g_ember_burn'),
@@ -43,7 +44,7 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.08 + 0.015*m('camp_recruit'),
+      recruit: 0.045 + 0.015*m('camp_recruit'),
       allyCap: 150,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
@@ -207,7 +208,7 @@ const Run = (() => {
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
-    const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * (0.8 + Math.random()*0.4)));
+    const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * (0.36 + Math.random()*0.18)));
     dropPickup(e.x, e.y, { type:'coin', value:c });
     // 素材ドロップ
     for (const dr of e.def.drops || []) {
@@ -426,9 +427,9 @@ const Run = (() => {
     // 通常スポーン(序盤は少なく、時間と距離で徐々に増える)
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
-    const rate = (0.35 + min * 0.09 + ring0 * 0.15) * (isReaperTime ? 0.5 : 1);
+    const rate = (0.35 + min * 0.16 + ring0 * 0.15) * (isReaperTime ? 0.5 : 1);
     R.spawnAcc += dt * rate;
-    const cap = Math.min(150, 22 + R.time * 0.35 + ring0 * 8);
+    const cap = Math.min(200, 18 + R.time * 0.45 + ring0 * 8);
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (R.enemies.length >= cap) break;
@@ -652,10 +653,11 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      // ターゲット探索(交戦範囲は広め: 軍勢同士がぶつかり合う)
-      let tgt = null, td = 420;
+      // ターゲット探索: プレイヤー周辺の敵のみ(仲間は常に主人公の周りを追尾)
+      let tgt = null, td = 380;
       for (const e of R.enemies) {
         if (e.dead) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) > 380) continue;   // リーシュ: 主から離れる敵は追わない
         const d = Math.hypot(e.x - a.x, e.y - a.y);
         if (d < td) { tgt = e; td = d; }
       }
@@ -691,7 +693,7 @@ const Run = (() => {
         dest = { x: p.x + Math.cos(ang) * ring, y: p.y + Math.sin(ang) * ring };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
         if (d < 12) dest = null;
-        if (d > 700) { a.x = p.x + rnd(-40, 40); a.y = p.y + rnd(-40, 40); dest = null; } // ワープ追従
+        if (d > 520) { a.x = p.x + rnd(-40, 40); a.y = p.y + rnd(-40, 40); dest = null; } // ワープ追従
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
@@ -786,7 +788,7 @@ const Run = (() => {
     // --- マジックボルト ---
     const bolt = Skills.stat('bolt');
     if (bolt && cdReady('bolt', bolt.cd)) {
-      const tgt = nearestEnemy(p.x, p.y, 480) || nearestObject(p.x, p.y, 300);
+      const tgt = nearestEnemy(p.x, p.y, 360 * st.range) || nearestObject(p.x, p.y, 280 * st.range);
       if (tgt) {
         Sfx.shoot();
         for (let i = 0; i < bolt.count; i++) {
@@ -812,7 +814,7 @@ const Run = (() => {
     const axe = Skills.stat('axe');
     if (axe && cdReady('axe', axe.cd)) {
       for (let i = 0; i < axe.count; i++) {
-        const tgt = nearestEnemy(p.x, p.y, 500);
+        const tgt = nearestEnemy(p.x, p.y, 420 * st.range);
         const a = tgt ? Math.atan2(tgt.y-p.y, tgt.x-p.x) + (i-(axe.count-1)/2)*0.4 : Math.random()*7;
         R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*330, vy:Math.sin(a)*330,
                        dmg:axe.dmg, life:axe.range/330*2, size:axe.size, pierce:99, boomerang:true,
@@ -880,9 +882,10 @@ const Run = (() => {
     // --- サンダーフォール ---
     const th = Skills.stat('thunder');
     if (th && cdReady('thunder', th.cd)) {
-      const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < 460);
+      const thR = 400 * st.range;
+      const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < thR);
       for (const o of R.objects || []) {
-        if (Math.hypot(o.x-p.x, o.y-p.y) < 420) cands.push(o);
+        if (Math.hypot(o.x-p.x, o.y-p.y) < thR * 0.9) cands.push(o);
       }
       for (let i = 0; i < th.count && cands.length; i++) {
         const e = cands[Math.floor(Math.random() * cands.length)];
@@ -906,7 +909,7 @@ const Run = (() => {
         if (R.time > t.until) { R.turrets.splice(i, 1); continue; }
         t.fireCd -= dt;
         if (t.fireCd <= 0) {
-          const tgt = nearestEnemy(t.x, t.y, tu.range * area) || nearestObject(t.x, t.y, 260);
+          const tgt = nearestEnemy(t.x, t.y, tu.range * area * st.range) || nearestObject(t.x, t.y, 260);
           if (tgt) {
             t.fireCd = tu.fireCd * (1 - st.cdr);
             const d = Math.hypot(tgt.x-t.x, tgt.y-t.y) || 1;
@@ -943,9 +946,10 @@ const Run = (() => {
       const dirs = la.beams === 1 ? [p.moveA] :
                    la.beams === 2 ? [p.moveA, p.moveA + Math.PI] :
                    [0, Math.PI/2, Math.PI, Math.PI*1.5];
+      const laLen = 440 * st.range;
       for (const a of dirs) {
-        effect('laser', p.x, p.y, { angle:a, len:520, w:la.width, dur:la.dur });
-        beamHit(p.x, p.y, a, 520, la.width, la.dmg);
+        effect('laser', p.x, p.y, { angle:a, len:laLen, w:la.width, dur:la.dur });
+        beamHit(p.x, p.y, a, laLen, la.width, la.dmg);
       }
     }
     // --- メテオストーム ---
@@ -993,8 +997,9 @@ const Run = (() => {
     if (przz && cdReady('prism_ray', przz.cd)) {
       for (let i = 0; i < przz.beams; i++) {
         const a = R.time * przz.spin + i / przz.beams * Math.PI * 2;
-        effect('laser', p.x, p.y, { angle:a, len:przz.len, w:przz.width, dur:0.5, rainbow:true });
-        beamHit(p.x, p.y, a, przz.len, przz.width, przz.dmg);
+        const prLen = przz.len * st.range;
+        effect('laser', p.x, p.y, { angle:a, len:prLen, w:przz.width, dur:0.5, rainbow:true });
+        beamHit(p.x, p.y, a, prLen, przz.width, przz.dmg);
       }
     }
     // --- 嵐の加護(基地強化: 自動落雷) ---
@@ -1102,7 +1107,7 @@ const Run = (() => {
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
       }
-      if (Math.random() < 0.3) dropPickup(o.x, o.y, { type:'coin', value:Math.ceil(2 * R.stats.coinMul) });
+      if (Math.random() < 0.25) dropPickup(o.x, o.y, { type:'coin', value:Math.ceil(1 * R.stats.coinMul) });
       effect('burst', o.x, o.y, { color:'#b08968', r:18 });
     }
   }
@@ -1343,8 +1348,8 @@ const Run = (() => {
     const p = R.player, st = R.stats;
     p.invuln = Math.max(0, p.invuln - dt);
 
-    // 移動
-    const ax = Input.axis();
+    // 移動(botAxisは自動テストプレイ用フック)
+    const ax = R.botAxis || Input.axis();
     const spd = p.onBoat ? st.boatSpeed : st.speed;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
@@ -1384,6 +1389,10 @@ const Run = (() => {
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
+    // カメラズーム: 仲間が増えるほど引いて全員映す
+    const zTarget = Math.max(0.55, 1 - Math.max(0, R.allies.length - 5) * 0.022);
+    R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 2);
+
     director(dt);
     updateEnemies(dt);
     updateAllies(dt);
@@ -1410,30 +1419,60 @@ const Run = (() => {
 
   // ---------------- 描画 ----------------
   const TILE = 36;
+  function tileHash(ix, iy){
+    let h = (ix * 73856093 ^ iy * 19349663) >>> 0;
+    return (h % 1000) / 1000;
+  }
+  let vignette = null;
   function draw(g, W, H){
     const p = R.player;
-    const camX = p.x - W/2, camY = p.y - H/2;
+    const z = R.zoom || 1;
+    const effW = W / z, effH = H / z;
+    const camX = p.x - effW/2, camY = p.y - effH/2;
 
-    // 地形
+    g.save();
+    g.scale(z, z);
+
+    // 地形(バイオームごとに見た目が変わる)
     const x0 = Math.floor(camX / TILE), y0 = Math.floor(camY / TILE);
-    const nx = Math.ceil(W / TILE) + 1, ny = Math.ceil(H / TILE) + 1;
+    const nx = Math.ceil(effW / TILE) + 1, ny = Math.ceil(effH / TILE) + 1;
+    const waveT = Math.floor(R.time * 1.6) % 2;   // 海のゆらぎ
+    const decoList = [];
     for (let iy = 0; iy <= ny; iy++) {
       for (let ix = 0; ix <= nx; ix++) {
         const wx = (x0 + ix) * TILE, wy = (y0 + iy) * TILE;
-        const t = World.terrainAt(wx + TILE/2, wy + TILE/2);
+        const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
+        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
         let c;
         const chk = ((x0+ix) + (y0+iy)) % 2 === 0;
-        if (t === 'grass') c = chk ? '#274d33' : '#2a5237';
-        else if (t === 'sand') c = chk ? '#8a7a50' : '#93835a';
-        else if (t === 'sea') c = chk ? '#173a66' : '#194070';
-        else c = chk ? '#0e2647' : '#102a4e';
+        if (ti.t === 'grass') c = chk ? bio.g1 : bio.g2;
+        else if (ti.t === 'sand') c = chk ? bio.s1 : bio.s2;
+        else if (ti.t === 'sea') c = (chk !== (waveT === 1)) ? '#173a66' : '#194070';
+        else c = (chk !== (waveT === 1)) ? '#0e2647' : '#102a4e';
         g.fillStyle = c;
         g.fillRect(wx - camX, wy - camY, TILE + 1, TILE + 1);
+        // 地面の装飾(草・花・岩粒など、バイオーム色)
+        if (ti.t === 'grass') {
+          const hsh = tileHash(x0 + ix, y0 + iy);
+          if (hsh < 0.14) decoList.push({ x: wx + hsh * 900 % TILE, y: wy + hsh * 1300 % TILE,
+            c: bio.deco[Math.floor(hsh * 71) % bio.deco.length], big: hsh < 0.03 });
+        }
       }
     }
-
-    g.save();
     g.translate(-camX, -camY);
+    // 装飾を描く
+    for (const d of decoList) {
+      g.fillStyle = d.c;
+      g.globalAlpha = 0.5;
+      if (d.big) { g.beginPath(); g.arc(d.x, d.y, 3, 0, 7); g.fill(); }
+      else g.fillRect(d.x, d.y, 2.5, 2.5);
+    }
+    g.globalAlpha = 1;
+    // 影(ユニットの足元)
+    g.fillStyle = 'rgba(0,0,0,.25)';
+    for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }
+    for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); g.fill(); } }
+    g.beginPath(); g.ellipse(p.x, p.y + 15, 12, 4, 0, 0, 7); g.fill();
 
     // ゾーン(毒沼)
     for (const z of R.zones) {
@@ -1617,7 +1656,17 @@ const Run = (() => {
     }
     g.globalAlpha = 1;
 
-    g.restore();
+    g.restore();   // translate + scale を戻す
+
+    // ビネット(画面端をしっとり暗く)
+    if (!vignette || vignette.w !== W || vignette.h !== H) {
+      const vg = g.createRadialGradient(W/2, H/2, Math.min(W,H)*0.45, W/2, H/2, Math.max(W,H)*0.75);
+      vg.addColorStop(0, 'rgba(0,0,0,0)');
+      vg.addColorStop(1, 'rgba(0,0,0,0.38)');
+      vignette = { grad: vg, w: W, h: H };
+    }
+    g.fillStyle = vignette.grad;
+    g.fillRect(0, 0, W, H);
 
     // ボスHPバー(小画面ではHUDと重ならない位置に)
     if (R.bossAlive && !R.bossAlive.dead) {
@@ -1703,8 +1752,8 @@ const Run = (() => {
   }
 
   function drawMinimap(g, W){
-    const sz = World.MM_SIZE;
-    const x0 = W - sz - 12, y0 = 12;
+    const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
+    const x0 = W - sz - 10, y0 = 10;
     // 地形マップは基地を2つ解放すると使える。基地の位置マップは最初からある
     const terrainUnlocked = Object.keys(SaveSys.data.bases).length >= 2;
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
@@ -1719,21 +1768,23 @@ const Run = (() => {
       g.fillRect(x0, y0, sz, sz);
     }
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
+    const mmScale = sz / World.MM_SIZE;
     const dot = (wx, wy, c, r) => {
       if (!view.inView(wx, wy)) return;
       const q = view.toMM(wx, wy);
-      if (q.x < 0 || q.x > sz || q.y < 0 || q.y > sz) return;
+      if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) return;
       g.fillStyle = c;
-      g.beginPath(); g.arc(x0 + q.x, y0 + q.y, r || 2, 0, 7); g.fill();
+      g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, r || 2, 0, 7); g.fill();
     };
     for (const b of World.bases) dot(b.x, b.y, SaveSys.data.bases[b.id] ? '#7ee787' : '#8b949e', 2.5);
     for (const port of World.ports) dot(port.x, port.y, SaveSys.data.ports[port.id] ? '#76e3ea' : '#d29922', 2.5);
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
-    g.fillStyle = '#8b949e'; g.font = '11px sans-serif'; g.textAlign = 'center';
-    g.fillText(terrainUnlocked
-      ? (R.mmWorld ? '全体図 [N/タップ:周辺]' : '周辺図 [N/タップ:全体]')
-      : '基地マップ(地形は基地2つ解放で)', x0 + sz / 2, y0 + sz + 13);
+    g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
+    const mmLabel = terrainUnlocked
+      ? (R.mmWorld ? '全体図 [タップで切替]' : '周辺図 [タップで切替]')
+      : (sz < 165 ? '基地マップ' : '基地マップ(地形は基地2つで)');
+    g.fillText(mmLabel, x0 + sz / 2, y0 + sz + 12);
   }
   function toggleMap(){ R.mmWorld = !R.mmWorld; }
 
@@ -1759,6 +1810,11 @@ const Run = (() => {
     timerEl.textContent = fmtTime(R.time);
     timerEl.style.color = R.time >= DATA.REAPER_AT ? '#f85149' : (R.time >= DATA.REAPER_AT - 60 ? '#ffd766' : '');
     coinEl.textContent = fmtNum(R.coins);
+    // 危険度: 初期地点から離れるほど上がる(敵の強さの指標)
+    const danger = World.ringOf(p.x, p.y) + 1;
+    const dEl = document.getElementById('danger-view');
+    dEl.textContent = '☠ 危険度 ' + danger;
+    dEl.style.color = danger <= 2 ? '#7ee787' : danger <= 4 ? '#ffd766' : danger <= 8 ? '#f85149' : '#c084fc';
     document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
     // 素材チップ
     let h = '';
@@ -1770,7 +1826,7 @@ const Run = (() => {
     }
     matStrip.innerHTML = h;
     const waiting = R.allies.filter(a => a.waitAt).length;
-    allyView.textContent = '仲間 ' + R.allies.length + (waiting ? '(待機' + waiting + ')' : '');
+    allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
     // スキルボタン: 取得可能なスキルがあれば光って数を出す
     const rc = Skills.readyCount();
     const skBtn = document.getElementById('btn-skill');
@@ -1795,7 +1851,7 @@ const Run = (() => {
     let matBonus = 0;
     const mats = Skills.mats();
     for (const m in mats) {
-      matBonus += (mats[m] || 0) * (DATA.MATERIALS[m].tier + 1) * 2;
+      matBonus += (mats[m] || 0) * (DATA.MATERIALS[m].tier + 1);
     }
     let total = R.coins + matBonus;
     // 死中の活: 力尽きた時の持ち帰りが増える

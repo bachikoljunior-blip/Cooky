@@ -142,8 +142,8 @@ const Game = (() => {
   // ミニマップをタップ/クリックで周辺図⇔全体図
   canvas.addEventListener('pointerdown', e => {
     if (state !== 'run' || overlay) return;
-    const sz = World.MM_SIZE;
-    if (e.clientX > canvas.width - sz - 12 && e.clientY < sz + 26) Run.toggleMap();
+    const sz = Math.min(World.MM_SIZE, Math.floor(canvas.width * 0.34));
+    if (e.clientX > canvas.width - sz - 10 && e.clientY < sz + 24) Run.toggleMap();
   });
 
   // 移動パネル設定 (表示/非表示/自動)
