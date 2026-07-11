@@ -210,13 +210,20 @@ const Run = (() => {
     const ring = World.ringOf(e.x, e.y);
     const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * (0.36 + Math.random()*0.18)));
     dropPickup(e.x, e.y, { type:'coin', value:c });
-    // 素材ドロップ
+    // 素材ドロップ(エリアの得意素材は2倍出やすい)
+    const bmats = areaMats(e.x, e.y);
     for (const dr of e.def.drops || []) {
       if (!Skills.matUnlocked(dr.m)) continue;
-      if (Math.random() < dr.c * st.dropMul) {
+      const boost = bmats.includes(dr.m) ? 2 : 1;
+      if (Math.random() < dr.c * st.dropMul * boost) {
         const n = Math.random() < st.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14), { type:'mat', mat:dr.m });
       }
+    }
+    // エリア固有のボーナスドロップ(欲しい素材のエリアへ遠征する価値)
+    const bpool = bmats.filter(m => Skills.matUnlocked(m));
+    if (bpool.length && Math.random() < 0.10 * st.dropMul) {
+      dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14), { type:'mat', mat: bpool[Math.floor(Math.random() * bpool.length)] });
     }
     // ポーション
     if (Math.random() < st.potion) dropPickup(e.x, e.y, { type:'potion' });
@@ -320,6 +327,13 @@ const Run = (() => {
   }
 
   function rnd(a, b){ return a + Math.random() * (b - a); }
+
+  // その座標のエリアで「よく採れる」素材リスト(海は貝殻・珊瑚)
+  function areaMats(x, y){
+    const ti = World.tileAt(x, y);
+    if (ti.t === 'sea' || ti.t === 'deep') return ['shell', 'coral'];
+    return (DATA.BIOMES[ti.biome] || {}).mats || [];
+  }
 
   function effect(type, x, y, opt){
     if (R.effects.length > 120) R.effects.shift();
@@ -460,7 +474,7 @@ const Run = (() => {
         R.bossDone[b.at] = true;
         const e = spawnEnemy(b.base, { boss:true, bossName:b.name, hpMul:b.hpMul, dmgMul:b.dmgMul, coin:b.coin, dist:620 });
         if (e) { e.def = Object.assign({}, e.def, { sprite: b.sprite }); }
-        R.warnMsg = '⚠ ' + b.name + ' が現れた!'; R.warnT = 4;
+        R.warnMsg = '⚠ ' + b.name + ' が現れた!'; R.warnT = 4; R.warnColor = null;
         Sfx.boss();
       }
     }
@@ -468,7 +482,7 @@ const Run = (() => {
     if (isReaperTime) {
       if (!R.reaperWarned) {
         R.reaperWarned = true;
-        R.warnMsg = '☠ 終焉の刻 ― リーパーの大群が押し寄せる!'; R.warnT = 6;
+        R.warnMsg = '☠ 終焉の刻 ― リーパーの大群が押し寄せる!'; R.warnT = 6; R.warnColor = null;
         Sfx.boss();
       }
       R.reaperAcc += dt;
@@ -1103,6 +1117,8 @@ const Run = (() => {
       R.objsDestroyed++;
       const drops = World.objectDrops(o.type, Skills.matUnlocked);
       if (drops.length && Math.random() < R.stats.salvage) drops.push(drops[0]);   // 解体術: 追加素材
+      const opool = areaMats(o.x, o.y).filter(m => Skills.matUnlocked(m));
+      if (opool.length && Math.random() < 0.3) drops.push(opool[Math.floor(Math.random() * opool.length)]);
       for (const m of drops) {
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
@@ -1386,6 +1402,21 @@ const Run = (() => {
     if (R.exploreAcc <= 0) {
       R.exploreAcc = 0.4;
       World.recordExplore(p.x, p.y, st.exploreRad);
+      // エリア進入バナー(大陸名・バイオーム・得意素材)
+      const L = World.landAt(p.x, p.y);
+      const cid = L ? L.cont.id : 'sea';
+      if (cid !== R.curCont) {
+        R.curCont = cid;
+        if (L) {
+          const bio = DATA.BIOMES[L.cont.biome] || DATA.BIOMES.grass;
+          const mm = (bio.mats || []).filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
+          R.warnMsg = '― ' + L.cont.name + ' <' + bio.name + '> ―' + (mm ? ' よく採れる: ' + mm : '');
+        } else {
+          R.warnMsg = '― 海域 ― よく採れる: ' + ['shell','coral'].filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
+        }
+        R.warnColor = '#a5d8ff';
+        R.warnT = 4;
+      }
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
@@ -1548,8 +1579,6 @@ const Run = (() => {
     // 仲間
     for (const a of R.allies) {
       if (a.waitAt) g.globalAlpha = 0.7;
-      g.strokeStyle = '#7ee787'; g.lineWidth = 2;
-      g.beginPath(); g.arc(a.x, a.y + 4, a.def.r + 5, 0, 7); g.stroke();
       Sprites.draw(g, a.def.sprite, a.x, a.y, a.def.r * 2.6);
       drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
       if (a.waitAt) {
@@ -1832,8 +1861,11 @@ const Run = (() => {
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
-    if (R.warnT > 0) { warnEl.textContent = R.warnMsg; warnEl.classList.remove('hidden'); }
-    else warnEl.classList.add('hidden');
+    if (R.warnT > 0) {
+      warnEl.textContent = R.warnMsg;
+      warnEl.style.color = R.warnColor || '';
+      warnEl.classList.remove('hidden');
+    } else { warnEl.classList.add('hidden'); R.warnColor = null; }
     if (R.interact && R.interact.type !== 'land') {
       hintEl.textContent = R.interact.label;
       hintEl.classList.remove('hidden');
