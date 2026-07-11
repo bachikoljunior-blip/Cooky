@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0b0f1a">
+<title>COOKY SURVIVORS - 死に戻りサバイバーズ</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+<div id="game-root">
+  <canvas id="game"></canvas>
+
+  <!-- HUD (周回中) -->
+  <div id="hud" class="hidden">
+    <div id="hud-top">
+      <div id="hp-wrap"><div id="hp-bar"></div><span id="hp-text"></span></div>
+      <div id="timer">00:00</div>
+      <div id="coin-view">🪙 <span id="coin-text">0</span></div>
+    </div>
+    <div id="mat-strip"></div>
+    <div id="ally-view"></div>
+    <div id="warn-banner" class="hidden"></div>
+  </div>
+
+  <!-- 仮想スティック -->
+  <div id="stick-zone"><div id="stick-base"><div id="stick-knob"></div></div></div>
+  <div id="touch-buttons" class="hidden">
+    <button id="btn-skill" class="tbtn">スキル</button>
+    <button id="btn-act" class="tbtn hidden">実行</button>
+  </div>
+
+  <!-- インタラクトのヒント -->
+  <div id="interact-hint" class="hidden"></div>
+
+  <!-- スキルパネル(一時停止) -->
+  <div id="skill-panel" class="panel hidden">
+    <h2>スキルリスト <span class="small">(ゲーム一時停止中)</span></h2>
+    <div id="skill-owned"></div>
+    <div id="skill-list"></div>
+    <button id="skill-close" class="big-btn">再開する (Tab)</button>
+  </div>
+
+  <!-- 汎用ステーションパネル(拠点/港/基地) -->
+  <div id="station-panel" class="panel hidden">
+    <h2 id="station-title"></h2>
+    <div id="station-body"></div>
+    <button id="station-close" class="big-btn">閉じる</button>
+  </div>
+
+  <!-- リザルト -->
+  <div id="result-panel" class="panel hidden">
+    <h2 id="result-title">力尽きた…</h2>
+    <div id="result-body"></div>
+    <button id="result-ok" class="big-btn">魂の広場へ戻る</button>
+  </div>
+
+  <!-- タイトル -->
+  <div id="title-screen">
+    <h1>COOKY<br>SURVIVORS</h1>
+    <p class="tagline">― 死に戻りサバイバーズ ―</p>
+    <button id="btn-start" class="big-btn">はじめる</button>
+    <button id="btn-help" class="big-btn sub">あそびかた</button>
+    <button id="btn-wipe" class="big-btn danger">データ初期化</button>
+    <p class="ver">v1.0</p>
+  </div>
+
+  <!-- ヘルプ -->
+  <div id="help-panel" class="panel hidden">
+    <h2>あそびかた</h2>
+    <div class="help-body">
+      <p>■ 移動: WASD / 矢印キー / 画面左の仮想スティック。攻撃は自動。</p>
+      <p>■ 敵やオブジェクトを壊すと<b>素材</b>と<b>お金</b>が落ちる。</p>
+      <p>■ <b>Tab</b>(またはスキルボタン)でゲームを止めてスキルリストを開き、素材が揃ったスキルを取得。同じスキルは素材を集め直すたびにレベルアップし、レベルごとに強化内容が変わる。</p>
+      <p>■ 敵を倒すと一定確率で<b>仲間</b>になり、ついてきて一緒に戦う。仲間にもHPがある。</p>
+      <p>■ 敵は<b>時間経過</b>と<b>初期地点からの距離</b>で強くなる。30分を過ぎると終焉の刻 ― ボス級が大量出現する。</p>
+      <p>■ 死ぬと<b>魂の広場</b>へ。集めたお金で恒久強化・スキル解放・上限解放・新素材解放など。</p>
+      <p>■ 遠方の<b>基地</b>を解放すると、魂の広場からワープ出撃でき、特別な強化も買える。</p>
+      <p>■ 海辺の<b>港</b>で壊れた船を修理すると海へ出られる。海の先には別大陸が…。陸の仲間は乗船中、港で待機する。</p>
+      <p>■ その他キー: E=調べる / P=一時停止 / M=ミュート</p>
+    </div>
+    <button id="help-close" class="big-btn">閉じる</button>
+  </div>
+
+  <!-- ポーズ -->
+  <div id="pause-panel" class="panel hidden">
+    <h2>一時停止</h2>
+    <div class="help-body"><p id="pause-info"></p></div>
+    <button id="pause-resume" class="big-btn">再開 (P)</button>
+    <button id="pause-retire" class="big-btn danger">リタイアして魂の広場へ</button>
+  </div>
+</div>
+
+<script src="js/data.js"></script>
+<script src="js/sprites.js"></script>
+<script src="js/audio.js"></script>
+<script src="js/save.js"></script>
+<script src="js/input.js"></script>
+<script src="js/world.js"></script>
+<script src="js/skills.js"></script>
+<script src="js/run.js"></script>
+<script src="js/hub.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>
