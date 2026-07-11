@@ -61,6 +61,8 @@ const Quest = (() => {
   let dlgLines = [], dlgDone = null;
   function openDialog(name, lines, onDone){
     dlgLines = lines.slice(); dlgDone = onDone;
+    const faceEl = document.getElementById('dialog-face');
+    if (Q.def && Q.def.npc) { faceEl.src = Sprites.get(Q.def.npc).toDataURL(); faceEl.classList.remove('hidden'); }
     document.getElementById('dialog-name').textContent = name;
     document.getElementById('dialog-choices').innerHTML = '';
     dlgBox().classList.remove('hidden');
@@ -164,8 +166,8 @@ const Quest = (() => {
     const st = Run.state.stats;
     p.invuln = Math.max(0, p.invuln - dt);
 
-    // 移動(壁あり)
-    const ax = Input.axis();
+    // 移動(壁あり) botAxisは自動テスト用フック
+    const ax = Q.botAxis || Input.axis();
     p.x = Math.max(40, Math.min(Q.w - 40, p.x + ax.x * st.speed * dt));
     p.y = Math.max(40, Math.min(Q.h - 40, p.y + ax.y * st.speed * dt));
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;

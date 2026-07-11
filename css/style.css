@@ -14,8 +14,11 @@ canvas#game { position:absolute; inset:0; width:100%; height:100%; display:block
 #hp-wrap { position:relative; width:220px; max-width:34vw; height:20px; background:#30363d; border:2px solid #000; border-radius:4px; overflow:hidden; }
 #hp-bar { height:100%; width:100%; background:linear-gradient(#3fb950,#2ea043); transition:width .15s; }
 #hp-text { position:absolute; inset:0; text-align:center; font-size:12px; line-height:18px; text-shadow:0 1px 2px #000; }
-#timer { font-size:26px; font-weight:bold; text-shadow:0 2px 4px #000; letter-spacing:2px; }
-#coin-view { font-size:18px; font-weight:bold; text-shadow:0 2px 4px #000; }
+#timer { font-size:24px; font-weight:bold; text-shadow:0 2px 4px #000; letter-spacing:2px;
+  background:rgba(5,9,18,.55); padding:2px 12px; border-radius:12px; border:1px solid rgba(255,255,255,.08); }
+#coin-view, #danger-view, #dist-view { background:rgba(5,9,18,.55); padding:3px 10px; border-radius:12px;
+  border:1px solid rgba(255,255,255,.08); }
+#coin-view { font-size:16px; font-weight:bold; text-shadow:0 2px 4px #000; }
 #mat-strip { position:absolute; top:44px; left:10px; display:flex; flex-wrap:wrap; gap:4px;
   max-width:calc(100vw - 200px); }
 .mat-chip { display:flex; align-items:center; gap:3px; background:rgba(0,0,0,.55); border-radius:10px; padding:1px 7px 1px 3px; font-size:12px; }
@@ -88,7 +91,8 @@ body.pad-visible #touch-buttons { display:flex; }
 
 /* ---------- タイトル ---------- */
 #title-screen { position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center;
-  justify-content:center; gap:14px; background:radial-gradient(ellipse at center,#16213e 0%,#0b0f1a 75%); }
+  justify-content:center; gap:14px;
+  background:radial-gradient(ellipse at center, rgba(22,33,62,.30) 0%, rgba(11,15,26,.45) 80%); }
 #title-screen h1 { font-size:min(64px,12vw); line-height:1.1; text-align:center; letter-spacing:6px;
   background:linear-gradient(#ffd766,#ff8c37); -webkit-background-clip:text; background-clip:text; color:transparent;
   filter:drop-shadow(0 4px 18px rgba(255,140,55,.45));
@@ -154,6 +158,8 @@ body.pad-visible #touch-buttons { display:flex; }
   width:min(620px, 94vw); background:linear-gradient(160deg, rgba(22,29,44,.97), rgba(13,17,23,.97));
   border:1px solid #3a4763; border-radius:14px; padding:14px 16px;
   box-shadow:0 10px 36px rgba(0,0,0,.6); }
+#dialog-face { float:left; width:52px; height:52px; margin:0 10px 4px 0; image-rendering:pixelated;
+  background:radial-gradient(circle, #1f2a3a, #10151f); border-radius:12px; border:1px solid #3a4763; }
 #dialog-name { font-size:14px; font-weight:bold; color:#ffd766; margin-bottom:6px; }
 #dialog-text { font-size:15px; line-height:1.8; min-height:52px; }
 #dialog-hint { text-align:right; font-size:11px; color:#8b949e; margin-top:4px; }
@@ -162,3 +168,5 @@ body.pad-visible #touch-buttons { display:flex; }
   background:linear-gradient(#2ea043,#1d7a33); color:#fff; cursor:pointer; }
 .dlg-choice.sub { background:#30363d; }
 .dlg-choice:disabled { background:#30363d; color:#8b949e; }
+
+body.in-title #stick-zone, body.in-title #touch-buttons { display:none !important; }

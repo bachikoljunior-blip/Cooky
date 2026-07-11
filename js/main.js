@@ -9,7 +9,7 @@ const Game = (() => {
   const g = canvas.getContext('2d');
   let state = 'title';
   let overlay = null;   // null | 'skill' | 'station' | 'pause' | 'result' | 'help'
-  let lastT = 0;
+  let lastT = 0, titleT = 0;
 
   function resize(){
     canvas.width = window.innerWidth;
@@ -26,16 +26,19 @@ const Game = (() => {
   function toTitle(){
     state = 'title'; overlay = null;
     show('title-screen'); hide('hud');
+    document.body.classList.add('in-title');
     Sfx.setScene('title');
   }
   function toHub(){
     state = 'hub'; overlay = null;
+    document.body.classList.remove('in-title');
     hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel');
     Hub.enter();
     Sfx.setScene('hub');
   }
   function startRun(pos){
     state = 'run'; overlay = null;
+    document.body.classList.remove('in-title');
     hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
     show('hud');
     el('interact-hint').classList.add('hidden');
@@ -45,8 +48,11 @@ const Game = (() => {
 
   // ---------------- 周回中のNPC会話 ----------------
   let runDlg = null;
-  function openRunDialog(name, lines, onDone){
+  function openRunDialog(name, lines, onDone, face){
     overlay = 'dialog';
+    const faceEl = el('dialog-face');
+    if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
+    else faceEl.classList.add('hidden');
     el('dialog-name').textContent = name;
     el('dialog-choices').innerHTML = '';
     runDlg = { lines: lines.slice(), onDone };
@@ -77,6 +83,7 @@ const Game = (() => {
     const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
     const lines = (q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。'])
       .concat(['「' + tip + '」']);
+    const npcFace = q.npc;
     const q2 = DATA.QUESTS2[baseId];
     const done2 = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
     openRunDialog(q.npcName, lines, () => {
@@ -98,12 +105,14 @@ const Game = (() => {
         el('dialog-choices').innerHTML = '';
         hide('dialog-box'); overlay = null;
       };
-    });
+    }, npcFace);
   }
 
   // クエスト転移(周回は一時停止したまま保持される)
   function enterQuest(kind, id){
     if (state !== 'run') return;
+    if (kind === 'base' && SaveSys.data.bases[id]) return;   // 解放済みは再入場不可
+    if (kind === 'port' && SaveSys.data.ports[id]) return;
     if (!Quest.start(kind, id)) return;
     state = 'quest';
     hide('hud');
@@ -249,9 +258,27 @@ const Game = (() => {
       if (!overlay) Hub.update(dt);
       Hub.draw(g, W, H);
     } else {
-      // タイトル背景
-      g.fillStyle = '#0b0f1a';
+      // タイトル背景: 夜空+浮遊する光の粒
+      titleT += dt;
+      const bgGrad = g.createLinearGradient(0, 0, 0, H);
+      bgGrad.addColorStop(0, '#0b0f1a');
+      bgGrad.addColorStop(0.6, '#131c33');
+      bgGrad.addColorStop(1, '#1a1230');
+      g.fillStyle = bgGrad;
       g.fillRect(0, 0, W, H);
+      for (let i = 0; i < 42; i++) {
+        const sp = 12 + (i * 37) % 30;
+        const px = ((i * 227) % 100) / 100 * W + Math.sin(titleT * 0.5 + i) * 30;
+        const py = H - (((titleT * sp + i * 173) % (H + 80)) - 40);
+        const hue = [45, 30, 200, 280][i % 4];
+        g.fillStyle = `hsla(${hue}, 90%, 65%, ${0.25 + (i % 3) * 0.12})`;
+        g.beginPath(); g.arc(px, py, 1.5 + (i % 3), 0, 7); g.fill();
+      }
+      // 地平線のシルエット
+      g.fillStyle = 'rgba(8,12,22,.85)';
+      g.beginPath(); g.moveTo(0, H);
+      for (let x = 0; x <= W; x += 40) g.lineTo(x, H - 40 - Math.sin(x * 0.01 + 2) * 24);
+      g.lineTo(W, H); g.closePath(); g.fill();
     }
   }
 

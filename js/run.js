@@ -139,7 +139,6 @@ const Run = (() => {
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0;
-    R.baseChannel = null;
     R.interact = null;
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
@@ -208,7 +207,8 @@ const Run = (() => {
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
-    const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * (0.36 + Math.random()*0.18)));
+    const valueMul = (e.boss || e.def.isReaper) ? 0.9 : (0.36 + Math.random() * 0.18);
+    const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * valueMul));
     dropPickup(e.x, e.y, { type:'coin', value:c });
     // 素材ドロップ(エリアの得意素材は2倍出やすい)
     const bmats = areaMats(e.x, e.y);
@@ -375,8 +375,9 @@ const Run = (() => {
         pk.y += (p.y - pk.y) / (d || 1) * sp * dt;
       }
       if (d < 26) {
-        if (pk.type === 'coin') { R.coins += pk.value; Sfx.coin(); }
-        else if (pk.type === 'mat') { Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat(); }
+        if (pk.type === 'coin') { R.coins += pk.value; Sfx.coin(); effect('spark', pk.x, pk.y, { color:'#ffd766' }); }
+        else if (pk.type === 'mat') { Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat();
+          effect('spark', pk.x, pk.y, { color: DATA.MATERIALS[pk.mat].color }); }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         R.pickups.splice(i, 1);
       }
@@ -832,7 +833,7 @@ const Run = (() => {
         const a = tgt ? Math.atan2(tgt.y-p.y, tgt.x-p.x) + (i-(axe.count-1)/2)*0.4 : Math.random()*7;
         R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*330, vy:Math.sin(a)*330,
                        dmg:axe.dmg, life:axe.range/330*2, size:axe.size, pierce:99, boomerang:true,
-                       phase:0, maxT:axe.range/330, hitSet:{}, color:'#9aa5b1' });
+                       phase:0, maxT:axe.range/330, color:'#9aa5b1' });
       }
     }
     // --- チェインライトニング ---
@@ -1185,7 +1186,6 @@ const Run = (() => {
       let hit = false;
       for (const e of R.enemies) {
         if (e.dead) continue;
-        if (b.boomerang && b.hitSet[e.defKey + e.x] !== undefined) continue;
         if (Math.hypot(e.x-b.x, e.y-b.y) < b.size + e.def.r) {
           if (b.boomerang) {
             if (!e._axeT || R.time - e._axeT > 0.5) { e._axeT = R.time; dealDamage(e, b.dmg); }
@@ -1230,7 +1230,6 @@ const Run = (() => {
   function updateInteractions(dt){
     const p = R.player;
     R.interact = null;
-    R.baseChannel = null;
 
     // 基地: 未解放ならクエストへ(E)。解放済みはNPCと再会話でき、安全地帯(微回復)
     for (const b of World.bases) {
@@ -1657,6 +1656,20 @@ const Run = (() => {
     }
     g.fillStyle = vignette.grad;
     g.fillRect(0, 0, W, H);
+    // 低HP警告パルス
+    const hpR = Math.max(0, p.hp / R.stats.maxHp);
+    if (hpR < 0.35) {
+      g.fillStyle = `rgba(220,40,40,${(0.35 - hpR) * 0.6 * (0.6 + 0.4 * Math.sin(R.time * 6))})`;
+      g.fillRect(0, 0, W, H);
+    }
+    // 終焉の刻: 空気が赤黒く染まる
+    if (R.time >= DATA.REAPER_AT) {
+      g.fillStyle = 'rgba(110,0,30,0.10)';
+      g.fillRect(0, 0, W, H);
+    } else if (R.time >= DATA.REAPER_AT - 120) {
+      g.fillStyle = `rgba(110,0,30,${0.10 * (1 - (DATA.REAPER_AT - R.time) / 120)})`;
+      g.fillRect(0, 0, W, H);
+    }
 
     // ボスHPバー(小画面ではHUDと重ならない位置に)
     if (R.bossAlive && !R.bossAlive.dead) {
@@ -1685,6 +1698,13 @@ const Run = (() => {
     for (const ef of R.effects) {
       const pr = ef.t / 0.5;
       switch(ef.type){
+        case 'spark': {
+          g.strokeStyle = ef.color; g.globalAlpha = 1 - pr; g.lineWidth = 2;
+          const sr = 4 + pr * 10;
+          g.beginPath();
+          g.moveTo(ef.x - sr, ef.y); g.lineTo(ef.x + sr, ef.y);
+          g.moveTo(ef.x, ef.y - sr); g.lineTo(ef.x, ef.y + sr);
+          g.stroke(); break; }
         case 'burst':
           g.strokeStyle = ef.color; g.globalAlpha = 1 - pr; g.lineWidth = 3;
           g.beginPath(); g.arc(ef.x, ef.y, ef.r * (0.5 + pr), 0, 7); g.stroke(); break;

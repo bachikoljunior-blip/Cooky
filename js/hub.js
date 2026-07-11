@@ -204,9 +204,20 @@ const Hub = (() => {
     g.save();
     g.translate(-camX, -camY);
 
-    // 広場の縁
+    // 広場の縁(装飾つき)
     g.strokeStyle = '#2b3654'; g.lineWidth = 6;
     g.strokeRect(-800, -360, 1600, 1920);
+    g.strokeStyle = 'rgba(118,227,234,.14)'; g.lineWidth = 2;
+    g.strokeRect(-786, -346, 1572, 1892);
+
+    // 浮遊する魂の粒
+    const hbT = performance.now() / 1000;
+    for (let i = 0; i < 26; i++) {
+      const sx = -760 + ((i * 331) % 1520);
+      const sy = -340 + (((hbT * (8 + i % 5 * 4) + i * 197) % 1880));
+      g.fillStyle = `hsla(${185 + (i % 3) * 30}, 80%, 70%, ${0.10 + (i % 3) * 0.06})`;
+      g.beginPath(); g.arc(sx + Math.sin(hbT + i) * 14, -360 + 1920 - (sy + 360), 2 + (i % 3), 0, 7); g.fill();
+    }
 
     // 施設
     for (const s of H.list) {
@@ -219,10 +230,12 @@ const Hub = (() => {
       else if (s.kind === 'warp') { spr = 'st_warp'; label = '→ ' + s.base.name; }
       else if (s.kind === 'stats') { spr = 'ob_rock'; label = '記録の石碑'; }
       const glow = H.interact === s;
-      if (glow) {
-        g.fillStyle = 'rgba(255,215,102,.12)';
-        g.beginPath(); g.arc(s.x, s.y, 70, 0, 7); g.fill();
-      }
+      // 施設の足元の常時グロー
+      const gg = g.createRadialGradient(s.x, s.y + 20, 4, s.x, s.y + 20, s.small ? 44 : 66);
+      gg.addColorStop(0, glow ? 'rgba(255,215,102,.30)' : 'rgba(118,227,234,.12)');
+      gg.addColorStop(1, 'rgba(0,0,0,0)');
+      g.fillStyle = gg;
+      g.beginPath(); g.arc(s.x, s.y + 20, s.small ? 44 : 66, 0, 7); g.fill();
       Sprites.draw(g, spr, s.x, s.y, s.small ? 52 : 84);
       g.fillStyle = glow ? '#ffd766' : '#c9d1d9';
       g.font = (s.small ? '11px' : '13px') + ' sans-serif'; g.textAlign = 'center';
