@@ -31,6 +31,7 @@ const Hub = (() => {
 
   function enter(){
     H.player.x = 0; H.player.y = 80;
+    SaveSys.checkAchievements();
     H.list = stations();
   }
 
@@ -95,6 +96,16 @@ const Hub = (() => {
     for (const id in DATA.META) {
       const def = DATA.META[id];
       if (def.st !== stKey) continue;
+      // 実績で解放される項目
+      if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) {
+        const ach = DATA.ACHIEVEMENTS.find(a => a.id === def.unlockAch);
+        h += `<div class="up-card" style="opacity:.55">
+          <div class="info">
+            <div class="name">🔒 ???</div>
+            <div class="desc">実績「${ach ? ach.name : '???'}」(${ach ? ach.desc : ''})で解放</div>
+          </div></div>`;
+        continue;
+      }
       const lv = SaveSys.metaLv(id);
       const maxed = lv >= def.max;
       const cost = maxed ? 0 : def.cost(lv);
@@ -138,6 +149,13 @@ const Hub = (() => {
         <p>総獲得コイン: <b>${fmtNum(s.totalCoins)}</b></p>
         <p>解放した基地: <b>${basesN} / ${DATA.BASES.length}</b></p>
         <p>修理した港: <b>${portsN} / ${DATA.PORTS.length}</b></p>
+        <p>素材収集: <b>${fmtNum(s.matsCollected||0)}</b> / オブジェクト破壊: <b>${fmtNum(s.objectsDestroyed||0)}</b> / スキル取得: <b>${s.skillsAcquired||0}回</b></p>
+        <div class="sec-head">🏆 実績 (${Object.keys(SaveSys.data.ach).length}/${DATA.ACHIEVEMENTS.length})</div>
+        ${DATA.ACHIEVEMENTS.map(a => {
+          const done = SaveSys.data.ach[a.id];
+          return `<p style="opacity:${done ? 1 : .5}">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}<br>
+            <span class="small">報酬: ${a.reward}</span></p>`;
+        }).join('')}
       </div>`;
   }
 

@@ -20,6 +20,10 @@ DATA.MATERIALS = {
   scale:   { name:'竜のうろこ',     color:'#2dd4bf', tier:3, unlock:'lab_mat_scale' },
   star:    { name:'星のかけら',     color:'#fde047', tier:3, unlock:'lab_mat_star' },
   abyss:   { name:'深淵の核',       color:'#a78bfa', tier:4, unlock:'lab_mat_abyss' },
+  // レア源限定素材(特定のレアモンスター/レアオブジェクトしか落とさない)
+  prism:   { name:'虹のかけら',     color:'#e879f9', tier:4 },
+  amber:   { name:'太古の琥珀',     color:'#f59e0b', tier:3 },
+  pearl:   { name:'真珠',           color:'#f1f5f9', tier:3 },
 };
 
 // コスト生成ヘルパ: lv(1〜)に応じて素材要求が増え、高レベルで上位素材が混ざる
@@ -232,7 +236,7 @@ DATA.SKILLS = {
   },
   // ---- 魂の広場で解放するスキル ----
   laser: {
-    name:'プリズムレーザー', icon:'sk_laser', unlock:'lib_sk_laser',
+    name:'プリズムレーザー', icon:'sk_laser', unlock:'lib_sk_laser', requires:{skill:'bolt', lv:4},
     desc:'貫通する極太レーザーを一直線に放つ。【要解放】',
     cost:(lv)=>matCost(lv,{magic:4,crystal:6},[{from:4,mat:'star',qty:2}]),
     lvText:['威力+70%','照射時間+','2方向に発射','威力+90%','4方向に発射'],
@@ -240,7 +244,7 @@ DATA.SKILLS = {
       beams:1+(lv>=4?1:0)+(lv>=6?2:0), width:18 }),
   },
   meteor: {
-    name:'メテオストーム', icon:'sk_meteor', unlock:'lib_sk_meteor',
+    name:'メテオストーム', icon:'sk_meteor', unlock:'lib_sk_meteor', requires:{skill:'thunder', lv:3},
     desc:'広範囲に隕石を降らせる大火力スキル。【要解放】',
     cost:(lv)=>matCost(lv,{magic:5,scale:1},[{from:3,mat:'star',qty:2},{from:5,mat:'abyss',qty:1}]),
     lvText:['隕石+2','威力+80%','隕石+2','爆発範囲拡大','隕石+3・威力+100%'],
@@ -248,7 +252,7 @@ DATA.SKILLS = {
       cd:6, blast:80*(lv>=5?1.4:1) }),
   },
   sands: {
-    name:'時の砂', icon:'sk_sands', unlock:'lib_sk_sands',
+    name:'時の砂', icon:'sk_sands', unlock:'lib_sk_sands', requires:{skill:'nova', lv:3},
     desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:3,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','発動間隔-25%','ほぼ静止級の減速'],
@@ -256,12 +260,20 @@ DATA.SKILLS = {
       radius:220+(lv>=4?120:0), cd:12*(lv>=5?0.75:1) }),
   },
   dragonbreath: {
-    name:'ドラゴンブレス', icon:'sk_breath', unlock:'lib_sk_breath',
+    name:'ドラゴンブレス', icon:'sk_breath', unlock:'lib_sk_breath', requires:{skill:'flame', lv:3},
     desc:'移動方向へ焼き尽くす吐息を放つ。【要解放】',
     cost:(lv)=>matCost(lv,{scale:2,magic:4},[{from:4,mat:'abyss',qty:1}]),
     lvText:['威力+70%','範囲(角度)拡大','持続+','威力+90%','超射程・威力+80%'],
     stats:(lv)=>({ dps:35*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1)*(lv>=6?1.8:1),
       arc:0.6+(lv>=3?0.35:0), range:170+(lv>=6?130:0), dur:1.4*(lv>=4?1.5:1), cd:5 }),
+  },
+  prism_ray: {
+    name:'虹の奔流', icon:'sk_prism', unlockAch:'ach_rare', requires:{skill:'laser', lv:2},
+    desc:'【実績解放】回転する虹の光線が全てを薙ぎ払う。レインボースライムの落とす「虹のかけら」が必要。',
+    cost:(lv)=>matCost(lv,{prism:1,crystal:8},[{from:4,mat:'star',qty:2}]),
+    lvText:['威力+70%','光線+1','回転が速くなる','威力+90%','光線+2'],
+    stats:(lv)=>({ dmg:40*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1), beams:3+(lv>=3?1:0)+(lv>=6?2:0),
+      width:14, len:430, spin:0.7*(lv>=4?1.6:1), cd:7 }),
   },
 };
 function crystalKey(){ return 'crystal'; }
@@ -295,6 +307,8 @@ const PASSIVE_DEFS = [
   ['p_veil',    '霞の心得',       '回避率',               'dodgeAdd',   .01,  '+1%',    'coral',3,'star',1],
   ['p_epoch',   '刻の心得',       '敵の時間強化を緩和',   'mitigAdd',   .015, '+1.5%',  'star',2,'abyss',1],
   ['p_phantom', '幻影の心得',     '被弾後の無敵時間',     'invulnAdd',  .04,  '+0.04秒','magic',4,'coral',2],
+  ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',2,'wood',6],
+  ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',2,'shell',5],
 ];
 for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) {
   DATA.SKILLS[id] = {
@@ -335,6 +349,7 @@ DATA.ENEMIES = {
   dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:58, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:280}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
   demon:    { name:'デーモン',        hp:700, dmg:60, speed:70,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
   abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:60,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
+  rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:155, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
   reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:95, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
 };
 
@@ -489,9 +504,48 @@ DATA.META = {
   // --- 第3環 ---
   g_sun_grace:   { st:'b_sun',   name:'太陽の恩寵', desc:'攻撃・HP・移動速度 +2%', max:20, cost:gcost(40000,1.5) },
   g_void_null:   { st:'b_void',  name:'虚無の帳',   desc:'リーパー耐性+2% / リーパー特効+5%', max:15, cost:gcost(45000,1.5) },
+  // --- 実績で解放される強化項目 ---
+  m_war:       { st:'altar', name:'戦意',     desc:'全ダメージ +2%',            max:10, cost:gcost(500,1.4),   unlockAch:'ach_kill1' },
+  m_ashura:    { st:'altar', name:'修羅',     desc:'クリティカル率 +1.5%',      max:10, cost:gcost(5000,1.45), unlockAch:'ach_kill2' },
+  m_grit:      { st:'altar', name:'不屈',     desc:'HP自動回復 +1/秒',          max:10, cost:gcost(800,1.45),  unlockAch:'ach_time1' },
+  m_pioneer:   { st:'altar', name:'開拓魂',   desc:'移動速度 +2%',              max:5,  cost:gcost(3000,1.5),  unlockAch:'ach_bases' },
+  m_deathlearn:{ st:'altar', name:'死中の活', desc:'力尽きた時の持ち帰りコイン +10%', max:10, cost:gcost(1000,1.45), unlockAch:'ach_die10' },
+  m_bond2:     { st:'camp',  name:'友の絆',   desc:'仲間HP +6%',                max:10, cost:gcost(600,1.4),   unlockAch:'ach_recruit1' },
+  m_legion:    { st:'camp',  name:'軍団旗',   desc:'仲間攻撃力 +6%',            max:10, cost:gcost(2000,1.45), unlockAch:'ach_allies20' },
+  m_bosslore:  { st:'lib',   name:'弱点研究', desc:'ボスへのダメージ +5%',      max:10, cost:gcost(1500,1.45), unlockAch:'ach_boss1' },
+  m_satori:    { st:'lib',   name:'悟り',     desc:'スキル発動間隔 -1%',        max:10, cost:gcost(2500,1.5),  unlockAch:'ach_skills' },
+  m_endbook:   { st:'lib',   name:'終焉の書', desc:'リーパー被ダメ -2%',        max:10, cost:gcost(8000,1.5),  unlockAch:'ach_time2' },
+  m_reaplore:  { st:'lab',   name:'終焉の知識', desc:'リーパーへのダメージ +4%', max:10, cost:gcost(3000,1.45), unlockAch:'ach_reaper1' },
+  m_cartography:{ st:'lab',  name:'地図学',   desc:'探索でマップに記録される範囲が広がる', max:4, cost:gcost(1500,1.8), unlockAch:'ach_dist1' },
+  m_preserve:  { st:'lab',   name:'保存術',   desc:'開始時の所持素材 +1ずつ',   max:5,  cost:gcost(1200,1.6),  unlockAch:'ach_mats1' },
+  m_salvage:   { st:'lab',   name:'解体術',   desc:'オブジェクトが追加素材を落とす確率 +8%', max:10, cost:gcost(900,1.45), unlockAch:'ach_obj1' },
+  m_shipwright:{ st:'lab',   name:'造船学',   desc:'船の速度 +5%',              max:10, cost:gcost(2000,1.45), unlockAch:'ach_ports' },
+  m_invest:    { st:'lab',   name:'投資',     desc:'コイン獲得 +8%',            max:10, cost:gcost(5000,1.5),  unlockAch:'ach_coins' },
   // --- 最果て ---
   g_end_beyond:  { st:'b_end',   name:'終焉超越',   desc:'敵の時間強化をさらに2%緩和 / 全ダメージ+8%', max:20, cost:gcost(150000,1.55) },
 };
+
+// ---------------- 実績 ----------------
+// cond(save) が true になると解放。報酬は unlockAch 付きのメタ強化/スキルが解放される
+DATA.ACHIEVEMENTS = [
+  { id:'ach_kill1',   name:'討伐者',       desc:'累計1,000体撃破',        cond:s=>s.stats.kills>=1000,        reward:'祭壇に「戦意」が追加' },
+  { id:'ach_kill2',   name:'殲滅者',       desc:'累計10,000体撃破',       cond:s=>s.stats.kills>=10000,       reward:'祭壇に「修羅」が追加' },
+  { id:'ach_recruit1',name:'人望家',       desc:'累計100体を仲間にする',  cond:s=>s.stats.recruits>=100,      reward:'宿舎に「友の絆」が追加' },
+  { id:'ach_allies20',name:'軍団長',       desc:'同時に仲間20体',         cond:s=>(s.stats.maxAlliesEver||0)>=20, reward:'宿舎に「軍団旗」が追加' },
+  { id:'ach_boss1',   name:'ボスハンター', desc:'ボスを10体討伐',         cond:s=>s.stats.bossKills>=10,      reward:'書庫に「弱点研究」が追加' },
+  { id:'ach_reaper1', name:'死神殺し',     desc:'リーパーを1体討伐',      cond:s=>s.stats.reaperKills>=1,     reward:'研究所に「終焉の知識」が追加' },
+  { id:'ach_dist1',   name:'冒険者',       desc:'距離10,000に到達',       cond:s=>s.stats.maxDist>=10000,     reward:'研究所に「地図学」が追加' },
+  { id:'ach_time1',   name:'生存者',       desc:'20分間生き延びる',       cond:s=>s.stats.bestTime>=1200,     reward:'祭壇に「不屈」が追加' },
+  { id:'ach_time2',   name:'終焉を見た者', desc:'終焉の刻(30分)に到達',   cond:s=>s.stats.bestTime>=1800,     reward:'書庫に「終焉の書」が追加' },
+  { id:'ach_mats1',   name:'収集家',       desc:'素材を累計500個収集',    cond:s=>(s.stats.matsCollected||0)>=500, reward:'研究所に「保存術」が追加' },
+  { id:'ach_obj1',    name:'解体屋',       desc:'オブジェクトを500個破壊',cond:s=>(s.stats.objectsDestroyed||0)>=500, reward:'研究所に「解体術」が追加' },
+  { id:'ach_ports',   name:'大航海',       desc:'港を3つ修理する',        cond:s=>Object.keys(s.ports).length>=3, reward:'研究所に「造船学」が追加' },
+  { id:'ach_bases',   name:'開拓者',       desc:'基地を5つ解放する',      cond:s=>Object.keys(s.bases).length>=5, reward:'祭壇に「開拓魂」が追加' },
+  { id:'ach_coins',   name:'大富豪',       desc:'累計100,000コイン獲得',  cond:s=>s.stats.totalCoins>=100000, reward:'研究所に「投資」が追加' },
+  { id:'ach_skills',  name:'求道者',       desc:'スキルを累計50回取得',   cond:s=>(s.stats.skillsAcquired||0)>=50, reward:'書庫に「悟り」が追加' },
+  { id:'ach_die10',   name:'不屈の魂',     desc:'10回力尽きる',           cond:s=>(s.stats.deaths||0)>=10,    reward:'祭壇に「死中の活」が追加' },
+  { id:'ach_rare',    name:'幻を見た者',   desc:'レインボースライムを討伐', cond:s=>(s.stats.rareKills||0)>=1, reward:'新スキル「虹の奔流」が解放' },
+];
 
 DATA.STATIONS = {
   altar: { name:'強化の祭壇',   sprite:'st_altar', desc:'基礎能力を鍛える' },

@@ -26,40 +26,43 @@ const Run = (() => {
     return {
       maxHp: (100 + 20*m('altar_hp') + 40*m('g_black_dark') + 10*m('g_forge_gear')) * (1 + sun),
       atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
-           * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')),
+           * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
-      speed: 132 * (1 + 0.04*m('altar_speed')) * (1 + sun),
-      boatSpeed: 300 * (1 + 0.08*m('lab_sail')),
-      regen: 0.5*m('altar_regen') + 1*m('g_south_heal'),
+      speed: 132 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
+      boatSpeed: 300 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
+      regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
-      crit: 0.02*m('altar_crit'),
+      crit: 0.02*m('altar_crit') + 0.015*m('m_ashura'),
       dodge: 0.01*m('g_mist_dodge'),
       invulnPlus: 0.06*m('g_moon_shadow'),
       burnChance: 0.04*m('g_ember_burn'),
       slowChance: 0.03*m('g_frost_slow'),
       stormDmg: 20*m('g_storm_bolt'),
       allyDeathBlast: 30*m('g_grave_blast'),
-      cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr')),
+      cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
       recruit: 0.08 + 0.015*m('camp_recruit'),
       allyCap: 150,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
-      allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')),
-      allyAtk: (1 + 0.12*m('camp_atk')) * (1 + 0.08*m('g_green_ally')),
-      allyRegen: 0.006 + 0.01*m('camp_heal'),   // 仲間は放っておいても少しずつ回復
+      allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
+      allyAtk: (1 + 0.12*m('camp_atk')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_legion')),
+      allyRegen: 0.012 + 0.01*m('camp_heal'),   // 仲間は放っておいても回復していく
       allyReviveChance: m('camp_revive') * 0.06,
-      coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')),
+      coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
       dropMul: 1 + 0.1*m('lab_drop'),
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
-      bossDmg: 1 + 0.08*m('g_west_boss'),
-      reaperRes: Math.min(0.92, 0.06*m('g_dragon_res') + 0.02*m('g_void_null')),
-      reaperDmg: 1 + 0.15*m('g_dusk_slay') + 0.05*m('g_void_null'),
+      bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
+      reaperRes: Math.min(0.92, 0.06*m('g_dragon_res') + 0.02*m('g_void_null') + 0.02*m('m_endbook')),
+      reaperDmg: (1 + 0.15*m('g_dusk_slay') + 0.05*m('g_void_null')) * (1 + 0.04*m('m_reaplore')),
       timeMitig: Math.min(0.6, 0.03*m('g_star_time') + 0.02*m('g_end_beyond')),
       potion: 0.004*m('g_south_potion'),
       revives: m('altar_revive'),
+      salvage: 0.08*m('m_salvage'),
+      deathBonus: 1 + 0.10*m('m_deathlearn'),
+      exploreRad: 1 + (m('m_cartography') >= 1 ? 1 : 0) + (m('m_cartography') >= 3 ? 1 : 0),
       killHeal: 0, lifesteal: 0,
     };
   }
@@ -111,6 +114,8 @@ const Run = (() => {
         case 'dodgeAdd':    s.dodge = Math.min(0.5, s.dodge + v); break;
         case 'mitigAdd':    s.timeMitig = Math.min(0.7, s.timeMitig + v); break;
         case 'invulnAdd':   s.invulnPlus += v; break;
+        case 'allMul':      s.atk *= 1 + v; s.maxHp *= 1 + v; s.speed *= 1 + v; break;
+        case 'hpPctMul':    s.maxHp *= 1 + v; break;
       }
     }
     return s;
@@ -127,6 +132,7 @@ const Run = (() => {
     R.stats = R.baseStats;
     R.player.hp = R.stats.maxHp;
     R.coins = 0; R.kills = 0; R.recruits = 0; R.bossKills = 0; R.reaperKills = 0;
+    R.rareKills = 0; R.matsGot = 0; R.objsDestroyed = 0; R.peakAllies = 0;
     R.usedRevives = 0;
     R.enemies = []; R.allies = []; R.projs = []; R.eprojs = []; R.pickups = [];
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
@@ -197,6 +203,7 @@ const Run = (() => {
     R.kills++;
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
+    if (e.def.rare) { R.rareKills++; R.warnMsg = '✨ レアモンスターを倒した!'; R.warnT = 3; }
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
@@ -229,14 +236,15 @@ const Run = (() => {
     R.allies.push({
       def: e.def, key: e.defKey,
       x: e.x, y: e.y,
-      maxHp: e.maxHp * 1.6 * hpMul,   // 仲間は元の敵より頑丈
-      hp: e.maxHp * 1.6 * hpMul,
+      maxHp: e.maxHp * 2.4 * hpMul,   // 仲間は元の敵よりずっと頑丈
+      hp: e.maxHp * 2.4 * hpMul,
       dmg: e.dmg * 0.9,
       speed: e.def.speed * 1.4,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false,
     });
     R.recruits++;
+    R.peakAllies = Math.max(R.peakAllies, R.allies.length);
     Sfx.recruit();
     popup(e.x, e.y - 22, '仲間になった!', '#7ee787');
   }
@@ -353,7 +361,7 @@ const Run = (() => {
       }
       if (d < 26) {
         if (pk.type === 'coin') { R.coins += pk.value; Sfx.coin(); }
-        else if (pk.type === 'mat') { Skills.addMat(pk.mat, 1); Sfx.mat(); }
+        else if (pk.type === 'mat') { Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat(); }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         R.pickups.splice(i, 1);
       }
@@ -442,6 +450,7 @@ const Run = (() => {
       let r = Math.random() * tw;
       let pick = pool[0].k;
       for (const q of pool) { r -= q.w; if (r <= 0) { pick = q.k; break; } }
+      if (Math.random() < 0.006) pick = 'rainbow';   // レアモンスター
       spawnEnemy(pick);
     }
     // ボス
@@ -570,7 +579,7 @@ const Run = (() => {
       if (!confused) for (const a of R.allies) {
         if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < e.def.r + 14) {
           e.contactCd = 0.6;
-          damageAlly(a, e.dmg * 0.5, e);   // 仲間への接触ダメージは控えめ
+          damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
         }
       }
@@ -813,12 +822,12 @@ const Run = (() => {
     // --- チェインライトニング ---
     const ch = Skills.stat('chain');
     if (ch && cdReady('chain', ch.cd)) {
-      let cur = nearestEnemy(p.x, p.y, ch.range * area);
+      let cur = nearestEnemy(p.x, p.y, ch.range * area) || nearestObject(p.x, p.y, ch.range * area * 0.6);
       const hit = new Set();
       let px = p.x, py = p.y;
       for (let j = 0; j <= ch.jumps && cur; j++) {
         effect('bolt', px, py, { x2:cur.x, y2:cur.y });
-        dealDamage(cur, ch.dmg);
+        if (cur.type) hitObject(cur, ch.dmg); else dealDamage(cur, ch.dmg);
         hit.add(cur);
         px = cur.x; py = cur.y;
         let nxt = null, bd = 220 * area;
@@ -826,6 +835,11 @@ const Run = (() => {
           if (e.dead || hit.has(e)) continue;
           const d = Math.hypot(e.x - px, e.y - py);
           if (d < bd) { nxt = e; bd = d; }
+        }
+        if (!nxt) for (const o of R.objects || []) {   // 敵が尽きたらオブジェクトへ連鎖
+          if (hit.has(o)) continue;
+          const d = Math.hypot(o.x - px, o.y - py);
+          if (d < bd) { nxt = o; bd = d; }
         }
         cur = nxt;
       }
@@ -855,6 +869,7 @@ const Run = (() => {
           if (nv.freeze) e.frozenUntil = R.time + nv.freeze;
         }
       }
+      damageObjectsIn(p.x, p.y, rad, nv.dmg);
     }
     // --- ポイズンミスト ---
     const po = Skills.stat('poison');
@@ -866,13 +881,18 @@ const Run = (() => {
     const th = Skills.stat('thunder');
     if (th && cdReady('thunder', th.cd)) {
       const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < 460);
+      for (const o of R.objects || []) {
+        if (Math.hypot(o.x-p.x, o.y-p.y) < 420) cands.push(o);
+      }
       for (let i = 0; i < th.count && cands.length; i++) {
         const e = cands[Math.floor(Math.random() * cands.length)];
         effect('thunder', e.x, e.y, {});
         const rad = th.blast * area;
+        if (e.type) hitObject(e, th.dmg);
         for (const o of R.enemies) {
           if (!o.dead && Math.hypot(o.x-e.x, o.y-e.y) < rad + o.def.r) dealDamage(o, th.dmg);
         }
+        damageObjectsIn(e.x, e.y, rad, th.dmg * 0.7);
       }
     }
     // --- オートタレット ---
@@ -925,14 +945,7 @@ const Run = (() => {
                    [0, Math.PI/2, Math.PI, Math.PI*1.5];
       for (const a of dirs) {
         effect('laser', p.x, p.y, { angle:a, len:520, w:la.width, dur:la.dur });
-        for (const e of R.enemies) {
-          if (e.dead) continue;
-          const rx = e.x - p.x, ry = e.y - p.y;
-          const proj = rx * Math.cos(a) + ry * Math.sin(a);
-          if (proj < 0 || proj > 520) continue;
-          const perp = Math.abs(-rx * Math.sin(a) + ry * Math.cos(a));
-          if (perp < la.width + e.def.r) dealDamage(e, la.dmg);
-        }
+        beamHit(p.x, p.y, a, 520, la.width, la.dmg);
       }
     }
     // --- メテオストーム ---
@@ -966,15 +979,31 @@ const Run = (() => {
           let diff = Math.abs(ea - a); if (diff > Math.PI) diff = Math.PI*2 - diff;
           if (diff < br.arc) { e.hp -= br.dps * st.atk * dt; e.flash = 0.05; if (e.hp <= 0) killEnemy(e); }
         }
+        for (const o of R.objects || []) {
+          const d = Math.hypot(o.x-p.x, o.y-p.y);
+          if (d > br.range * area) continue;
+          const oa = Math.atan2(o.y-p.y, o.x-p.x);
+          let diff = Math.abs(oa - a); if (diff > Math.PI) diff = Math.PI*2 - diff;
+          if (diff < br.arc) hitObject(o, br.dps * dt);
+        }
+      }
+    }
+    // --- 虹の奔流(実績解放: 回転する虹光線) ---
+    const przz = Skills.stat('prism_ray');
+    if (przz && cdReady('prism_ray', przz.cd)) {
+      for (let i = 0; i < przz.beams; i++) {
+        const a = R.time * przz.spin + i / przz.beams * Math.PI * 2;
+        effect('laser', p.x, p.y, { angle:a, len:przz.len, w:przz.width, dur:0.5, rainbow:true });
+        beamHit(p.x, p.y, a, przz.len, przz.width, przz.dmg);
       }
     }
     // --- 嵐の加護(基地強化: 自動落雷) ---
     if (st.stormDmg > 0 && (R.cd['gstorm'] || 0) <= R.time) {
-      const tgt = nearestEnemy(p.x, p.y, 420);
+      const tgt = nearestEnemy(p.x, p.y, 420) || nearestObject(p.x, p.y, 300);
       if (tgt) {
         R.cd['gstorm'] = R.time + 9;
         effect('thunder', tgt.x, tgt.y, {});
-        dealDamage(tgt, st.stormDmg / st.atk);
+        if (tgt.type) hitObject(tgt, st.stormDmg / st.atk); else dealDamage(tgt, st.stormDmg / st.atk);
       } else R.cd['gstorm'] = R.time + 0.5;
     }
     // --- 混沌の瘴気(敵を混乱させ同士討ち) ※対象がいない時は保留 ---
@@ -1032,6 +1061,27 @@ const Run = (() => {
           if (e.hp <= 0) killEnemy(e);
         }
       }
+      for (const o of R.objects || []) {
+        if (Math.hypot(o.x-z.x, o.y-z.y) < z.size + o.r) hitObject(o, z.dps * dt);
+      }
+    }
+  }
+
+  // ビーム(直線)判定: 敵とオブジェクトの両方に命中
+  function beamHit(x, y, angle, len, width, dmg){
+    const ca = Math.cos(angle), sa = Math.sin(angle);
+    for (const e of R.enemies) {
+      if (e.dead) continue;
+      const rx = e.x - x, ry = e.y - y;
+      const proj = rx * ca + ry * sa;
+      if (proj < 0 || proj > len) continue;
+      if (Math.abs(-rx * sa + ry * ca) < width + e.def.r) dealDamage(e, dmg);
+    }
+    for (const o of R.objects || []) {
+      const rx = o.x - x, ry = o.y - y;
+      const proj = rx * ca + ry * sa;
+      if (proj < 0 || proj > len) continue;
+      if (Math.abs(-rx * sa + ry * ca) < width + o.r) hitObject(o, dmg);
     }
   }
 
@@ -1045,7 +1095,9 @@ const Run = (() => {
     o.hp -= dmg * R.stats.atk;
     if (o.hp <= 0) {
       World.destroyObject(o.key);
+      R.objsDestroyed++;
       const drops = World.objectDrops(o.type, Skills.matUnlocked);
+      if (drops.length && Math.random() < R.stats.salvage) drops.push(drops[0]);   // 解体術: 追加素材
       for (const m of drops) {
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
@@ -1071,6 +1123,12 @@ const Run = (() => {
           if (Math.hypot(e.x-ox, e.y-oy) < ob.size + e.def.r && R.time - e.orbitHit > 0.5) {
             e.orbitHit = R.time;
             dealDamage(e, ob.dmg);
+          }
+        }
+        for (const o of R.objects || []) {
+          if (Math.hypot(o.x-ox, o.y-oy) < ob.size + o.r && R.time - (o._orbHit || 0) > 0.5) {
+            o._orbHit = R.time;
+            hitObject(o, ob.dmg);
           }
         }
       }
@@ -1318,6 +1376,14 @@ const Run = (() => {
     // オブジェクトキャッシュ
     R.objects = World.nearbyObjects(p.x, p.y, 900);
 
+    // 探索記録(行ったことのある場所がマップに残る)
+    R.exploreAcc = (R.exploreAcc || 0) - dt;
+    if (R.exploreAcc <= 0) {
+      R.exploreAcc = 0.4;
+      World.recordExplore(p.x, p.y, st.exploreRad);
+    }
+    R.peakAllies = Math.max(R.peakAllies, R.allies.length);
+
     director(dt);
     updateEnemies(dt);
     updateAllies(dt);
@@ -1394,8 +1460,14 @@ const Run = (() => {
       g.setLineDash([]);
     }
 
-    // オブジェクト
+    // オブジェクト(レアは金色に輝く)
     for (const o of R.objects || []) {
+      if (o.rare) {
+        g.strokeStyle = 'hsl(' + ((R.time * 120) % 360) + ',90%,65%)';
+        g.globalAlpha = 0.7; g.lineWidth = 2.5;
+        g.beginPath(); g.arc(o.x, o.y, 24 + Math.sin(R.time * 4) * 3, 0, 7); g.stroke();
+        g.globalAlpha = 1;
+      }
       Sprites.draw(g, o.sprite, o.x, o.y, 40);
       if (o.hp < o.maxHp) drawBar(g, o.x, o.y - 26, 28, o.hp / o.maxHp, '#b08968');
     }
@@ -1461,6 +1533,12 @@ const Run = (() => {
           g.globalAlpha = 0.18; g.fillStyle = rc;
           g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 9, 0, 7); g.fill();
         }
+        g.globalAlpha = 1;
+      }
+      if (e.def.rare) {   // レアモンスターは虹色に輝く
+        g.strokeStyle = 'hsl(' + ((R.time * 240) % 360) + ',95%,65%)';
+        g.globalAlpha = 0.8; g.lineWidth = 3;
+        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r + 7 + Math.sin(R.time * 6) * 2, 0, 7); g.stroke();
         g.globalAlpha = 1;
       }
       if (e.flash > 0) { g.globalAlpha = 0.6; }
@@ -1595,7 +1673,8 @@ const Run = (() => {
           g.beginPath(); g.arc(ef.x, ef.y, 22 * (1-pr) + 6, 0, 7); g.fill(); break;
         case 'laser': {
           const a2 = ef.t / ef.dur;
-          g.strokeStyle = '#d2a8ff'; g.globalAlpha = 1 - a2; g.lineWidth = ef.w * 2 * (1 - a2 * 0.5);
+          g.strokeStyle = ef.rainbow ? 'hsl(' + ((R.time * 300 + ef.angle * 90) % 360) + ',90%,65%)' : '#d2a8ff';
+          g.globalAlpha = 1 - a2; g.lineWidth = ef.w * 2 * (1 - a2 * 0.5);
           g.beginPath(); g.moveTo(ef.x, ef.y);
           g.lineTo(ef.x + Math.cos(ef.angle) * ef.len, ef.y + Math.sin(ef.angle) * ef.len); g.stroke();
           g.strokeStyle = '#fff'; g.lineWidth = ef.w * 0.6;
@@ -1626,10 +1705,19 @@ const Run = (() => {
   function drawMinimap(g, W){
     const sz = World.MM_SIZE;
     const x0 = W - sz - 12, y0 = 12;
+    // 地形マップは基地を2つ解放すると使える。基地の位置マップは最初からある
+    const terrainUnlocked = Object.keys(SaveSys.data.bases).length >= 2;
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
-    g.globalAlpha = 0.92;
-    g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
-    g.globalAlpha = 1;
+    if (terrainUnlocked) {
+      g.globalAlpha = 0.92;
+      g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
+      // 霧: 行ったことのある場所だけ地形が見える
+      g.drawImage(World.fogCanvas(), view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
+      g.globalAlpha = 1;
+    } else {
+      g.fillStyle = 'rgba(5,9,18,.9)';
+      g.fillRect(x0, y0, sz, sz);
+    }
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const dot = (wx, wy, c, r) => {
       if (!view.inView(wx, wy)) return;
@@ -1643,7 +1731,9 @@ const Run = (() => {
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
     g.fillStyle = '#8b949e'; g.font = '11px sans-serif'; g.textAlign = 'center';
-    g.fillText(R.mmWorld ? '全体図 [N/タップ:周辺]' : '周辺図 [N/タップ:全体]', x0 + sz / 2, y0 + sz + 13);
+    g.fillText(terrainUnlocked
+      ? (R.mmWorld ? '全体図 [N/タップ:周辺]' : '周辺図 [N/タップ:全体]')
+      : '基地マップ(地形は基地2つ解放で)', x0 + sz / 2, y0 + sz + 13);
   }
   function toggleMap(){ R.mmWorld = !R.mmWorld; }
 
@@ -1707,7 +1797,9 @@ const Run = (() => {
     for (const m in mats) {
       matBonus += (mats[m] || 0) * (DATA.MATERIALS[m].tier + 1) * 2;
     }
-    const total = R.coins + matBonus;
+    let total = R.coins + matBonus;
+    // 死中の活: 力尽きた時の持ち帰りが増える
+    if (!retired) total = Math.round(total * R.stats.deathBonus);
     s.coins += total;
     s.stats.runs++;
     s.stats.kills += R.kills;
@@ -1715,11 +1807,19 @@ const Run = (() => {
     s.stats.recruits += R.recruits;
     s.stats.bossKills += R.bossKills;
     s.stats.reaperKills += R.reaperKills;
+    s.stats.rareKills += R.rareKills;
+    s.stats.matsCollected += R.matsGot;
+    s.stats.objectsDestroyed += R.objsDestroyed;
+    s.stats.maxAlliesEver = Math.max(s.stats.maxAlliesEver || 0, R.peakAllies);
+    if (!retired) s.stats.deaths = (s.stats.deaths || 0) + 1;
     s.stats.bestTime = Math.max(s.stats.bestTime, R.time);
     s.stats.maxDist = Math.max(s.stats.maxDist, Math.round(R.maxDist));
+    s.explored = World.exploredArray();   // 行った場所を保存
+    const newAchs = SaveSys.checkAchievements();
+    if (newAchs.length) Sfx.unlock();
     SaveSys.save();
     return { coins:R.coins, matBonus, total, time:R.time, kills:R.kills,
-             recruits:R.recruits, retired, dist:Math.round(R.maxDist) };
+             recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs };
   }
 
   return { start, update, draw, updateHud, doInteract, finishRun, toggleMap,

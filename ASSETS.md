@@ -59,6 +59,7 @@
 | `en_demon` | デーモン | 4 | 陸 | 赤い角の悪魔 |
 | `en_abyss` | アビスロード | 4 | 海 | 紫の深海の魔王 |
 | `en_reaper` | 終焉のリーパー | ☠ | 両方 | 黒フード+鎌の死神。30分後に大量出現 |
+| `en_rainbow` | レインボースライム | ★レア | 両方 | 虹色に輝くスライム。逃げ回る。「虹のかけら」の唯一の入手源 |
 
 ### ボス(5分ごとに出現・敵の約2.2倍サイズで表示)
 
@@ -79,6 +80,8 @@
 | `ob_crate` | 木箱 | 陸 | ベルト付き木箱。色々出る |
 | `ob_wreck` | 難破船 | 海 | 折れたマストの残骸。レア素材 |
 | `ob_coral` | 珊瑚礁 | 海 | ピンクの珊瑚。貝殻・珊瑚 |
+| `ob_goldtree` | 琥珀の古木 | 陸(レア) | 金色に輝く木。「太古の琥珀」の唯一の入手源 |
+| `ob_pearl` | 真珠貝 | 海(レア) | 光る二枚貝。「真珠」の唯一の入手源 |
 | `ob_flag` | 基地の旗 | 基地 | 青い旗。基地の目印 |
 | `ob_dock` | 桟橋 | 港 | 木の桟橋 |
 
@@ -100,6 +103,9 @@
 | `mat_scale` | 竜のうろこ | 青緑(解放) |
 | `mat_star` | 星のかけら | 黄(解放) |
 | `mat_abyss` | 深淵の核 | 深紫(解放) |
+| `mat_prism` | 虹のかけら | 多色ダイヤ(レアモンスター限定) |
+| `mat_amber` | 太古の琥珀 | 飴色の玉(琥珀の古木限定) |
+| `mat_pearl` | 真珠 | 白い光沢玉(真珠貝限定) |
 
 ## 魂の広場(死後フィールド)の施設
 
@@ -140,6 +146,7 @@
 | `sk_treasure` | トレジャーハント(ドロップUP) |
 | `sk_confuse` | 混沌の瘴気(敵を同士討ちに・書庫で解放) |
 | `sk_curse` | 衰弱の呪印(敵の被ダメ増・書庫で解放) |
+| `sk_prism` | 虹の奔流(実績「幻を見た者」で解放) |
 | `sk_p_*` | 「心得」パッシブ群26種(未定義の場合は素材色の◆アイコンが自動生成される。個別に上書き可: sk_p_vital, sk_p_power, sk_p_swift, sk_p_guard, sk_p_mend, sk_p_reach, sk_p_greed, sk_p_forage, sk_p_keen, sk_p_haste, sk_p_might, sk_p_hunter, sk_p_slayer, sk_p_warder, sk_p_leader, sk_p_shepherd, sk_p_beacon, sk_p_thorn, sk_p_sea, sk_p_scholar, sk_p_flame, sk_p_ice, sk_p_storm, sk_p_veil, sk_p_epoch, sk_p_phantom) |
 | `sk_laser` | プリズムレーザー(書庫で解放) |
 | `sk_meteor` | メテオストーム(書庫で解放) |

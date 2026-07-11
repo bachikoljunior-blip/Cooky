@@ -79,21 +79,28 @@ const World = (() => {
       const y = (cy + hash(cx, cy, 20 + i)) * CHUNK;
       const t = terrainAt(x, y);
       const roll = hash(cx, cy, 30 + i);
-      let type = null;
+      const rareRoll = hash(cx, cy, 70 + i);
+      let type = null, rare = false;
       if (t === 'grass') type = roll < 0.5 ? 'tree' : (roll < 0.8 ? 'rock' : 'crate');
       else if (t === 'sand') type = roll < 0.5 ? 'rock' : 'crate';
       else if (t === 'sea') type = roll < 0.6 ? 'coral' : 'wreck';
       else if (t === 'deep') { if (roll < 0.3) type = 'wreck'; }
+      // レアオブジェクト: 琥珀の古木(陸) / 真珠貝(海) ― 専用素材の唯一の入手源
+      if (rareRoll < 0.022) {
+        if (t === 'grass') { type = 'goldtree'; rare = true; }
+        else if (t === 'sea' || t === 'deep') { type = 'pearlshell'; rare = true; }
+      }
       if (!type) continue;
       // 拠点・港のそばには置かない
       let near = false;
       for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 140) { near = true; break; }
       if (!near) for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 160) { near = true; break; }
       if (near) continue;
-      list.push({ key, x, y, type,
-        hp: type === 'rock' ? 30 : (type === 'wreck' ? 40 : 18),
-        maxHp: type === 'rock' ? 30 : (type === 'wreck' ? 40 : 18),
-        sprite: { tree:'ob_tree', rock:'ob_rock', crate:'ob_crate', wreck:'ob_wreck', coral:'ob_coral' }[type],
+      const ohp = rare ? 70 : (type === 'rock' ? 30 : (type === 'wreck' ? 40 : 18));
+      list.push({ key, x, y, type, rare,
+        hp: ohp, maxHp: ohp,
+        sprite: { tree:'ob_tree', rock:'ob_rock', crate:'ob_crate', wreck:'ob_wreck', coral:'ob_coral',
+                  goldtree:'ob_goldtree', pearlshell:'ob_pearl' }[type],
         r: 16 });
     }
     return list;
@@ -126,6 +133,8 @@ const World = (() => {
       case 'crate': push('wood', 0.5); push('scrap', 0.4); push('hide', 0.3); push('crystal', 0.2); push('magic', 0.1); break;
       case 'coral': push('shell', 0.8); push('coral', 0.4); break;
       case 'wreck': push('wood', 0.8); push('scrap', 0.5); push('shell', 0.4); push('coral', 0.25); push('star', 0.08); break;
+      case 'goldtree':  push('amber', 1.0); push('amber', 0.5); push('wood', 0.9); break;
+      case 'pearlshell': push('pearl', 1.0); push('pearl', 0.5); push('shell', 0.9); break;
     }
     return out;
   }
@@ -189,10 +198,48 @@ const World = (() => {
     };
   }
 
+  // ---- 探索記録(霧マップ) ----
+  const EX_CELL = 1500;
+  let exSet = new Set(), fogCv = null, fogG = null;
+  function initExplored(arr){ exSet = new Set(arr || []); fogCv = null; }
+  function punch(k){
+    const parts = k.split(',');
+    const scale = WM_RES / (MM_EXTENT * 2);
+    const x = (parts[0] * EX_CELL + MM_EXTENT) * scale;
+    const y = (parts[1] * EX_CELL + MM_EXTENT) * scale;
+    const w = EX_CELL * scale;
+    fogG.clearRect(x - 0.5, y - 0.5, w + 1, w + 1);
+  }
+  function fogCanvas(){
+    if (fogCv) return fogCv;
+    fogCv = document.createElement('canvas');
+    fogCv.width = WM_RES; fogCv.height = WM_RES;
+    fogG = fogCv.getContext('2d');
+    fogG.fillStyle = 'rgba(5,9,18,0.93)';
+    fogG.fillRect(0, 0, WM_RES, WM_RES);
+    for (const k of exSet) punch(k);
+    return fogCv;
+  }
+  // 現在地周辺を「行ったことのある場所」として記録(radは地図学で拡大)
+  function recordExplore(x, y, rad){
+    const cx = Math.floor(x / EX_CELL), cy = Math.floor(y / EX_CELL);
+    for (let ix = cx - rad; ix <= cx + rad; ix++) {
+      for (let iy = cy - rad; iy <= cy + rad; iy++) {
+        const k = ix + ',' + iy;
+        if (!exSet.has(k)) {
+          exSet.add(k);
+          if (fogCv) punch(k);
+        }
+      }
+    }
+  }
+  function exploredArray(){ return Array.from(exSet); }
+
   // 距離リング(敵の強さ)
   function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
 
   return { isLand, landAt, terrainAt, ports, bases, resetRun,
            nearbyObjects, destroyObject, objectDrops,
-           worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK };
+           worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
+           initExplored, recordExplore, exploredArray, fogCanvas };
 })();

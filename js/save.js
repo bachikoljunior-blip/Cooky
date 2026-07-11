@@ -12,7 +12,10 @@ const SaveSys = (() => {
       meta: {},                    // メタ強化 id -> lv
       bases: {},                   // 解放済み基地 id -> true
       ports: {},                   // 修理済み港 id -> true
-      stats: { runs:0, kills:0, bestTime:0, totalCoins:0, recruits:0, bossKills:0, reaperKills:0, maxDist:0 },
+      stats: { runs:0, kills:0, bestTime:0, totalCoins:0, recruits:0, bossKills:0, reaperKills:0, maxDist:0,
+               matsCollected:0, objectsDestroyed:0, skillsAcquired:0, rareKills:0, maxAlliesEver:0, deaths:0 },
+      ach: {},        // 解放済み実績 id -> true
+      explored: [],   // 行ったことのある場所(霧マップ用セル)
       settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
       seenHelp: false,
     };
@@ -50,8 +53,19 @@ const SaveSys = (() => {
     return true;
   }
 
+  // 実績判定: 新たに達成した実績のリストを返す(保存もする)
+  function checkAchievements(){
+    const newly = [];
+    for (const a of DATA.ACHIEVEMENTS) {
+      if (data.ach[a.id]) continue;
+      try { if (a.cond(data)) { data.ach[a.id] = true; newly.push(a); } } catch(e){}
+    }
+    if (newly.length) save();
+    return newly;
+  }
+
   return {
     get data(){ return data; },
-    load, save, wipe, metaLv, buyMeta,
+    load, save, wipe, metaLv, buyMeta, checkAchievements,
   };
 })();

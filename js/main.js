@@ -80,7 +80,8 @@ const Game = (() => {
       <div class="r-line">獲得コイン: <b>${fmtNum(res.coins)}</b></div>
       <div class="r-line">余り素材の換金: <b>+${fmtNum(res.matBonus)}</b></div>
       <div class="r-line r-big">持ち帰り合計: 🪙 ${fmtNum(res.total)}</div>
-      <div class="r-line small">銀行残高: 🪙 ${fmtNum(SaveSys.data.coins)}</div>`;
+      <div class="r-line small">銀行残高: 🪙 ${fmtNum(SaveSys.data.coins)}</div>
+      ${(res.newAchs || []).map(a => `<div class="r-line" style="color:#ffd766">🏆 実績解除「${a.name}」! ― ${a.reward}</div>`).join('')}`;
     show('result-panel');
   }
 
@@ -194,6 +195,7 @@ const Game = (() => {
 
   // ---------------- 起動 ----------------
   SaveSys.load();
+  World.initExplored(SaveSys.data.explored);
   Input.setPadMode(SaveSys.data.settings.pad);
   Sprites.loadOverrides();
   toTitle();

@@ -40,6 +40,7 @@ const Sprites = (() => {
     en_demon:   { kind:'demon',   c:'#da3633', a:'#ffa657' },
     en_abyss:   { kind:'demon',   c:'#6e40c9', a:'#76e3ea', opt:{big:true} },
     en_reaper:  { kind:'reaper',  c:'#0d1117', a:'#f85149' },
+    en_rainbow: { kind:'rainbowblob', c:'#e879f9', a:'#fde047' },
 
     boss_golem: { kind:'golem',   c:'#d29922', a:'#f85149', opt:{big:true} },
     boss_fenrir:{ kind:'beast',   c:'#484f58', a:'#f85149', opt:{big:true} },
@@ -52,6 +53,8 @@ const Sprites = (() => {
     ob_crate:   { kind:'crate',   c:'#b08968', a:'#6e4c30' },
     ob_wreck:   { kind:'wreck',   c:'#6e4c30', a:'#9aa5b1' },
     ob_coral:   { kind:'coralob', c:'#ff8fa3', a:'#f778ba' },
+    ob_goldtree:{ kind:'tree',    c:'#f59e0b', a:'#92600a' },
+    ob_pearl:   { kind:'pearlobj',c:'#f1f5f9', a:'#ffd6a5' },
     ob_flag:    { kind:'flag',    c:'#58a6ff', a:'#e6edf3' },
     ob_dock:    { kind:'dock',    c:'#8b5a2b', a:'#e6edf3' },
 
@@ -89,6 +92,7 @@ const Sprites = (() => {
     sk_treasure:{ kind:'icon', c:'#d29922', a:'#ffd766', opt:{sym:'$' } },
     sk_confuse: { kind:'icon', c:'#c084fc', a:'#e6edf3', opt:{sym:'?' } },
     sk_curse:   { kind:'icon', c:'#6e40c9', a:'#a78bfa', opt:{sym:'†' } },
+    sk_prism:   { kind:'icon', c:'#e879f9', a:'#fde047', opt:{sym:'✧' } },
     sk_laser:   { kind:'icon', c:'#d2a8ff', a:'#ffffff', opt:{sym:'≡' } },
     sk_meteor:  { kind:'icon', c:'#f0883e', a:'#f85149', opt:{sym:'☄' } },
     sk_sands:   { kind:'icon', c:'#d29922', a:'#fde047', opt:{sym:'⌛' } },
@@ -99,6 +103,7 @@ const Sprites = (() => {
     jelly:'m_drop', bone:'m_bone', hide:'m_fur', wood:'m_log', scrap:'m_gear',
     crystal:'m_shard', shell:'m_shell', magic:'m_orb', coral:'m_coral',
     scale:'m_scale', star:'m_star', abyss:'m_abyss',
+    prism:'m_prism', amber:'m_amber', pearl:'m_pearl',
   };
   for (const m in DATA.MATERIALS) {
     DEFS['mat_' + m] = { kind: MAT_KINDS[m] || 'gem', c:DATA.MATERIALS[m].color, a:'#ffffff' };
@@ -294,6 +299,34 @@ const Sprites = (() => {
           const px2=Math.cos(an)*rr2, py2=Math.sin(an)*rr2; i===0?g.moveTo(px2,py2):g.lineTo(px2,py2); }
         g.closePath(); g.fill();
         g.fillStyle='rgba(255,255,255,.6)'; g.beginPath(); g.arc(0,-2,2.5,0,7); g.fill(); break;
+      case 'm_prism':  // 虹のかけら: 多色ダイヤ
+        for (let i=0;i<4;i++){
+          g.fillStyle=['#f85149','#fde047','#7ee787','#58a6ff'][i];
+          g.save(); g.rotate(i*Math.PI/2);
+          g.beginPath(); g.moveTo(0,0); g.lineTo(10,-10); g.lineTo(0,-13); g.closePath(); g.fill(); g.restore();
+        }
+        g.fillStyle='#fff'; g.beginPath(); g.arc(0,0,3.5,0,7); g.fill(); break;
+      case 'm_amber':  // 太古の琥珀: 虫入りの飴色玉
+        g.fillStyle=c; g.beginPath(); g.ellipse(0,0,10,12,0.3,0,7); g.fill();
+        g.fillStyle='rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(1,1,3,2,0.5,0,7); g.fill();
+        g.fillStyle='rgba(255,255,255,.5)'; g.beginPath(); g.arc(-4,-5,2.5,0,7); g.fill(); break;
+      case 'm_pearl':  // 真珠: 白い光沢玉
+        g.fillStyle=c; g.beginPath(); g.arc(0,0,9,0,7); g.fill();
+        g.fillStyle='rgba(180,200,255,.4)'; g.beginPath(); g.arc(2,3,6,0,7); g.fill();
+        g.fillStyle='#fff'; g.beginPath(); g.arc(-3,-3,3,0,7); g.fill(); break;
+      case 'pearlobj': // 真珠貝(オブジェクト)
+        g.fillStyle=a; g.beginPath(); g.moveTo(0,10); g.arc(0,-2,14,Math.PI*0.1,Math.PI*0.9,true); g.closePath(); g.fill();
+        g.fillStyle=c; g.beginPath(); g.arc(0,-2,6,0,7); g.fill();
+        g.fillStyle='#fff'; g.beginPath(); g.arc(-2,-4,2,0,7); g.fill(); break;
+      case 'rainbowblob': // レインボースライム
+        for (let i=0;i<5;i++){
+          g.fillStyle=['#f85149','#f0883e','#fde047','#7ee787','#58a6ff'][i];
+          g.globalAlpha=0.85;
+          g.beginPath(); g.ellipse(0,4,16-i*2.6,13-i*2.2,0,0,7); g.fill();
+        }
+        g.globalAlpha=1;
+        g.fillStyle='#0d1117'; g.beginPath(); g.arc(-5,0,3,0,7); g.arc(5,0,3,0,7); g.fill();
+        g.fillStyle='#fff'; g.beginPath(); g.arc(-6,-1,1.2,0,7); g.arc(4,-1,1.2,0,7); g.fill(); break;
       case 'm_abyss':  // 深淵の核: 暗黒球+紫リング
         g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,9,0,7); g.fill();
         g.strokeStyle=c; g.lineWidth=3; g.beginPath(); g.ellipse(0,0,13,5,-0.5,0,7); g.stroke();

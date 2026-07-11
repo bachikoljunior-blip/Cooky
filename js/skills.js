@@ -12,9 +12,9 @@ const Skills = (() => {
   function reset(){
     owned = { bolt: 1 };
     mats = {};
-    // 出撃支度: 基本素材を持って開始
-    const s = SaveSys.metaLv('lab_starter');
-    if (s > 0) for (const m of ['jelly','bone','hide','wood']) mats[m] = s * 2;
+    // 出撃支度+保存術: 基本素材を持って開始
+    const s = SaveSys.metaLv('lab_starter') * 2 + SaveSys.metaLv('m_preserve');
+    if (s > 0) for (const m of ['jelly','bone','hide','wood']) mats[m] = s;
   }
 
   function cap(){ return Math.min(DATA.SKILL_CAP_MAX, DATA.SKILL_BASE_CAP + SaveSys.metaLv('lib_cap')); }
@@ -28,7 +28,13 @@ const Skills = (() => {
   }
   function skillUnlocked(id){
     const def = DATA.SKILLS[id];
+    if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) return false;   // 実績で解放
     return def.innate || !def.unlock || SaveSys.metaLv(def.unlock) > 0;
+  }
+  // 前提スキル: 特定スキルを育てていないと出現しないスキル
+  function reqMet(id){
+    const rq = DATA.SKILLS[id].requires;
+    return !rq || lv(rq.skill) >= rq.lv;
   }
 
   // 次レベルの素材コスト(上限到達なら null)
@@ -45,7 +51,7 @@ const Skills = (() => {
   function readyCount(){
     let n = 0;
     for (const id in DATA.SKILLS) {
-      if (!skillUnlocked(id)) continue;
+      if (!skillUnlocked(id) || !reqMet(id)) continue;
       const cost = nextCost(id);
       if (cost && costMet(cost)) n++;
     }
@@ -53,10 +59,12 @@ const Skills = (() => {
   }
 
   function acquire(id){
+    if (!skillUnlocked(id) || !reqMet(id)) return false;
     const cost = nextCost(id);
     if (!cost || !costMet(cost)) return false;
     for (const m in cost) mats[m] -= cost[m];
     owned[id] = lv(id) + 1;
+    SaveSys.data.stats.skillsAcquired = (SaveSys.data.stats.skillsAcquired || 0) + 1;   // 実績用
     Sfx.skill();
     return true;
   }
@@ -88,7 +96,7 @@ const Skills = (() => {
     // 素材が揃ったスキルだけを表示(スキルは無数にあり、素材が集まるまで見えない)
     const ready = [], maxed = [];
     for (const id in DATA.SKILLS) {
-      if (!skillUnlocked(id)) continue;
+      if (!skillUnlocked(id) || !reqMet(id)) continue;
       const cost = nextCost(id);
       if (cost === null) { if (lv(id) > 0) maxed.push(id); continue; }
       if (costMet(cost)) ready.push({ id, cost });
@@ -131,6 +139,6 @@ const Skills = (() => {
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
   return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
-           nextCost, costMet, acquire, open, close, isOpen, render, readyCount,
+           nextCost, costMet, acquire, open, close, isOpen, render, readyCount, reqMet,
            get owned(){ return owned; } };
 })();
