@@ -76,9 +76,21 @@ const World = (() => {
     return h / 4294967296;
   }
 
-  // 周回中に壊されたオブジェクト(周回リセット)
-  let destroyed = new Set();
-  function resetRun(){ destroyed = new Set(); }
+  // 周回中のオブジェクト状態: ダメージは保持(勝手に回復しない)、
+  // 破壊後は一定時間でリスポーンする
+  let destroyed = new Map();   // key -> 破壊時刻
+  let objHp = new Map();       // key -> 残りHP
+  let clock = 0;
+  const RESPAWN_SEC = 90;
+  function resetRun(){ destroyed = new Map(); objHp = new Map(); clock = 0; }
+  function tick(dt){ clock += dt; }
+  function setObjHp(key, hp){ objHp.set(key, hp); }
+  function isDestroyed(key){
+    const t = destroyed.get(key);
+    if (t === undefined) return false;
+    if (clock - t >= RESPAWN_SEC) { destroyed.delete(key); objHp.delete(key); return false; }
+    return true;
+  }
 
   // 指定チャンクのオブジェクト一覧を得る
   function chunkObjects(cx, cy){
@@ -86,7 +98,7 @@ const World = (() => {
     const n = Math.floor(hash(cx, cy, 1) * 4); // 0-3個
     for (let i = 0; i < n; i++) {
       const key = cx + ',' + cy + ',' + i;
-      if (destroyed.has(key)) continue;
+      if (isDestroyed(key)) continue;
       const x = (cx + hash(cx, cy, 10 + i)) * CHUNK;
       const y = (cy + hash(cx, cy, 20 + i)) * CHUNK;
       const t = terrainAt(x, y);
@@ -109,8 +121,9 @@ const World = (() => {
       if (!near) for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 160) { near = true; break; }
       if (near) continue;
       const ohp = rare ? 70 : (type === 'rock' ? 30 : (type === 'wreck' ? 40 : 18));
+      const curHp = objHp.has(key) ? objHp.get(key) : ohp;   // 削ったHPは回復しない
       list.push({ key, x, y, type, rare,
-        hp: ohp, maxHp: ohp,
+        hp: curHp, maxHp: ohp,
         sprite: { tree:'ob_tree', rock:'ob_rock', crate:'ob_crate', wreck:'ob_wreck', coral:'ob_coral',
                   goldtree:'ob_goldtree', pearlshell:'ob_pearl' }[type],
         r: 16 });
@@ -124,7 +137,7 @@ const World = (() => {
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
     const rng = Math.ceil(radius / CHUNK);
     if (objCache.cx === cx && objCache.cy === cy) {
-      return objCache.list.filter(o => !destroyed.has(o.key));
+      return objCache.list.filter(o => !isDestroyed(o.key));
     }
     const list = [];
     for (let ix = cx - rng; ix <= cx + rng; ix++)
@@ -133,7 +146,7 @@ const World = (() => {
     objCache = { cx, cy, list };
     return list;
   }
-  function destroyObject(key){ destroyed.add(key); objCache.cx = 1e9; }
+  function destroyObject(key){ destroyed.set(key, clock); objHp.delete(key); objCache.cx = 1e9; }
 
   // オブジェクトのドロップテーブル
   function objectDrops(type, matUnlocked){
@@ -154,8 +167,8 @@ const World = (() => {
   // ---- ミニマップ(全世界を一度だけプリレンダし、切り抜いて使う) ----
   const MM_SIZE = 180;                    // 画面上の表示サイズ
   const MM_EXTENT = DATA.WORLD_EXTENT;    // 世界の半径
-  const WM_RES = 1024;                    // 全世界画像の解像度
-  const LOCAL_EXTENT = 13000;             // ローカルモードの表示半径
+  const WM_RES = 1536;                    // 全世界画像の解像度
+  const LOCAL_EXTENT = 22000;             // ローカルモードの表示半径
   let wmCanvas = null;
 
   // 全世界画像(1024x1024、1px≈168ユニット)。起動時に一度だけ生成
@@ -212,7 +225,7 @@ const World = (() => {
   }
 
   // ---- 探索記録(霧マップ) ----
-  const EX_CELL = 1500;
+  const EX_CELL = 4200;
   let exSet = new Set(), fogCv = null, fogG = null;
   function initExplored(arr){ exSet = new Set(arr || []); fogCv = null; }
   function punch(k){
@@ -251,7 +264,7 @@ const World = (() => {
   // 距離リング(敵の強さ)
   function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
 
-  return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun,
+  return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
            initExplored, recordExplore, exploredArray, fogCanvas };

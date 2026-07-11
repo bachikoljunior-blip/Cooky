@@ -34,7 +34,22 @@ const Sfx = (() => {
     run:    { tempo:112, root:110,   vol:.022, bass:[0,0,0,0,-2,-2,-3,-3],   arp:[0,4,7,4,2,4,7,9], pad:[0] },
     boss:   { tempo:132, root:98,    vol:.026, bass:[0,0,-1,-1,0,0,-2,-2],   arp:[0,3,7,3,0,3,8,3], pad:[0,-1] },
     reaper: { tempo:152, root:87.3,  vol:.028, bass:[0,-1,0,-2,0,-1,3,-2],   arp:[0,7,3,7,1,7,4,7], pad:[0] },
+    // ---- バイオーム別BGM(周回中、エリアで曲が変わる) ----
+    vol:    { tempo:124, root:92,    vol:.024, bass:[0,0,-1,-1,-3,-3,-1,-1], arp:[0,3,5,3,7,5,3,5], pad:[0,-1] },   // 灼熱/溶岩
+    des:    { tempo:100, root:116,   vol:.021, bass:[0,-2,0,-4],             arp:[0,1,4,5,4,1,0,-1], pad:[0,-4] },  // 砂漠/白亜/骨
+    dark:   { tempo:92,  root:82.4,  vol:.023, bass:[0,0,-2,-2,-5,-5,-2,-2], arp:[0,3,7,10,7,3,0,3], pad:[0,-5] }, // 魔界/虚無/黄昏
+    cold:   { tempo:88,  root:146.8, vol:.019, bass:[0,-3,-2,-3],            arp:[0,7,4,7,2,7,4,7], pad:[0,-3] },   // 氷原/月影/霧
+    wild:   { tempo:118, root:104,   vol:.022, bass:[0,0,-3,-3,0,0,-4,-4],   arp:[0,4,7,9,7,4,2,4], pad:[0] },     // 密林/嵐/黒曜
+    sea:    { tempo:76,  root:123.5, vol:.019, bass:[0,-4,-3,-4],            arp:[0,4,7,11,7,4,0,4], pad:[0,-4] },  // 海
+    end:    { tempo:140, root:73.4,  vol:.027, bass:[0,-1,0,-1,0,-2,0,-1],   arp:[0,6,3,6,1,6,4,6], pad:[0] },     // 終焉の大陸
   };
+  // バイオーム → BGMシーンの対応
+  const BIOME_BGM = {
+    grass:'run', volcano:'vol', magma:'vol', desert:'des', chalk:'des', bones:'des',
+    makai:'dark', void:'dark', twilight:'dark', frost:'cold', moon:'cold', mist:'cold',
+    jungle:'wild', storm:'wild', obsidian:'wild', end:'end', sea:'sea',
+  };
+  function biomeScene(biome){ return BIOME_BGM[biome] || 'run'; }
   let bgmScene = null, bgmTimer = null, bgmStep = 0;
   function setScene(name){
     if (bgmScene === name) return;
@@ -55,15 +70,24 @@ const Sfx = (() => {
     }, 60000 / BGM_DEFS[name].tempo / 2);
   }
 
-  // ゲーム再開後に音が消える対策: タブ復帰や操作でAudioContextを再開する
-  function tryResume(){ if (ctx && ctx.state === 'suspended') ctx.resume(); }
+  // ゲームを閉じて再開した後に音が消える対策:
+  //  - suspended → resume / closed → コンテキスト作り直し(次のtone/BGMで再生成)
+  //  - タブ復帰(visibilitychange/pageshow/focus)と各種操作(touch含む)で再開を試みる
+  function tryResume(){
+    if (!ctx) return;
+    if (ctx.state === 'closed') { ctx = null; return; }
+    if (ctx.state !== 'running') { try { ctx.resume(); } catch(e){} }
+  }
   document.addEventListener('visibilitychange', () => { if (!document.hidden) tryResume(); });
-  window.addEventListener('pointerdown', tryResume, { passive:true });
-  window.addEventListener('keydown', tryResume);
+  window.addEventListener('pageshow', tryResume);
   window.addEventListener('focus', tryResume);
+  window.addEventListener('pointerdown', tryResume, { passive:true });
+  window.addEventListener('touchstart', tryResume, { passive:true });
+  window.addEventListener('touchend', tryResume, { passive:true });
+  window.addEventListener('keydown', tryResume);
 
   return {
-    setScene,
+    setScene, biomeScene,
     toggleMute(){ muted = !muted; return muted; },
     get muted(){ return muted; },
     shoot(){ throttled('sh', ()=>tone(680, .07, 'square', .025, -300), 70); },

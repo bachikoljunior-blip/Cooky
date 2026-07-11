@@ -30,7 +30,7 @@ DATA.MATERIALS = {
 function matCost(lv, base, extras){
   // base: {mat: qty} lv1時 / extras: [{from: lv, mat, qty}]
   const c = {};
-  const mul = 1 + (lv - 1) * 0.65;
+  const mul = 1 + (lv - 1) * 0.8;
   for (const m in base) c[m] = Math.ceil(base[m] * mul);
   if (extras) for (const e of extras) {
     if (lv >= e.from) c[e.mat] = Math.ceil(e.qty * (1 + (lv - e.from) * 0.5));
@@ -295,34 +295,23 @@ function crystalKey(){ return 'crystal'; }
 // ---- 「心得」パッシブスキル群: 素材の組み合わせごとに存在する多数の強化 ----
 // [id, 名前, 効果説明, 効果キー, 1Lvあたりの値, 表示単位, 素材A, 個数A, 素材B, 個数B]
 const PASSIVE_DEFS = [
-  ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',5,'bone',3],
-  ['p_power',   '剛力の心得',     '全ダメージ',           'atkMul',     .05,  '+5%',    'hide',5,'scrap',3],
-  ['p_swift',   '疾風の心得',     '移動速度',             'speedMul',   .03,  '+3%',    'hide',4,'jelly',4],
-  ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',5,'scrap',4],
-  ['p_mend',    '治癒の心得',     'HP自動回復/秒',        'regenAdd',   .6,   '+0.6',   'jelly',6,'crystal',2],
-  ['p_reach',   '収集の心得',     'アイテム回収範囲',     'magnetMul',  .15,  '+15%',   'scrap',4,'jelly',3],
-  ['p_greed',   '強欲の心得',     'コイン獲得',           'coinMul',    .08,  '+8%',    'wood',5,'shell',3],
-  ['p_forage',  '採集の心得',     '素材ドロップ率',       'dropMul',    .08,  '+8%',    'wood',4,'hide',4],
-  ['p_keen',    '会心の心得',     'クリティカル率',       'critAdd',    .02,  '+2%',    'crystal',4,'bone',4],
-  ['p_haste',   '神速の心得',     'スキル発動間隔短縮',   'cdrAdd',     .02,  '-2%',    'crystal',5,'magic',2],
-  ['p_might',   '破壊の心得',     'スキル効果範囲',       'areaMul',    .03,  '+3%',    'magic',3,'wood',5],
-  ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',6,'scale',1],
-  ['p_slayer',  '死神狩りの心得', 'リーパーへのダメージ', 'reaperMul',  .06,  '+6%',    'star',2,'abyss',1],
-  ['p_warder',  '終焉守りの心得', 'リーパー被ダメ軽減',   'reaperResAdd',.02, '+2%',    'scale',2,'abyss',1],
-  ['p_leader',  '統率の心得',     '仲間の攻撃力',         'allyAtkMul', .06,  '+6%',    'hide',5,'bone',4],
-  ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',5,'wood',4],
-  ['p_beacon',  '誘引の心得',     '仲間になる確率',       'recruitAdd', .015, '+1.5%',  'shell',4,'crystal',3],
-  ['p_thorn',   '棘の心得',       '接触反撃ダメージ',     'thornsAdd',  4,    '+4',     'wood',5,'scrap',4],
-  ['p_sea',     '海神の心得',     '船の速度',             'boatMul',    .06,  '+6%',    'shell',5,'coral',2],
-  ['p_scholar', '学者の心得',     '素材2個ドロップ確率',  'luckAdd',    .03,  '+3%',    'crystal',4,'shell',3],
-  ['p_flame',   '火門の心得',     '攻撃の炎上付与確率',   'burnAdd',    .03,  '+3%',    'magic',3,'scale',1],
-  ['p_ice',     '氷門の心得',     '攻撃の氷結付与確率',   'slowAdd',    .025, '+2.5%',  'crystal',5,'coral',2],
-  ['p_storm',   '雷門の心得',     '自動落雷の威力',       'stormAdd',   12,   '+12',    'magic',4,'star',1],
-  ['p_veil',    '霞の心得',       '回避率',               'dodgeAdd',   .01,  '+1%',    'coral',3,'star',1],
-  ['p_epoch',   '刻の心得',       '敵の時間強化を緩和',   'mitigAdd',   .015, '+1.5%',  'star',2,'abyss',1],
-  ['p_phantom', '幻影の心得',     '被弾後の無敵時間',     'invulnAdd',  .04,  '+0.04秒','magic',4,'coral',2],
-  ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',2,'wood',6],
-  ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',2,'shell',5],
+  ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
+  ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
+  ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',10,'scale',4],
+  ['p_slayer',  '死神狩りの心得', 'リーパーへのダメージ', 'reaperMul',  .06,  '+6%',    'star',6,'abyss',4],
+  ['p_warder',  '終焉守りの心得', 'リーパー被ダメ軽減',   'reaperResAdd',.02, '+2%',    'scale',6,'abyss',4],
+  ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',8,'wood',7],
+  ['p_thorn',   '棘の心得',       '接触反撃ダメージ',     'thornsAdd',  4,    '+4',     'wood',8,'scrap',7],
+  ['p_sea',     '海神の心得',     '船の速度',             'boatMul',    .06,  '+6%',    'shell',8,'coral',4],
+  ['p_scholar', '学者の心得',     '素材2個ドロップ確率',  'luckAdd',    .03,  '+3%',    'crystal',7,'shell',5],
+  ['p_flame',   '火門の心得',     '攻撃の炎上付与確率',   'burnAdd',    .03,  '+3%',    'magic',6,'scale',4],
+  ['p_ice',     '氷門の心得',     '攻撃の氷結付与確率',   'slowAdd',    .025, '+2.5%',  'crystal',8,'coral',4],
+  ['p_storm',   '雷門の心得',     '自動落雷の威力',       'stormAdd',   12,   '+12',    'magic',7,'star',4],
+  ['p_veil',    '霞の心得',       '回避率',               'dodgeAdd',   .01,  '+1%',    'coral',6,'star',4],
+  ['p_epoch',   '刻の心得',       '敵の時間強化を緩和',   'mitigAdd',   .015, '+1.5%',  'star',6,'abyss',4],
+  ['p_phantom', '幻影の心得',     '被弾後の無敵時間',     'invulnAdd',  .04,  '+0.04秒','magic',7,'coral',4],
+  ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',6,'wood',10],
+  ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',6,'shell',8],
 ];
 for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) {
   DATA.SKILLS[id] = {
@@ -342,30 +331,30 @@ DATA.SKILL_CAP_MAX = 10;
 // env: land / sea / both, move: chase / kite / wander
 // heal: {radius, hps} を持つ敵はヒーラー(kite挙動で距離を保つ)
 DATA.ENEMIES = {
-  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:36,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
-  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:60,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
-  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:40,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
-  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:76,  r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
-  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:46,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:200}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
-  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:120, r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
-  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:33,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
-  orc:      { name:'オーク',          hp:60,  dmg:16, speed:48,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
-  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:27,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
-  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:92,  r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
-  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:42,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
-  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:85,  r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
-  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:125, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
-  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:60,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
-  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:42,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
-  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:54,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
-  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:128, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
-  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:70,  r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
-  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:66, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:240}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
-  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:58, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:280}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
-  demon:    { name:'デーモン',        hp:700, dmg:60, speed:70,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
-  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:60,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
-  rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:155, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
-  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:95, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
+  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:27,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
+  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:45,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
+  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:30,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
+  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:57,  r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
+  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:34,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:150}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
+  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:90, r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
+  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:25,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
+  orc:      { name:'オーク',          hp:60,  dmg:16, speed:36,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
+  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:20,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
+  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:69,  r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
+  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:32,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
+  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:64,  r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
+  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:94, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
+  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:45,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
+  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:32,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
+  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:40,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
+  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:96, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
+  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:52,  r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
+  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:50, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:180}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
+  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:44, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:210}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
+  demon:    { name:'デーモン',        hp:700, dmg:60, speed:52,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
+  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:45,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
+  rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:116, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
+  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:71, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
 };
 
 // ボス: minute = 出現時刻(分)
@@ -383,29 +372,29 @@ DATA.BOSSES = [
 // 遠環は死に戻り強化(健脚・帆・ワープゲート)を重ねないと到達できない距離
 // biome=見た目, lobes=岬の数, amp=海岸線の凹凸, sx/sy=伸縮(多様な形)
 DATA.CONTINENTS = [
-  { id:'main',  x:0,      y:0,      r:2600, seed:11,  name:'始まりの大陸', biome:'grass',  lobes:5, amp:0.22, sx:1.15, sy:0.95 },
+  { id:'main',  x:0,       y:0,       r:26000, seed:11,  name:'始まりの大陸', biome:'grass',  lobes:5, amp:0.22, sx:1.15, sy:0.95 },
   // --- 第1環 ---
-  { id:'east',  x:10500,  y:800,    r:2100, seed:23,  name:'竜骨の大陸',   biome:'volcano', lobes:7, amp:0.30, sx:1.5,  sy:0.75 },
-  { id:'west',  x:-10200, y:-900,   r:2100, seed:37,  name:'黄昏の大陸',   biome:'twilight',lobes:4, amp:0.28, sx:0.8,  sy:1.35 },
-  { id:'north', x:900,    y:-10600, r:2000, seed:41,  name:'星降りの大陸', biome:'frost',   lobes:6, amp:0.33, sx:1.2,  sy:1.0 },
-  { id:'south', x:-700,   y:10400,  r:2000, seed:53,  name:'深緑の大陸',   biome:'jungle',  lobes:8, amp:0.26, sx:1.0,  sy:1.25 },
-  { id:'ne',    x:7800,   y:-7600,  r:1500, seed:67,  name:'白亜の島',     biome:'chalk',   lobes:3, amp:0.35, sx:1.3,  sy:0.8 },
-  { id:'sw',    x:-7500,  y:7900,   r:1500, seed:71,  name:'黒曜の島',     biome:'obsidian',lobes:5, amp:0.38, sx:0.85, sy:1.2 },
+  { id:'east',  x:105000,  y:8000,    r:21000, seed:23,  name:'竜骨の大陸',   biome:'volcano', lobes:7, amp:0.30, sx:1.5,  sy:0.75 },
+  { id:'west',  x:-102000, y:-9000,   r:21000, seed:37,  name:'黄昏の大陸',   biome:'twilight',lobes:4, amp:0.28, sx:0.8,  sy:1.35 },
+  { id:'north', x:9000,    y:-106000, r:20000, seed:41,  name:'星降りの大陸', biome:'frost',   lobes:6, amp:0.33, sx:1.2,  sy:1.0 },
+  { id:'south', x:-7000,   y:104000,  r:20000, seed:53,  name:'深緑の大陸',   biome:'jungle',  lobes:8, amp:0.26, sx:1.0,  sy:1.25 },
+  { id:'ne',    x:78000,   y:-76000,  r:15000, seed:67,  name:'白亜の島',     biome:'chalk',   lobes:3, amp:0.35, sx:1.3,  sy:0.8 },
+  { id:'sw',    x:-75000,  y:79000,   r:15000, seed:71,  name:'黒曜の島',     biome:'obsidian',lobes:5, amp:0.38, sx:0.85, sy:1.2 },
   // --- 中間の小島(航海の中継地) ---
-  { id:'i_mist',  x:17000,  y:-5200,  r:1000, seed:83,  name:'霧の小島',       biome:'mist',   lobes:4, amp:0.3 },
-  { id:'i_bones', x:-16600, y:6300,   r:1000, seed:89,  name:'骨の小島',       biome:'bones',  lobes:6, amp:0.35 },
-  { id:'i_ember', x:5600,   y:17400,  r:1000, seed:97,  name:'燃えさしの小島', biome:'volcano',lobes:5, amp:0.32 },
-  { id:'i_frost', x:-6100,  y:-16800, r:1000, seed:101, name:'霜の小島',       biome:'frost',  lobes:4, amp:0.3 },
+  { id:'i_mist',  x:170000,  y:-52000,  r:10000, seed:83,  name:'霧の小島',       biome:'mist',   lobes:4, amp:0.3 },
+  { id:'i_bones', x:-166000, y:63000,   r:10000, seed:89,  name:'骨の小島',       biome:'bones',  lobes:6, amp:0.35 },
+  { id:'i_ember', x:56000,   y:174000,  r:10000, seed:97,  name:'燃えさしの小島', biome:'volcano',lobes:5, amp:0.32 },
+  { id:'i_frost', x:-61000,  y:-168000, r:10000, seed:101, name:'霜の小島',       biome:'frost',  lobes:4, amp:0.3 },
   // --- 第2環(初期大陸から2つ離れた大陸) ---
-  { id:'r2_forge', x:26500,  y:4000,   r:2400, seed:103, name:'鍛冶神の大陸', biome:'magma',  lobes:9, amp:0.34, sx:1.4, sy:0.85 },
-  { id:'r2_moon',  x:-25800, y:-5000,  r:2400, seed:107, name:'月影の大陸',   biome:'moon',   lobes:5, amp:0.3,  sx:0.9, sy:1.3 },
-  { id:'r2_storm', x:4600,   y:-26600, r:2300, seed:109, name:'嵐の大陸',     biome:'storm',  lobes:7, amp:0.36, sx:1.25, sy:0.9 },
-  { id:'r2_grave', x:-4200,  y:26200,  r:2300, seed:113, name:'墓標の大陸',   biome:'makai',  lobes:6, amp:0.33, sx:1.1, sy:1.1 },
+  { id:'r2_forge', x:265000,  y:40000,   r:24000, seed:103, name:'鍛冶神の大陸', biome:'magma',  lobes:9, amp:0.34, sx:1.4, sy:0.85 },
+  { id:'r2_moon',  x:-258000, y:-50000,  r:24000, seed:107, name:'月影の大陸',   biome:'moon',   lobes:5, amp:0.3,  sx:0.9, sy:1.3 },
+  { id:'r2_storm', x:46000,   y:-266000, r:23000, seed:109, name:'嵐の大陸',     biome:'storm',  lobes:7, amp:0.36, sx:1.25, sy:0.9 },
+  { id:'r2_grave', x:-42000,  y:262000,  r:23000, seed:113, name:'墓標の大陸',   biome:'makai',  lobes:6, amp:0.33, sx:1.1, sy:1.1 },
   // --- 第3環 ---
-  { id:'r3_sun',  x:52500,  y:-8000, r:2800, seed:127, name:'太陽の大陸', biome:'desert', lobes:4, amp:0.3, sx:1.6, sy:0.8 },
-  { id:'r3_void', x:-51600, y:9000,  r:2800, seed:131, name:'虚無の大陸', biome:'void',   lobes:8, amp:0.4, sx:0.9, sy:1.4 },
+  { id:'r3_sun',  x:525000,  y:-80000, r:28000, seed:127, name:'太陽の大陸', biome:'desert', lobes:4, amp:0.3, sx:1.6, sy:0.8 },
+  { id:'r3_void', x:-516000, y:90000,  r:28000, seed:131, name:'虚無の大陸', biome:'void',   lobes:8, amp:0.4, sx:0.9, sy:1.4 },
   // --- 最果て ---
-  { id:'r4_end',  x:200, y:-80500, r:3200, seed:137, name:'最果ての大陸', biome:'end', lobes:10, amp:0.42, sx:1.2, sy:1.0 },
+  { id:'r4_end',  x:2000, y:-805000, r:32000, seed:137, name:'最果ての大陸', biome:'end', lobes:10, amp:0.42, sx:1.2, sy:1.0 },
 ];
 
 // バイオーム: エリアごとのフィールドの見た目(地面2色/砂浜2色/装飾色/ミニマップ色)
@@ -431,32 +420,32 @@ DATA.BIOMES = {
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
   // 初期大陸(最初の目標。足が遅いうちはここまでも命がけ)
-  { id:'b_north', name:'北の砦',     x:60,    y:-1500, cont:'main' },
-  { id:'b_east',  name:'東の遺跡',   x:1650,  y:850,   cont:'main' },
-  { id:'b_south', name:'南の泉',     x:-250,  y:1750,  cont:'main' },
-  { id:'b_west',  name:'西の炉',     x:-1800, y:-350,  cont:'main' },
+  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main' },
+  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main' },
+  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main' },
+  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main' },
   // 第1環
-  { id:'b_dragon',name:'竜骨の前哨', x:10500,  y:800,    cont:'east' },
-  { id:'b_dusk',  name:'黄昏の前哨', x:-10200, y:-900,   cont:'west' },
-  { id:'b_star',  name:'星降りの祭壇', x:900,  y:-10600, cont:'north' },
-  { id:'b_green', name:'深緑の社',   x:-700,   y:10400,  cont:'south' },
-  { id:'b_white', name:'白亜の灯台', x:7800,   y:-7600,  cont:'ne' },
-  { id:'b_black', name:'黒曜の祠',   x:-7500,  y:7900,   cont:'sw' },
+  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east' },
+  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west' },
+  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north' },
+  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south' },
+  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne' },
+  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw' },
   // 中間の小島
-  { id:'b_mist',  name:'霧の観測所', x:17000,  y:-5200,  cont:'i_mist' },
-  { id:'b_bones', name:'骨の祭場',   x:-16600, y:6300,   cont:'i_bones' },
-  { id:'b_ember', name:'燃えさしの炉', x:5600, y:17400,  cont:'i_ember' },
-  { id:'b_frost', name:'霜の祠',     x:-6100,  y:-16800, cont:'i_frost' },
+  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist' },
+  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones' },
+  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember' },
+  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost' },
   // 第2環
-  { id:'b_forge', name:'鍛冶神の工房', x:26500,  y:4000,   cont:'r2_forge' },
-  { id:'b_moon',  name:'月影の社',   x:-25800, y:-5000,  cont:'r2_moon' },
-  { id:'b_storm', name:'嵐の塔',     x:4600,   y:-26600, cont:'r2_storm' },
-  { id:'b_grave', name:'墓標の祭壇', x:-4200,  y:26200,  cont:'r2_grave' },
+  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge' },
+  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon' },
+  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm' },
+  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave' },
   // 第3環
-  { id:'b_sun',   name:'太陽の神殿', x:52500,  y:-8000,  cont:'r3_sun' },
-  { id:'b_void',  name:'虚無の門',   x:-51600, y:9000,   cont:'r3_void' },
+  { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun' },
+  { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void' },
   // 最果て
-  { id:'b_end',   name:'最果ての碑', x:200,    y:-80500, cont:'r4_end' },
+  { id:'b_end',   name:'最果ての碑', x:2000,    y:-805000, cont:'r4_end' },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる
@@ -592,9 +581,9 @@ DATA.QUESTS = {
   b_north: { npc:'npc_elder', npcName:'老兵ガルド', type:'hunt', enemy:'skeleton', count:6,
     intro:['…おお、生きた人間か。ワシはこの砦の最後の守り兵じゃ。','夜な夜な骸骨どもが湧いて、砦を奪われてしもうた。','奴らを6体、討ち払ってくれんか。この旗はまだ死んでおらん!'],
     done:['見事じゃ…!砦の狼煙を上げるぞ。','お前さんの魂の広場と、この砦が繋がった。いつでも戻ってこい。'] },
-  b_east: { npc:'npc_scholar', npcName:'考古学者リナ', type:'fetch', itemName:'遺跡の欠片', count:4,
-    intro:['きゃっ!?…な、なんだ人間か。私はこの遺跡を調べてる研究者。','古代のワープ装置があるんだけど、コアの欠片が散らばっちゃって。','そのへんに光ってる欠片を4つ、拾ってきてくれない?'],
-    done:['完璧!…ほら、装置が目を覚ました。','これで魂の広場から直接来られるわよ。研究の成果、期待してて。'] },
+  b_east: { npc:'npc_scholar', npcName:'考古学者リナ', type:'hunt', enemy:'goblin', count:6,
+    intro:['きゃっ!?…な、なんだ人間か。私はこの遺跡を調べてる研究者。','ゴブリンたちが遺跡のワープ装置を勝手にいじって困ってるの。','6体追い払って!装置が壊れちゃう前に!'],
+    done:['助かった〜!…ほら、装置が目を覚ました。','これで魂の広場から直接来られるわよ。研究の成果、期待してて。'] },
   b_south: { npc:'npc_miko', npcName:'泉の巫女スズ', type:'survive', enemy:'slime', time:30,
     intro:['旅の方…この泉は癒しの力を持つのですが、穢れに狙われています。','今から浄化の祈りを捧げます。30秒間、私を守ってください。'],
     done:['…祈りが届きました。泉は清められました。','この泉の加護、あなたの魂に結びました。'] },
@@ -605,8 +594,8 @@ DATA.QUESTS = {
   b_dragon: { npc:'npc_elder', npcName:'竜骨の番人', type:'hunt', enemy:'lizard', count:7,
     intro:['この大陸は竜の骨の上に築かれておる。','だがリザードマンどもが骨を喰らい、地脈を乱しておる。','7体討て。さすれば竜の加護を分けてやろう。'],
     done:['地脈が静まった…竜はお前を認めたようじゃ。'] },
-  b_dusk: { npc:'npc_sage', npcName:'黄昏の詩人ヨル', type:'fetch', itemName:'残光のかけら', count:5,
-    intro:['ようこそ、日の沈まぬ国へ。私は光を集めて詩を書く者。','夕陽のかけらが5つ、風に散ってしまった。拾ってきてくれるかい?'],
+  b_dusk: { npc:'npc_sage', npcName:'黄昏の詩人ヨル', type:'survive', enemy:'bat', time:35,
+    intro:['ようこそ、日の沈まぬ国へ。私は光を集めて詩を書く者。','今から黄昏の詩を詠む。詠唱の間、闇の獣から守っておくれ。35秒だ。'],
     done:['ああ…これで詩が完成する。君の旅路に、黄昏の祝福を。'] },
   b_star: { npc:'npc_miko', npcName:'星読みのミラ', type:'survive', enemy:'wisp', time:40,
     intro:['星が落ちる夜、ここには星喰いの精霊が集まるのです。','観測の儀を行います。40秒、星灯りを守ってください。'],
@@ -614,8 +603,8 @@ DATA.QUESTS = {
   b_green: { npc:'npc_elder', npcName:'森の長オルガ', type:'delivery', need:{ coins:200, mats:{wood:20, hide:10} },
     intro:['この森は生きておる。勝手な出入りは許さん。','…だが、森への捧げ物があれば話は別じゃ。','木材20・毛皮10・🪙200。森の掟じゃよ。'],
     done:['よかろう。森はお前を「友」と認めた。'] },
-  b_white: { npc:'npc_sailor', npcName:'灯台守ハク', type:'fetch', itemName:'レンズの破片', count:4,
-    intro:['この灯台、何百年も海を照らしてきたんだがな…','嵐でレンズが砕けちまった。破片が島に散らばってる。','4つ集めてくれたら、また光を灯せる。'],
+  b_white: { npc:'npc_sailor', npcName:'灯台守ハク', type:'hunt', enemy:'crab', count:7,
+    intro:['この灯台、何百年も海を照らしてきたんだがな…','アイアンクラブどもが土台を齧りやがる。','7匹叩き落としてくれ。灯りを絶やすわけにはいかん。'],
     done:['…見ろ、この光だ!海の果てまで届くぞ。ありがとうな。'] },
   b_black: { npc:'npc_sage', npcName:'黒曜の修行僧', type:'hunt', enemy:'wisp', count:8,
     intro:['…この島の闇は、心を映す鏡。','彷徨える光魂(ウィスプ)が8つ、闇を乱している。','斬れ。それがお前の修行だ。'],
@@ -630,8 +619,8 @@ DATA.QUESTS = {
   b_ember: { npc:'npc_smith', npcName:'火の子エン', type:'hunt', enemy:'orc', count:7,
     intro:['この島の火は、あたしのおばあちゃんの形見なんだ。','でもオークたちが火を消そうとしてる!','7体やっつけて!お願い!'],
     done:['やったー!火が守られた!あんた、かっこいいね!'] },
-  b_frost: { npc:'npc_miko', npcName:'氷の隠者フユ', type:'fetch', itemName:'凍てついた花', count:5,
-    intro:['…寒いでしょう。ここは時が凍る島。','氷の下に咲く花を5輪、摘んできてくださいな。','薬を作るのです。あなたのためにもなる薬を。'],
+  b_frost: { npc:'npc_miko', npcName:'氷の隠者フユ', type:'survive', enemy:'wisp', time:35,
+    intro:['…寒いでしょう。ここは時が凍る島。','これから氷の下の花に祈りを込めます。','35秒…氷の精霊たちから、私を守ってくださいな。'],
     done:['…ありがとう。この祠の氷は、もうあなたを拒みません。'] },
   // --- 第2環 ---
   b_forge: { npc:'npc_smith', npcName:'鍛冶神の弟子ゴウ', type:'delivery', need:{ coins:3000, mats:{scrap:25, magic:5} },
@@ -647,8 +636,8 @@ DATA.QUESTS = {
     intro:['ここは魔界との境…死者が安らかに眠るべき場所。','だがネクロマンサーどもが死者を弄んでいる。','3体で良い。奴らは逃げ足が速いぞ。'],
     done:['死者たちが感謝している…この祭壇はお前の味方だ。'] },
   // --- 第3環 ---
-  b_sun:  { npc:'npc_miko', npcName:'太陽の神官サナ', type:'fetch', itemName:'太陽の砂', count:6,
-    intro:['ようこそ、灼けつく神殿へ。','砂漠に散った「太陽の砂」を6つ。それが入信の儀式です。','太陽はすべてを見ています。ごまかしはききませんよ。'],
+  b_sun:  { npc:'npc_miko', npcName:'太陽の神官サナ', type:'hunt', enemy:'lizard', count:8,
+    intro:['ようこそ、灼けつく神殿へ。','神殿を狙うリザードマンを8体討つこと。それが入信の儀式です。','太陽はすべてを見ています。ごまかしはききませんよ。'],
     done:['太陽はあなたを祝福しました。神殿の力をお使いなさい。'] },
   b_void: { npc:'npc_sage', npcName:'虚無の囁き', type:'hunt', enemy:'demon', count:8,
     intro:['……来たか。ここは在って無い場所。','デーモンが8。虚無を喰い荒らす。','排せ。さすれば「無」がお前に道を開く。'],
@@ -679,10 +668,10 @@ DATA.QUESTS2 = {
     intro:['すまんな、何度も。ウルフどもが物資を狙っておる。','8頭。頼んだぞ。'],
     done:['助かった!これで安心して眠れるわい。','礼にワシの戦術を授けよう。仲間を率いる「誓い」の技じゃ。','(新スキル「老兵の誓い」が素材で取得できるようになった!)'],
     reward:{ coins:150, mats:{bone:10} } },
-  b_east: { npcName:'考古学者リナ', offer:'遺跡の奥に「古代の回路」が眠ってるの。取ってきてくれない?',
-    type:'fetch', itemName:'古代の回路', count:5,
-    intro:['奥の区画は崩れやすいから私は入れないのよね…','光ってる回路を5つ、お願い!'],
-    done:['すごい、完品じゃない!解析するわね…','…わかったわ。これ、身体能力を強化する術式よ。あなたにも使えるはず。','(新スキル「遺跡の加護」が素材で取得できるようになった!)'],
+  b_east: { npcName:'考古学者リナ', offer:'遺跡の最深部を調査したいの。護衛、お願いできない?',
+    type:'survive', enemy:'goblin', time:40,
+    intro:['最深部の封印を解析するわ。40秒だけ集中させて。','その間、ゴブリンたちを近づけないで!'],
+    done:['解析完了!…すごいわ、これ身体能力を強化する術式よ。あなたにも使えるはず。','(新スキル「遺跡の加護」が素材で取得できるようになった!)'],
     reward:{ mats:{crystal:8, magic:3} } },
   b_south: { npcName:'泉の巫女スズ', offer:'月に一度の大浄化の儀の時期です。また守っていただけますか?',
     type:'survive', enemy:'wolf', time:40,
@@ -720,6 +709,6 @@ DATA.STATIONS = {
 // 時間による敵強化(分あたり)。星読みで緩和可能
 DATA.TIME_HP_GROWTH = 1.128;   // HP: ×1.128^分 (30分で約37倍)
 DATA.TIME_DMG_GROWTH = 1.062;  // ダメージ: 30分で約6倍
-DATA.DIST_RING = 2400;         // 距離リング幅(px) 遠くほど敵が強い
+DATA.DIST_RING = 6500;         // 距離リング幅(px) 遠くほど敵が強い(危険度)
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
-DATA.WORLD_EXTENT = 86000;     // 世界の半径(ミニマップ用)
+DATA.WORLD_EXTENT = 860000;    // 世界の半径(ミニマップ用)

@@ -19,8 +19,8 @@ const Quest = (() => {
     Q.kind = kind; Q.id = id; Q.def = def;
     Q.w = 1500; Q.h = 1000;
     const st = Run.state.stats;
-    Q.player = { x: Q.w/2, y: Q.h - 200, hp: st.maxHp, dir: 1, invuln: 0, boltCd: 0 };
-    Q.npc = { x: Q.w/2, y: 280 };
+    Q.npc = { x: Q.w/2, y: Q.h/2 - 120 };
+    Q.player = { x: Q.w/2, y: Q.h/2 + 40, hp: st.maxHp, dir: 1, invuln: 0, boltCd: 0 };
     Q.enemies = []; Q.projs = []; Q.items = []; Q.effects = []; Q.popups = [];
     Q.phase = 'intro';   // intro / active / return / done / fail
     Q.killed = 0; Q.spawnedN = 0; Q.got = 0;

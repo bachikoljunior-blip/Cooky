@@ -127,6 +127,7 @@ const Game = (() => {
     state = 'run';
     show('hud');
     const R = Run.state;
+    R.noInteractT = 1.5;   // 帰還直後の誤タップでNPCに話しかけない
     if (success) {
       const q = Quest.state;
       if (q.kind === 'base2') {
@@ -249,7 +250,9 @@ const Game = (() => {
       if (!overlay && !R.over) Run.update(dt);
       Run.draw(g, W, H);
       Run.updateHud(dt);
-      Sfx.setScene(R.time >= DATA.REAPER_AT ? 'reaper' : (R.bossAlive && !R.bossAlive.dead) ? 'boss' : 'run');
+      Sfx.setScene(R.time >= DATA.REAPER_AT ? 'reaper'
+        : (R.bossAlive && !R.bossAlive.dead) ? 'boss'
+        : Sfx.biomeScene(R.curBiome || 'grass'));
       if (R.over && overlay !== 'result') endRun(false);
     } else if (state === 'quest') {
       Quest.update(dt);
@@ -343,6 +346,16 @@ const Game = (() => {
     else if (state === 'quest') Quest.doInteract();
   });
   el('quest-exit').onclick = () => { if (state === 'quest') exitQuest(false); };
+
+  // スマホのダブルタップ拡大・ピンチ拡大を防止
+  document.addEventListener('dblclick', e => e.preventDefault(), { passive:false });
+  document.addEventListener('gesturestart', e => e.preventDefault(), { passive:false });
+  let lastTouchEnd = 0;
+  document.addEventListener('touchend', e => {
+    const now = performance.now();
+    if (now - lastTouchEnd < 320) e.preventDefault();
+    lastTouchEnd = now;
+  }, { passive:false });
 
   // ---------------- 起動 ----------------
   SaveSys.load();

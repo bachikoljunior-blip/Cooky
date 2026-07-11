@@ -28,8 +28,8 @@ const Run = (() => {
       atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
-      speed: 132 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
-      boatSpeed: 300 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
+      speed: 105 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
+      boatSpeed: 560 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
@@ -314,8 +314,8 @@ const Run = (() => {
     for (const e of R.enemies) {
       const d = Math.hypot(e.x - x, e.y - y);
       if (d < radius && d > 1) {
-        e.x += (e.x - x) / d * force * 0.3;
-        e.y += (e.y - y) / d * force * 0.3;
+        e.x += (e.x - x) / d * force * 0.12;
+        e.y += (e.y - y) / d * force * 0.12;
       }
     }
   }
@@ -442,9 +442,9 @@ const Run = (() => {
     // 通常スポーン(序盤は少なく、時間と距離で徐々に増える)
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
-    const rate = (0.35 + min * 0.16 + ring0 * 0.15) * (isReaperTime ? 0.5 : 1);
+    const rate = (0.5 + min * 0.24 + ring0 * 0.18) * (isReaperTime ? 0.5 : 1);
     R.spawnAcc += dt * rate;
-    const cap = Math.min(200, 18 + R.time * 0.45 + ring0 * 8);
+    const cap = Math.min(240, 20 + R.time * 0.6 + ring0 * 8);
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (R.enemies.length >= cap) break;
@@ -702,18 +702,22 @@ const Run = (() => {
           dest = null;
         }
       } else {
-        // 隊列位置へ追従(人数が増えるほど陣形が広がる)
-        const ring = 45 + Math.min(130, n * 2.5) + (i % 3) * 22;
-        const ang = (i / Math.max(1, n)) * Math.PI * 2 + R.time * 0.15;
-        dest = { x: p.x + Math.cos(ang) * ring, y: p.y + Math.sin(ang) * ring };
+        // 固定陣形スロット(周囲リング状)。主人公が動くと同じように動く
+        if (a.slot === undefined) a.slot = i;
+        const ringIdx = Math.floor(a.slot / 10);
+        const ang = (a.slot % 10) / 10 * Math.PI * 2 + ringIdx * 0.32;
+        const rad = 62 + ringIdx * 36;
+        dest = { x: p.x + Math.cos(ang) * rad, y: p.y + Math.sin(ang) * rad };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-        if (d < 12) dest = null;
+        if (d < 8) dest = null;
         if (d > 520) { a.x = p.x + rnd(-40, 40); a.y = p.y + rnd(-40, 40); dest = null; } // ワープ追従
+        spd = Math.max(spd, R.stats.speed * 1.25);   // 陣形追従は主人公に置いていかれない速度
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
-        const nx = a.x + (dest.x - a.x) / d * spd * dt;
-        const ny = a.y + (dest.y - a.y) / d * spd * dt;
+        const step2 = Math.min(d, spd * dt);
+        const nx = a.x + (dest.x - a.x) / d * step2;
+        const ny = a.y + (dest.y - a.y) / d * step2;
         if (canStand(a.def, nx, ny)) { a.x = nx; a.y = ny; }
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
@@ -763,7 +767,7 @@ const Run = (() => {
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; continue; }
-            const d = Math.sqrt(d2), push = (rr - d) * 0.3;
+            const d = Math.sqrt(d2), push = (rr - d) * 0.16;
             const nx = dx / d, ny = dy / d;
             u.x -= nx * push; u.y -= ny * push;
             v.x += nx * push; v.y += ny * push;
@@ -774,6 +778,13 @@ const Run = (() => {
   }
 
   // ---------------- スキル発動 ----------------
+  // 射程: 強化を反映しつつ画面外には伸びない(画面に収まらない分はズームで吸収)
+  function effRange(base){
+    const r = base * R.stats.range;
+    const cap = R.rangeCapPx || 460;
+    return Math.min(r, cap);
+  }
+
   function cdReady(id, base){
     const cd = base * (1 - R.stats.cdr);
     if ((R.cd[id] || 0) <= R.time) { R.cd[id] = R.time + cd; return true; }
@@ -803,7 +814,7 @@ const Run = (() => {
     // --- マジックボルト ---
     const bolt = Skills.stat('bolt');
     if (bolt && cdReady('bolt', bolt.cd)) {
-      const tgt = nearestEnemy(p.x, p.y, 360 * st.range) || nearestObject(p.x, p.y, 280 * st.range);
+      const tgt = nearestEnemy(p.x, p.y, effRange(360)) || nearestObject(p.x, p.y, effRange(280));
       if (tgt) {
         Sfx.shoot();
         for (let i = 0; i < bolt.count; i++) {
@@ -829,7 +840,7 @@ const Run = (() => {
     const axe = Skills.stat('axe');
     if (axe && cdReady('axe', axe.cd)) {
       for (let i = 0; i < axe.count; i++) {
-        const tgt = nearestEnemy(p.x, p.y, 420 * st.range);
+        const tgt = nearestEnemy(p.x, p.y, effRange(420));
         const a = tgt ? Math.atan2(tgt.y-p.y, tgt.x-p.x) + (i-(axe.count-1)/2)*0.4 : Math.random()*7;
         R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*330, vy:Math.sin(a)*330,
                        dmg:axe.dmg, life:axe.range/330*2, size:axe.size, pierce:99, boomerang:true,
@@ -897,7 +908,7 @@ const Run = (() => {
     // --- サンダーフォール ---
     const th = Skills.stat('thunder');
     if (th && cdReady('thunder', th.cd)) {
-      const thR = 400 * st.range;
+      const thR = effRange(400);
       const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < thR);
       for (const o of R.objects || []) {
         if (Math.hypot(o.x-p.x, o.y-p.y) < thR * 0.9) cands.push(o);
@@ -961,7 +972,7 @@ const Run = (() => {
       const dirs = la.beams === 1 ? [p.moveA] :
                    la.beams === 2 ? [p.moveA, p.moveA + Math.PI] :
                    [0, Math.PI/2, Math.PI, Math.PI*1.5];
-      const laLen = 440 * st.range;
+      const laLen = effRange(440);
       for (const a of dirs) {
         effect('laser', p.x, p.y, { angle:a, len:laLen, w:la.width, dur:la.dur });
         beamHit(p.x, p.y, a, laLen, la.width, la.dmg);
@@ -1012,7 +1023,7 @@ const Run = (() => {
     if (przz && cdReady('prism_ray', przz.cd)) {
       for (let i = 0; i < przz.beams; i++) {
         const a = R.time * przz.spin + i / przz.beams * Math.PI * 2;
-        const prLen = przz.len * st.range;
+        const prLen = effRange(przz.len);
         effect('laser', p.x, p.y, { angle:a, len:prLen, w:przz.width, dur:0.5, rainbow:true });
         beamHit(p.x, p.y, a, prLen, przz.width, przz.dmg);
       }
@@ -1113,6 +1124,7 @@ const Run = (() => {
   }
   function hitObject(o, dmg){
     o.hp -= dmg * R.stats.atk;
+    World.setObjHp(o.key, o.hp);   // 削ったHPは保持(回復しない)
     if (o.hp <= 0) {
       World.destroyObject(o.key);
       R.objsDestroyed++;
@@ -1230,6 +1242,8 @@ const Run = (() => {
   function updateInteractions(dt){
     const p = R.player;
     R.interact = null;
+    // クエスト帰還直後は少しの間インタラクト無効(勝手に話しかけない)
+    if (R.noInteractT > 0) { R.noInteractT -= dt; return; }
 
     // 基地: 未解放ならクエストへ(E)。解放済みはNPCと再会話でき、安全地帯(微回復)
     for (const b of World.bases) {
@@ -1354,7 +1368,8 @@ const Run = (() => {
     // 自然回復
     if (st.regen > 0) p.hp = Math.min(st.maxHp, p.hp + st.regen * dt);
 
-    // オブジェクトキャッシュ
+    // オブジェクトキャッシュ(破壊後は時間経過でリスポーン)
+    World.tick(dt);
     R.objects = World.nearbyObjects(p.x, p.y, 900);
 
     // 探索記録(行ったことのある場所がマップに残る)
@@ -1362,9 +1377,18 @@ const Run = (() => {
     if (R.exploreAcc <= 0) {
       R.exploreAcc = 0.4;
       World.recordExplore(p.x, p.y, st.exploreRad);
+      // 基地・港の発見記録(近づくとマップに載る)
+      SaveSys.data.seen = SaveSys.data.seen || {};
+      for (const b of World.bases) {
+        if (!SaveSys.data.seen[b.id] && Math.hypot(p.x - b.x, p.y - b.y) < 900) SaveSys.data.seen[b.id] = true;
+      }
+      for (const pt of World.ports) {
+        if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) SaveSys.data.seen[pt.id] = true;
+      }
       // エリア進入バナー(大陸名・バイオーム・得意素材)
       const L = World.landAt(p.x, p.y);
       const cid = L ? L.cont.id : 'sea';
+      R.curBiome = L ? (L.cont.biome || 'grass') : 'sea';
       if (cid !== R.curCont) {
         R.curCont = cid;
         if (L) {
@@ -1380,9 +1404,14 @@ const Run = (() => {
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
-    // カメラズーム: 仲間が増えるほど引いて全員映す
-    const zTarget = Math.max(0.55, 1 - Math.max(0, R.allies.length - 5) * 0.022);
+    // カメラズーム: 仲間が増えるほど引く + 射程が画面からはみ出すなら引く
+    const allyZ = 1 - Math.max(0, R.allies.length - 5) * 0.022;
+    const maxRangePx = 440 * st.range + 80;
+    const rangeZ = (R.viewMin || 800) / (2 * maxRangePx);
+    const zTarget = Math.max(0.5, Math.min(1, allyZ, rangeZ));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 2);
+    // 射程の画面内キャップを更新
+    R.rangeCapPx = (R.viewMin || 800) / (2 * (R.zoom || 1)) - 40;
 
     director(dt);
     updateEnemies(dt);
@@ -1417,6 +1446,7 @@ const Run = (() => {
   let vignette = null;
   function draw(g, W, H){
     const p = R.player;
+    R.viewMin = Math.min(W, H);
     const z = R.zoom || 1;
     const effW = W / z, effH = H / z;
     const camX = p.x - effW/2, camY = p.y - effH/2;
@@ -1762,21 +1792,16 @@ const Run = (() => {
   }
 
   function drawMinimap(g, W){
+    // マップ機能は基地を2つ解放するまで存在しない
+    if (Object.keys(SaveSys.data.bases).length < 2) return;
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     const x0 = W - sz - 10, y0 = 10;
-    // 地形マップは基地を2つ解放すると使える。基地の位置マップは最初からある
-    const terrainUnlocked = Object.keys(SaveSys.data.bases).length >= 2;
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
-    if (terrainUnlocked) {
-      g.globalAlpha = 0.92;
-      g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
-      // 霧: 行ったことのある場所だけ地形が見える
-      g.drawImage(World.fogCanvas(), view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
-      g.globalAlpha = 1;
-    } else {
-      g.fillStyle = 'rgba(5,9,18,.9)';
-      g.fillRect(x0, y0, sz, sz);
-    }
+    g.globalAlpha = 0.92;
+    g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
+    // 霧: 行ったことのある場所だけ地形が見える
+    g.drawImage(World.fogCanvas(), view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
+    g.globalAlpha = 1;
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const mmScale = sz / World.MM_SIZE;
     const dot = (wx, wy, c, r) => {
@@ -1786,15 +1811,20 @@ const Run = (() => {
       g.fillStyle = c;
       g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, r || 2, 0, 7); g.fill();
     };
-    for (const b of World.bases) dot(b.x, b.y, SaveSys.data.bases[b.id] ? '#7ee787' : '#8b949e', 2.5);
-    for (const port of World.ports) dot(port.x, port.y, SaveSys.data.ports[port.id] ? '#76e3ea' : '#d29922', 2.5);
+    // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)
+    const seen = SaveSys.data.seen || {};
+    for (const b of World.bases) {
+      if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
+      else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
+    }
+    for (const port of World.ports) {
+      if (SaveSys.data.ports[port.id]) dot(port.x, port.y, '#76e3ea', 2.5);
+      else if (seen[port.id]) dot(port.x, port.y, '#d29922', 2.5);
+    }
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
     g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
-    const mmLabel = terrainUnlocked
-      ? (R.mmWorld ? '全体図 [タップで切替]' : '周辺図 [タップで切替]')
-      : (sz < 165 ? '基地マップ' : '基地マップ(地形は基地2つで)');
-    g.fillText(mmLabel, x0 + sz / 2, y0 + sz + 12);
+    g.fillText(R.mmWorld ? '全体図 [タップで切替]' : '周辺図 [タップで切替]', x0 + sz / 2, y0 + sz + 12);
   }
   function toggleMap(){ R.mmWorld = !R.mmWorld; }
 
@@ -1837,8 +1867,8 @@ const Run = (() => {
     matStrip.innerHTML = h;
     const waiting = R.allies.filter(a => a.waitAt).length;
     allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
-    // スキルボタン: 取得可能なスキルがあれば光って数を出す
-    const rc = Skills.readyCount();
+    // スキルボタン: 「まだ見ていない」取得可能スキルがあれば光る(開けば消える)
+    const rc = Skills.unseenReadyCount();
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';

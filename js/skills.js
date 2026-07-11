@@ -9,13 +9,15 @@ const Skills = (() => {
   let owned = {};      // id -> lv
   let mats = {};       // mat -> count
   let revealed = {};   // 一度素材が揃って表示されたスキル(素材が減っても表示され続ける)
-  let tab = 'new';     // 強化 up / 新規 new / 効果 info
+  let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
+  let tab = 'new';     // 強化 up / 新規 new / 効果 info / ステータス st
   let cat = 'all';     // カテゴリフィルタ
 
   function reset(){
     owned = { bolt: 1 };
     mats = {};
     revealed = {};
+    seenReady = {};
     tab = 'new'; cat = 'all';
     // 出撃支度+保存術: 基本素材を持って開始
     const s = SaveSys.metaLv('lab_starter') * 2 + SaveSys.metaLv('m_preserve');
@@ -57,14 +59,19 @@ const Skills = (() => {
   function hiddenByUser(id){
     return lv(id) === 0 && SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
   }
-  function readyCount(){
-    let n = 0;
+  function readyIds(){
+    const out = [];
     for (const id in DATA.SKILLS) {
       if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) continue;
       const cost = nextCost(id);
-      if (cost && costMet(cost)) n++;
+      if (cost && costMet(cost)) out.push(id);
     }
-    return n;
+    return out;
+  }
+  function readyCount(){ return readyIds().length; }
+  // バッジ用: まだパネルで見ていない取得可能スキルの数(開いたら既読になる)
+  function unseenReadyCount(){
+    return readyIds().filter(id => !seenReady[id]).length;
   }
   // 素材が揃ったスキルを開示済みに記録(以後は素材が減っても表示され続ける)
   function refreshRevealed(){
@@ -139,6 +146,45 @@ const Skills = (() => {
     </div>`;
   }
 
+  // ステータスタブ: 現在の能力値と所持素材(ゲームは止まったまま)
+  function statusHtml(){
+    const st = (typeof Run !== 'undefined' && Run.state && Run.state.stats) ? Run.state.stats : null;
+    if (!st) return '<p class="small" style="padding:20px">周回中のみ表示できる。</p>';
+    const R = Run.state;
+    const pct = v => Math.round((v - 1) * 100) + '%';
+    const rows = [
+      ['HP', Math.ceil(Math.max(0, R.player.hp)) + ' / ' + Math.round(st.maxHp)],
+      ['攻撃倍率', '+' + pct(st.atk)],
+      ['移動速度', Math.round(st.speed)],
+      ['射程', '+' + pct(st.range)],
+      ['効果範囲', '+' + pct(st.area)],
+      ['発動間隔短縮', Math.round(st.cdr * 100) + '%'],
+      ['会心率', Math.round(st.crit * 100) + '%'],
+      ['被ダメ軽減', Math.round(st.armor * 100) + '%'],
+      ['回避率', Math.round(st.dodge * 100) + '%'],
+      ['HP自動回復', st.regen.toFixed(1) + '/秒'],
+      ['回収範囲', Math.round(st.magnet)],
+      ['勧誘率', (st.recruit * 100).toFixed(1) + '%'],
+      ['仲間攻撃/HP', '+' + pct(st.allyAtk) + ' / +' + pct(st.allyHp)],
+      ['コイン/ドロップ', '+' + pct(st.coinMul) + ' / +' + pct(st.dropMul)],
+      ['リーパー耐性/特効', Math.round(st.reaperRes * 100) + '% / +' + pct(st.reaperDmg)],
+      ['仲間の数', R.allies.length + '体'],
+    ];
+    let h = '<div class="sec-head">ステータス</div><div class="st-grid">';
+    for (const [k, v] of rows) h += `<div class="st-cell"><span class="st-k">${k}</span><span class="st-v">${v}</span></div>`;
+    h += '</div><div class="sec-head">所持素材</div><div class="st-grid">';
+    let any = false;
+    for (const m in DATA.MATERIALS) {
+      const n = matCount(m);
+      if (!matUnlocked(m) && !n) continue;
+      any = true;
+      const md = DATA.MATERIALS[m];
+      h += `<div class="st-cell"><span class="st-k"><span class="mat-dot" style="background:${md.color};display:inline-block;margin-right:4px"></span>${md.name}</span><span class="st-v">${n}</span></div>`;
+    }
+    if (!any) h += '<p class="small">まだ素材がない。</p>';
+    return h + '</div>';
+  }
+
   function catCount(catKey, ids){
     return ids.filter(id => catKey === 'all' || DATA.SKILLS[id].cat === catKey)
               .filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
@@ -160,18 +206,20 @@ const Skills = (() => {
     });
     sortReady(upIds); sortReady(newIds);
 
-    const upReady = upIds.filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
-    const newReady = newIds.filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
+    const isReady = id => { const c = nextCost(id); return c && costMet(c); };
+    const upBadge = upIds.filter(id => isReady(id) && !seenReady[id]).length;
+    const newBadge = newIds.filter(id => isReady(id) && !seenReady[id]).length;
 
-    // タブバー
+    // タブバー(バッジは「まだ見ていない」取得可能数。一度開いたら消える)
     tabsEl.innerHTML = `
-      <button class="stab ${tab==='up'?'on':''}" data-tab="up">強化 <span class="stab-n">${upIds.length}</span>${upReady ? '<span class="stab-badge">'+upReady+'</span>' : ''}</button>
-      <button class="stab ${tab==='new'?'on':''}" data-tab="new">新規 <span class="stab-n">${newIds.length}</span>${newReady ? '<span class="stab-badge">'+newReady+'</span>' : ''}</button>
-      <button class="stab ${tab==='info'?'on':''}" data-tab="info">効果一覧</button>`;
+      <button class="stab ${tab==='up'?'on':''}" data-tab="up">強化 <span class="stab-n">${upIds.length}</span>${upBadge ? '<span class="stab-badge">'+upBadge+'</span>' : ''}</button>
+      <button class="stab ${tab==='new'?'on':''}" data-tab="new">新規 <span class="stab-n">${newIds.length}</span>${newBadge ? '<span class="stab-badge">'+newBadge+'</span>' : ''}</button>
+      <button class="stab ${tab==='info'?'on':''}" data-tab="info">効果一覧</button>
+      <button class="stab ${tab==='st'?'on':''}" data-tab="st">ステータス</button>`;
     tabsEl.querySelectorAll('.stab').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
 
     // カテゴリタブ(取得/強化できるものがあるカテゴリには●)
-    if (tab === 'info') { catsEl.innerHTML = ''; }
+    if (tab === 'info' || tab === 'st') { catsEl.innerHTML = ''; }
     else {
       const ids = tab === 'up' ? upIds : newIds;
       let ch = `<button class="scat ${cat==='all'?'on':''}" data-cat="all">全て${catCount('all', ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
@@ -184,7 +232,9 @@ const Skills = (() => {
 
     // 本文
     let h = '';
-    if (tab === 'info') {
+    if (tab === 'st') {
+      h = statusHtml();
+    } else if (tab === 'info') {
       const ids = Object.keys(owned);
       h = ids.length ? ids.map(infoCard).join('') : '<p class="small" style="padding:20px">まだスキルがない。</p>';
     } else {
@@ -205,11 +255,16 @@ const Skills = (() => {
     ownedEl.innerHTML = oh || '<span class="small">まだスキルなし</span>';
   }
 
-  function open(){ render(); panel.classList.remove('hidden'); }
+  function open(){
+    render();
+    panel.classList.remove('hidden');
+    // 開いた時点の取得可能スキルを既読にする(バッジが消える)
+    for (const id of readyIds()) seenReady[id] = true;
+  }
   function close(){ panel.classList.add('hidden'); }
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
   return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
-           nextCost, costMet, acquire, open, close, isOpen, render, readyCount, reqMet, refreshRevealed,
+           nextCost, costMet, acquire, open, close, isOpen, render, readyCount, unseenReadyCount, reqMet, refreshRevealed,
            get owned(){ return owned; } };
 })();
