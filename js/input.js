@@ -1,12 +1,15 @@
 // =============================================================
-// input.js - キーボード + 仮想スティック(タッチ)
+// input.js - キーボード + 固定仮想パッド(タッチ/スマホ標準)
+//   パッドは画面左下に固定表示。設定で 表示/非表示/自動 を切替
 // =============================================================
 'use strict';
 
 const Input = (() => {
   const keys = {};
-  let stick = { active:false, id:null, ox:0, oy:0, dx:0, dy:0 };
   const pressedOnce = {};   // 1フレーム限りのキー押下
+  let stick = { active:false, id:null, dx:0, dy:0 };
+  let padMode = 'on';       // 'on' | 'off' | 'auto'
+  let touchedOnce = false;
 
   window.addEventListener('keydown', e => {
     if (e.repeat) return;
@@ -17,36 +20,46 @@ const Input = (() => {
   window.addEventListener('keyup', e => { keys[e.code] = false; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
-  // ---- 仮想スティック ----
+  // ---- 固定仮想パッド ----
   const zone = document.getElementById('stick-zone');
   const base = document.getElementById('stick-base');
   const knob = document.getElementById('stick-knob');
-  const R = 45;
+  const R = 52;
 
-  function stickStart(x, y, id){
-    stick.active = true; stick.id = id; stick.ox = x; stick.oy = y; stick.dx = 0; stick.dy = 0;
-    base.style.display = 'block';
-    base.style.left = (x - 60) + 'px'; base.style.top = (y - 60) + 'px';
-    knob.style.left = '35px'; knob.style.top = '35px';
+  function padVisible(){
+    return padMode === 'on' || (padMode === 'auto' && touchedOnce);
+  }
+  function refreshPad(){
+    document.body.classList.toggle('pad-visible', padVisible());
+  }
+  function setPadMode(mode){
+    padMode = (mode === 'off' || mode === 'auto') ? mode : 'on';
+    refreshPad();
+  }
+  function getPadMode(){ return padMode; }
+
+  function baseCenter(){
+    const r = base.getBoundingClientRect();
+    return { x: r.left + r.width / 2, y: r.top + r.height / 2 };
   }
   function stickMove(x, y){
-    let dx = x - stick.ox, dy = y - stick.oy;
+    const c = baseCenter();
+    let dx = x - c.x, dy = y - c.y;
     const len = Math.hypot(dx, dy);
     if (len > R) { dx = dx / len * R; dy = dy / len * R; }
     stick.dx = dx / R; stick.dy = dy / R;
-    knob.style.left = (35 + dx) + 'px'; knob.style.top = (35 + dy) + 'px';
+    knob.style.transform = `translate(${dx}px, ${dy}px)`;
   }
   function stickEnd(){
     stick.active = false; stick.id = null; stick.dx = 0; stick.dy = 0;
-    base.style.display = 'none';
+    knob.style.transform = 'translate(0px, 0px)';
   }
 
   zone.addEventListener('touchstart', e => {
     e.preventDefault();
+    if (!padVisible()) return;
     const t = e.changedTouches[0];
-    if (!stick.active) stickStart(t.clientX, t.clientY, t.identifier);
-    document.body.classList.add('touch-mode');
-    document.getElementById('touch-buttons').classList.remove('hidden');
+    if (!stick.active) { stick.active = true; stick.id = t.identifier; stickMove(t.clientX, t.clientY); }
   }, { passive:false });
   zone.addEventListener('touchmove', e => {
     e.preventDefault();
@@ -56,8 +69,16 @@ const Input = (() => {
   zone.addEventListener('touchend', endH);
   zone.addEventListener('touchcancel', endH);
 
-  // マウスでもスティック操作可能(デバッグ用)
-  zone.addEventListener('mousedown', e => { stickStart(e.clientX, e.clientY, 'mouse'); });
+  // 初回タッチで自動モードのパッドを出す
+  window.addEventListener('touchstart', () => {
+    if (!touchedOnce) { touchedOnce = true; refreshPad(); }
+  }, { passive:true });
+
+  // マウスでもパッド操作可能(PCデバッグ用)
+  zone.addEventListener('mousedown', e => {
+    if (!padVisible()) return;
+    stick.active = true; stick.id = 'mouse'; stickMove(e.clientX, e.clientY);
+  });
   window.addEventListener('mousemove', e => { if (stick.active && stick.id === 'mouse') stickMove(e.clientX, e.clientY); });
   window.addEventListener('mouseup', () => { if (stick.id === 'mouse') stickEnd(); });
 
@@ -76,5 +97,6 @@ const Input = (() => {
   function once(code){ const v = !!pressedOnce[code]; pressedOnce[code] = false; return v; }
   function endFrame(){ for (const k in pressedOnce) pressedOnce[k] = false; }
 
-  return { axis, once, endFrame, keys };
+  refreshPad();
+  return { axis, once, endFrame, keys, setPadMode, getPadMode };
 })();

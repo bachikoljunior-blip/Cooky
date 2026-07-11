@@ -13,6 +13,7 @@ const SaveSys = (() => {
       bases: {},                   // 解放済み基地 id -> true
       ports: {},                   // 修理済み港 id -> true
       stats: { runs:0, kills:0, bestTime:0, totalCoins:0, recruits:0, bossKills:0, reaperKills:0, maxDist:0 },
+      settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
       seenHelp: false,
     };
   }
@@ -26,6 +27,7 @@ const SaveSys = (() => {
         const d = JSON.parse(raw);
         data = Object.assign(fresh(), d);
         data.stats = Object.assign(fresh().stats, d.stats || {});
+        data.settings = Object.assign(fresh().settings, d.settings || {});
       }
     } catch(e) { console.warn('save load failed', e); }
     return data;

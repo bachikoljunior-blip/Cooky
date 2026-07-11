@@ -26,11 +26,13 @@ const Game = (() => {
   function toTitle(){
     state = 'title'; overlay = null;
     show('title-screen'); hide('hud');
+    Sfx.setScene('title');
   }
   function toHub(){
     state = 'hub'; overlay = null;
     hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel');
     Hub.enter();
+    Sfx.setScene('hub');
   }
   function startRun(pos){
     state = 'run'; overlay = null;
@@ -38,6 +40,7 @@ const Game = (() => {
     show('hud');
     el('interact-hint').classList.add('hidden');
     Run.start(pos);
+    Sfx.setScene('run');
   }
 
   function pauseFor(kind){
@@ -90,6 +93,7 @@ const Game = (() => {
   // ---------------- 入力(フレーム毎) ----------------
   function handleKeys(){
     if (Input.once('Tab')) toggleSkillPanel();
+    if (Input.once('KeyN') && state === 'run') Run.toggleMap();
     if (Input.once('KeyM')) {
       const m = Sfx.toggleMute();
       if (state === 'run') { Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON'; Run.state.warnT = 1.2; }
@@ -122,6 +126,7 @@ const Game = (() => {
       if (!overlay && !R.over) Run.update(dt);
       Run.draw(g, W, H);
       Run.updateHud(dt);
+      Sfx.setScene(R.time >= DATA.REAPER_AT ? 'reaper' : (R.bossAlive && !R.bossAlive.dead) ? 'boss' : 'run');
       if (R.over && overlay !== 'result') endRun(false);
     } else if (state === 'hub') {
       if (!overlay) Hub.update(dt);
@@ -132,6 +137,31 @@ const Game = (() => {
       g.fillRect(0, 0, W, H);
     }
   }
+
+  // ミニマップをタップ/クリックで周辺図⇔全体図
+  canvas.addEventListener('pointerdown', e => {
+    if (state !== 'run' || overlay) return;
+    const sz = World.MM_SIZE;
+    if (e.clientX > canvas.width - sz - 12 && e.clientY < sz + 26) Run.toggleMap();
+  });
+
+  // 移動パネル設定 (表示/非表示/自動)
+  const PAD_LABELS = { on:'移動パネル: 表示', off:'移動パネル: 非表示', auto:'移動パネル: 自動' };
+  function refreshPadButtons(){
+    const label = PAD_LABELS[Input.getPadMode()];
+    el('btn-pad').textContent = label;
+    el('pause-pad').textContent = label;
+  }
+  function cyclePad(){
+    const order = ['on','off','auto'];
+    const next = order[(order.indexOf(Input.getPadMode()) + 1) % order.length];
+    Input.setPadMode(next);
+    SaveSys.data.settings.pad = next;
+    SaveSys.save();
+    refreshPadButtons();
+  }
+  el('btn-pad').onclick = cyclePad;
+  el('pause-pad').onclick = cyclePad;
 
   // ---------------- UI配線 ----------------
   el('btn-start').onclick = () => {
@@ -164,8 +194,11 @@ const Game = (() => {
 
   // ---------------- 起動 ----------------
   SaveSys.load();
+  Input.setPadMode(SaveSys.data.settings.pad);
   Sprites.loadOverrides();
   toTitle();
+  refreshPadButtons();
+  setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成
   requestAnimationFrame(loop);
 
   return { startRun, pauseFor, closeStation, toHub, get state(){ return state; } };

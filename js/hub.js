@@ -17,13 +17,13 @@ const Hub = (() => {
       { kind:'depart', x:0, y:260 },
       { kind:'stats',  x:-620, y:260 },
     ];
-    // 解放済み基地のワープゲート + 専用強化
+    // 解放済み基地のワープゲート + 専用強化(最大21基地のグリッド)
     let i = 0;
     for (const b of DATA.BASES) {
       if (!SaveSys.data.bases[b.id]) continue;
-      const gx = -540 + (i % 5) * 270, gy = 480 + Math.floor(i / 5) * 200;
+      const gx = -560 + (i % 4) * 310, gy = 470 + Math.floor(i / 4) * 185;
       list.push({ kind:'warp', base:b, x:gx, y:gy });
-      list.push({ kind:'meta', st:b.id, x:gx + 110, y:gy, small:true });
+      list.push({ kind:'meta', st:b.id, x:gx + 118, y:gy, small:true });
       i++;
     }
     return list;
@@ -40,7 +40,7 @@ const Hub = (() => {
     p.x += ax.x * 240 * dt;
     p.y += ax.y * 240 * dt;
     p.x = Math.max(-760, Math.min(760, p.x));
-    p.y = Math.max(-320, Math.min(760, p.y));
+    p.y = Math.max(-320, Math.min(1500, p.y));
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
     H.interact = null;
@@ -162,7 +162,7 @@ const Hub = (() => {
 
     // 広場の縁
     g.strokeStyle = '#2b3654'; g.lineWidth = 6;
-    g.strokeRect(-800, -360, 1600, 1160);
+    g.strokeRect(-800, -360, 1600, 1920);
 
     // 施設
     for (const s of H.list) {

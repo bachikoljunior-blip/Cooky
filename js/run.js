@@ -22,37 +22,98 @@ const Run = (() => {
   // ---------------- プレイヤーの派生ステータス(メタ強化反映) ----------------
   function calcStats(){
     const m = SaveSys.metaLv;
-    const boots = Skills.stat('boots');
-    const magnetSk = Skills.stat('magnetSk');
+    const sun = 0.02*m('g_sun_grace');   // 太陽の恩寵: 全能力
     return {
-      maxHp: 100 + 20*m('altar_hp') + 40*m('g_black_dark'),
-      atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark')),
-      speed: 190 * (1 + 0.03*m('altar_speed')) * (boots ? boots.mult : 1),
+      maxHp: (100 + 20*m('altar_hp') + 40*m('g_black_dark') + 10*m('g_forge_gear')) * (1 + sun),
+      atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
+           * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')),
+      // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
+      speed: 132 * (1 + 0.04*m('altar_speed')) * (1 + sun),
+      boatSpeed: 300 * (1 + 0.08*m('lab_sail')),
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
       crit: 0.02*m('altar_crit'),
+      dodge: 0.01*m('g_mist_dodge'),
+      invulnPlus: 0.06*m('g_moon_shadow'),
+      burnChance: 0.04*m('g_ember_burn'),
+      slowChance: 0.03*m('g_frost_slow'),
+      stormDmg: 20*m('g_storm_bolt'),
+      allyDeathBlast: 30*m('g_grave_blast'),
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr')),
       area: 1 + 0.04*m('g_east_area'),
-      magnet: 42 * (1 + 0.12*m('lab_magnet')) * (magnetSk ? magnetSk.mult : 1),
-      recruit: 0.03 + 0.01*m('camp_recruit'),
-      allyCap: 3 + m('camp_cap'),
+      magnet: 42 * (1 + 0.12*m('lab_magnet')),
+      recruit: 0.08 + 0.015*m('camp_recruit'),
+      allyCap: 150,   // 上限なし(処理負荷の保険値のみ)
+      allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')),
       allyAtk: (1 + 0.12*m('camp_atk')) * (1 + 0.08*m('g_green_ally')),
-      allyRegen: 0.01*m('camp_heal'),
-      allyRevive: 0.3 * Math.min(1, m('camp_revive')/5*1) * (m('camp_revive')>0?1:0),
+      allyRegen: 0.006 + 0.01*m('camp_heal'),   // 仲間は放っておいても少しずつ回復
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')),
       dropMul: 1 + 0.1*m('lab_drop'),
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: 1 + 0.08*m('g_west_boss'),
-      reaperRes: Math.min(0.9, 0.06*m('g_dragon_res')),
-      reaperDmg: 1 + 0.15*m('g_dusk_slay'),
-      timeMitig: Math.min(0.45, 0.03*m('g_star_time')),
+      reaperRes: Math.min(0.92, 0.06*m('g_dragon_res') + 0.02*m('g_void_null')),
+      reaperDmg: 1 + 0.15*m('g_dusk_slay') + 0.05*m('g_void_null'),
+      timeMitig: Math.min(0.6, 0.03*m('g_star_time') + 0.02*m('g_end_beyond')),
       potion: 0.004*m('g_south_potion'),
       revives: m('altar_revive'),
+      killHeal: 0, lifesteal: 0,
     };
+  }
+
+  // 周回中に取ったスキルのパッシブ効果を毎フレーム反映する
+  // (靴・磁力・武器研磨・共鳴・カリスマ・トレハン・吸血・集中詠唱など)
+  function applyMods(b){
+    const s = Object.assign({}, b);
+    const bo = Skills.stat('boots');    if (bo) s.speed *= bo.mult;
+    const mg = Skills.stat('magnetSk'); if (mg) s.magnet *= mg.mult;
+    const sh = Skills.stat('sharpen');  if (sh) { s.atk *= sh.mult; s.crit += sh.crit; }
+    const fo = Skills.stat('focus');    if (fo) { s.cdr = Math.min(0.6, s.cdr + fo.cdr); s.area *= fo.area; }
+    const bd = Skills.stat('bond');     if (bd) {
+      s.atk *= 1 + bd.atkPerAlly * R.allies.length;
+      s.armor = Math.min(0.75, s.armor + bd.defPerAlly * R.allies.length);
+    }
+    const ch = Skills.stat('charisma'); if (ch) { s.recruit += ch.recruit; s.allyHp *= ch.allyMul; s.allyAtk *= ch.allyMul; }
+    const tr = Skills.stat('treasure'); if (tr) { s.coinMul *= tr.coin; s.dropMul *= tr.drop; s.luck2 += tr.luck; }
+    const va = Skills.stat('vampire');  if (va) { s.killHeal = va.killHeal; s.lifesteal = va.lifesteal; }
+    // 「心得」パッシブスキル群
+    for (const id in Skills.owned) {
+      const stt = Skills.stat(id);
+      if (!stt || !stt.passive) continue;
+      const v = stt.passive.value;
+      switch (stt.passive.key) {
+        case 'maxHpAdd':    s.maxHp += v; break;
+        case 'atkMul':      s.atk *= 1 + v; break;
+        case 'speedMul':    s.speed *= 1 + v; break;
+        case 'armorAdd':    s.armor = Math.min(0.8, s.armor + v); break;
+        case 'regenAdd':    s.regen += v; break;
+        case 'magnetMul':   s.magnet *= 1 + v; break;
+        case 'coinMul':     s.coinMul *= 1 + v; break;
+        case 'dropMul':     s.dropMul *= 1 + v; break;
+        case 'critAdd':     s.crit += v; break;
+        case 'cdrAdd':      s.cdr = Math.min(0.65, s.cdr + v); break;
+        case 'areaMul':     s.area *= 1 + v; break;
+        case 'bossMul':     s.bossDmg *= 1 + v; break;
+        case 'reaperMul':   s.reaperDmg *= 1 + v; break;
+        case 'reaperResAdd':s.reaperRes = Math.min(0.95, s.reaperRes + v); break;
+        case 'allyAtkMul':  s.allyAtk *= 1 + v; break;
+        case 'allyHpMul':   s.allyHp *= 1 + v; break;
+        case 'recruitAdd':  s.recruit += v; break;
+        case 'thornsAdd':   s.thorns += v; break;
+        case 'boatMul':     s.boatSpeed *= 1 + v; break;
+        case 'luckAdd':     s.luck2 += v; break;
+        case 'burnAdd':     s.burnChance += v; break;
+        case 'slowAdd':     s.slowChance += v; break;
+        case 'stormAdd':    s.stormDmg += v; break;
+        case 'dodgeAdd':    s.dodge = Math.min(0.5, s.dodge + v); break;
+        case 'mitigAdd':    s.timeMitig = Math.min(0.7, s.timeMitig + v); break;
+        case 'invulnAdd':   s.invulnPlus += v; break;
+      }
+    }
+    return s;
   }
 
   // ---------------- 周回開始 ----------------
@@ -62,7 +123,8 @@ const Run = (() => {
     R.time = 0;
     R.player = { x:startPos.x, y:startPos.y, hp:1, dir:1, moveA:0,
                  onBoat:false, boatAnchor:null, invuln:0 };
-    R.stats = calcStats();
+    R.baseStats = calcStats();
+    R.stats = R.baseStats;
     R.player.hp = R.stats.maxHp;
     R.coins = 0; R.kills = 0; R.recruits = 0; R.bossKills = 0; R.reaperKills = 0;
     R.usedRevives = 0;
@@ -75,7 +137,20 @@ const Run = (() => {
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
     R.bossAlive = null;
+    R.mmWorld = false;   // ミニマップ: false=周辺 / true=全体
     R.over = false;
+    // 骸骨の軍勢: 開始時から仲間を連れて出撃
+    const army = Math.ceil(SaveSys.metaLv('g_bones_army') / 2);
+    for (let i = 0; i < army; i++) {
+      const def = DATA.ENEMIES.skeleton;
+      R.allies.push({
+        def, key:'skeleton',
+        x: startPos.x + rnd(-70, 70), y: startPos.y + rnd(-70, 70),
+        maxHp: 220 * R.stats.allyHp, hp: 220 * R.stats.allyHp,
+        dmg: 14, speed: def.speed * 1.8,
+        atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false,
+      });
+    }
   }
 
   function walletTotal(){ return SaveSys.data.coins + R.coins; }
@@ -100,6 +175,11 @@ const Run = (() => {
     d *= (1 - armor);
     e.hp -= d;
     e.flash = 0.08;
+    // 吸血の刻印: 与ダメージの一部を回復
+    if (st.lifesteal > 0) R.player.hp = Math.min(st.maxHp, R.player.hp + d * st.lifesteal);
+    // 燃えさしの祝福 / 霜の吐息: 確率で炎上・氷結を付与
+    if (st.burnChance > 0 && Math.random() < st.burnChance) { e.burn = Math.max(e.burn, d * 0.15); e.burnT = 3; }
+    if (st.slowChance > 0 && Math.random() < st.slowChance) { e.slowUntil = R.time + 1.5; e.slowMul = 0.35; }
     Sfx.hit();
     popup(e.x, e.y - e.def.r - 6, fmtNum(d), opts.crit ? '#ffd766' : '#e6edf3');
     if (e.hp <= 0) killEnemy(e, opts);
@@ -118,8 +198,9 @@ const Run = (() => {
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
     const st = R.stats;
-    // コイン
-    const c = Math.max(1, Math.round(e.coin * st.coinMul * (0.8 + Math.random()*0.4)));
+    // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
+    const ring = World.ringOf(e.x, e.y);
+    const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * (0.8 + Math.random()*0.4)));
     dropPickup(e.x, e.y, { type:'coin', value:c });
     // 素材ドロップ
     for (const dr of e.def.drops || []) {
@@ -131,6 +212,8 @@ const Run = (() => {
     }
     // ポーション
     if (Math.random() < st.potion) dropPickup(e.x, e.y, { type:'potion' });
+    // 吸血の刻印: 撃破時回復
+    if (st.killHeal > 0) R.player.hp = Math.min(st.maxHp, R.player.hp + st.killHeal);
     // 仲間勧誘(ボス/リーパー以外)
     if (!e.boss && !e.def.isReaper && R.allies.length < st.allyCap && Math.random() < st.recruit) {
       recruitAlly(e);
@@ -140,15 +223,16 @@ const Run = (() => {
 
   function recruitAlly(e){
     const wb = Skills.stat('warbanner');
+    const bd = Skills.stat('bond');
     const st = R.stats;
-    const hpMul = st.allyHp * (wb ? wb.hp : 1);
+    const hpMul = st.allyHp * (wb ? wb.hp : 1) * (bd ? bd.allyHp : 1);
     R.allies.push({
       def: e.def, key: e.defKey,
       x: e.x, y: e.y,
-      maxHp: e.maxHp * 0.8 * hpMul,
-      hp: e.maxHp * 0.8 * hpMul,
+      maxHp: e.maxHp * 1.6 * hpMul,   // 仲間は元の敵より頑丈
+      hp: e.maxHp * 1.6 * hpMul,
       dmg: e.dmg * 0.9,
-      speed: e.def.speed * 1.15,
+      speed: e.def.speed * 1.4,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false,
     });
@@ -161,6 +245,12 @@ const Run = (() => {
     const st = R.stats;
     const p = R.player;
     if (p.invuln > 0) return;
+    // 霧隠れ: 完全回避
+    if (st.dodge > 0 && Math.random() < st.dodge) {
+      popup(p.x, p.y - 26, '回避!', '#76e3ea');
+      p.invuln = 0.15;
+      return;
+    }
     // シールド
     if (R.shield.stocks > 0) {
       R.shield.stocks--;
@@ -168,16 +258,21 @@ const Run = (() => {
       effect('ring', p.x, p.y, { color:'#58a6ff', r:60 });
       if (sh && sh.knock) knockback(p.x, p.y, 120, 260);
       if (sh && sh.burst) aoeDamage(p.x, p.y, 100, sh.burst);
-      p.invuln = 0.4;
+      p.invuln = 0.4 + st.invulnPlus;
       return;
     }
     let d = dmg;
+    // 威圧のオーラ: 範囲内の敵からの攻撃を弱体化
+    const fe = Skills.stat('fear');
+    if (fe && src && src.x !== undefined && Math.hypot(src.x - p.x, src.y - p.y) < fe.radius) {
+      d *= (1 - fe.reduce);
+    }
     let armor = st.armor;
     if (p.hp < st.maxHp * 0.3) armor = Math.min(0.85, armor + st.wall);
     d *= (1 - armor);
     if (src && src.def && src.def.isReaper) d *= (1 - st.reaperRes);
     p.hp -= d;
-    p.invuln = 0.35;
+    p.invuln = 0.35 + st.invulnPlus; // 影歩き: 被弾後の無敵延長
     Sfx.hurt();
     // 茨の鎧
     if (st.thorns > 0 && src && !src.dead && src.hp !== undefined) {
@@ -309,18 +404,23 @@ const Run = (() => {
       orbitHit: 0, wander: Math.random() * 7,
     };
     e.hp = e.maxHp;
-    if (opts.boss) { e.sizeMul = 2.2; R.bossAlive = e; }
+    // 強化ランク: 時間・距離で強くなった敵は見た目が変わる(大きさ+オーラ)
+    const power = tm.hp * (opts.hpMul || 1) / (opts.boss ? 14 : 1);
+    e.rank = power < 4 ? 0 : power < 15 ? 1 : power < 60 ? 2 : power < 250 ? 3 : 4;
+    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + e.rank * 0.09);
+    if (opts.boss) R.bossAlive = e;
     R.enemies.push(e);
     return e;
   }
 
   function director(dt){
     const min = R.time / 60;
-    // 通常スポーン
+    // 通常スポーン(序盤は少なく、時間と距離で徐々に増える)
     const isReaperTime = R.time >= DATA.REAPER_AT;
-    const rate = (0.9 + min * 0.10 + World.ringOf(R.player.x, R.player.y) * 0.18) * (isReaperTime ? 0.5 : 1);
+    const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
+    const rate = (0.35 + min * 0.09 + ring0 * 0.15) * (isReaperTime ? 0.5 : 1);
     R.spawnAcc += dt * rate;
-    const cap = 150;
+    const cap = Math.min(150, 22 + R.time * 0.35 + ring0 * 8);
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (R.enemies.length >= cap) break;
@@ -403,7 +503,30 @@ const Run = (() => {
       // 行動
       let tx = p.x, ty = p.y;
       let vx = 0, vy = 0;
-      if (e.def.move === 'kite') {
+      const confused = R.time < (e.confusedUntil || 0);
+      const fe = Skills.stat('fear');
+      if (confused) {
+        // 混沌の瘴気: 最寄りの別の敵を攻撃する
+        let tgt = null, td = 1e9;
+        for (const o of R.enemies) {
+          if (o === e || o.dead) continue;
+          const d = Math.hypot(o.x - e.x, o.y - e.y);
+          if (d < td) { tgt = o; td = d; }
+        }
+        if (tgt) {
+          const d = td || 1;
+          vx = (tgt.x - e.x) / d; vy = (tgt.y - e.y) / d;
+          if (td < e.def.r + tgt.def.r + 6 && e.contactCd <= 0) {
+            e.contactCd = 0.6;
+            tgt.hp -= e.dmg; tgt.flash = 0.08;
+            if (tgt.hp <= 0) killEnemy(tgt);
+          }
+        } else { e.wander += dt; vx = Math.cos(e.wander); vy = Math.sin(e.wander); }
+      } else if (fe && fe.flee && !e.boss && !e.def.isReaper &&
+                 e.hp < e.maxHp * 0.25 && pd < fe.radius * 1.5) {
+        // 威圧のオーラ: 瀕死の敵が逃げ出す
+        vx = (e.x - p.x) / (pd || 1); vy = (e.y - p.y) / (pd || 1);
+      } else if (e.def.move === 'kite') {
         // ヒーラー: 距離を保って逃げる + 回復
         const keep = 230;
         if (pd < keep) { vx = (e.x - p.x) / (pd||1); vy = (e.y - p.y) / (pd||1); }
@@ -438,27 +561,29 @@ const Run = (() => {
       else if (canStand(e.def, nx, e.y)) { e.x = nx; }
       else if (canStand(e.def, e.x, ny)) { e.y = ny; }
 
-      // 接触ダメージ(プレイヤー)
-      if (pd < e.def.r + 16 && e.contactCd <= 0) {
+      // 接触ダメージ(プレイヤー) ※混乱中は敵を狙うので当たらない
+      if (!confused && pd < e.def.r + 16 && e.contactCd <= 0) {
         e.contactCd = 0.6;
         damagePlayer(e.dmg, e);
       }
       // 接触ダメージ(仲間)
-      for (const a of R.allies) {
+      if (!confused) for (const a of R.allies) {
         if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < e.def.r + 14) {
           e.contactCd = 0.6;
-          damageAlly(a, e.dmg * 0.8);
+          damageAlly(a, e.dmg * 0.5, e);   // 仲間への接触ダメージは控えめ
           break;
         }
       }
       // 射撃
-      if (e.def.ranged) {
+      if (e.def.ranged && !confused) {
         e.shootCd -= dt;
         if (e.shootCd <= 0 && pd < e.def.ranged.range) {
           e.shootCd = e.def.ranged.cd;
           const d = pd || 1;
+          let pdmg = e.dmg;
+          if (fe && pd < fe.radius) pdmg *= (1 - fe.reduce); // 威圧: 射撃も弱体化
           R.eprojs.push({ x:e.x, y:e.y, vx:(p.x-e.x)/d*e.def.ranged.pspeed, vy:(p.y-e.y)/d*e.def.ranged.pspeed,
-                          dmg:e.dmg, life:3, r:5 });
+                          dmg:pdmg, life:3, r:5 });
         }
       }
     }
@@ -472,7 +597,12 @@ const Run = (() => {
   }
 
   // ---------------- 仲間の更新 ----------------
-  function damageAlly(a, dmg){
+  function damageAlly(a, dmg, src){
+    // 威圧のオーラ: プレイヤーの近くなら仲間への攻撃も弱体化
+    const fe = Skills.stat('fear');
+    if (fe && src && Math.hypot(src.x - R.player.x, src.y - R.player.y) < fe.radius) {
+      dmg *= (1 - fe.reduce);
+    }
     a.hp -= dmg;
     if (a.hp <= 0) {
       if (!a.saved && Math.random() < R.stats.allyReviveChance) {
@@ -482,6 +612,11 @@ const Run = (() => {
         a.dead = true;
         effect('burst', a.x, a.y, { color:'#7ee787', r:16 });
         popup(a.x, a.y - 20, '仲間が倒れた…', '#f85149');
+        // 弔いの爆炎: 倒れた仲間が敵を道連れにする
+        if (R.stats.allyDeathBlast > 0) {
+          effect('ring', a.x, a.y, { color:'#f0883e', r:110 });
+          aoeDamage(a.x, a.y, 110, R.stats.allyDeathBlast);
+        }
       }
     }
   }
@@ -508,8 +643,8 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      // ターゲット探索
-      let tgt = null, td = 300;
+      // ターゲット探索(交戦範囲は広め: 軍勢同士がぶつかり合う)
+      let tgt = null, td = 420;
       for (const e of R.enemies) {
         if (e.dead) continue;
         const d = Math.hypot(e.x - a.x, e.y - a.y);
@@ -523,7 +658,7 @@ const Run = (() => {
           a.shootCd -= dt;
           if (td < a.def.ranged.range) {
             if (a.shootCd <= 0) {
-              a.shootCd = a.def.ranged.cd;
+              a.shootCd = a.def.ranged.cd * (1 - R.stats.allyAtkSpd);
               const d = td || 1;
               R.projs.push({ x:a.x, y:a.y, vx:(tgt.x-a.x)/d*a.def.ranged.pspeed*1.2, vy:(tgt.y-a.y)/d*a.def.ranged.pspeed*1.2,
                              dmg: a.dmg * atkMul / R.stats.atk, life:2.5, size:5, pierce:0, ally:true });
@@ -535,18 +670,19 @@ const Run = (() => {
         a.atkCd -= dt;
         if (dest && td < tgt.def.r + 16) {
           if (a.atkCd <= 0) {
-            a.atkCd = 0.7;
+            a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
             dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
           }
           dest = null;
         }
       } else {
-        // 隊列位置へ追従
+        // 隊列位置へ追従(人数が増えるほど陣形が広がる)
+        const ring = 45 + Math.min(130, n * 2.5) + (i % 3) * 22;
         const ang = (i / Math.max(1, n)) * Math.PI * 2 + R.time * 0.15;
-        dest = { x: p.x + Math.cos(ang) * 55, y: p.y + Math.sin(ang) * 55 };
+        dest = { x: p.x + Math.cos(ang) * ring, y: p.y + Math.sin(ang) * ring };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
         if (d < 12) dest = null;
-        if (d > 500) { a.x = p.x + rnd(-30, 30); a.y = p.y + rnd(-30, 30); dest = null; } // ワープ追従
+        if (d > 700) { a.x = p.x + rnd(-40, 40); a.y = p.y + rnd(-40, 40); dest = null; } // ワープ追従
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
@@ -576,6 +712,41 @@ const Run = (() => {
     }
   }
 
+  // ---------------- ユニット分離(敵・仲間が重ならない = 合戦の戦線) ----------------
+  function separateUnits(){
+    const units = [];
+    for (const e of R.enemies) if (!e.dead) { e._r = e.def.r * (e.sizeMul || 1); units.push(e); }
+    for (const a of R.allies) if (!a.waitAt && !a.dead) { a._r = a.def.r; units.push(a); }
+    if (units.length < 2) return;
+    const cell = 64, grid = new Map();
+    for (const u of units) {
+      const k = ((u.x / cell) | 0) + ',' + ((u.y / cell) | 0);
+      const arr = grid.get(k);
+      if (arr) arr.push(u); else grid.set(k, [u]);
+    }
+    for (const u of units) {
+      const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
+      for (let ix = gx - 1; ix <= gx + 1; ix++) {
+        for (let iy = gy - 1; iy <= gy + 1; iy++) {
+          const arr = grid.get(ix + ',' + iy);
+          if (!arr) continue;
+          for (const v of arr) {
+            if (v === u) continue;
+            const dx = v.x - u.x, dy = v.y - u.y;
+            const rr = (u._r + v._r) * 0.9;
+            const d2 = dx * dx + dy * dy;
+            if (d2 >= rr * rr) continue;
+            if (d2 === 0) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; continue; }
+            const d = Math.sqrt(d2), push = (rr - d) * 0.3;
+            const nx = dx / d, ny = dy / d;
+            u.x -= nx * push; u.y -= ny * push;
+            v.x += nx * push; v.y += ny * push;
+          }
+        }
+      }
+    }
+  }
+
   // ---------------- スキル発動 ----------------
   function cdReady(id, base){
     const cd = base * (1 - R.stats.cdr);
@@ -591,13 +762,22 @@ const Run = (() => {
     }
     return best;
   }
+  // 敵がいない時は岩や木箱などの破壊可能オブジェクトを狙う
+  function nearestObject(x, y, maxD){
+    let best = null, bd = maxD || 300;
+    for (const o of R.objects || []) {
+      const d = Math.hypot(o.x - x, o.y - y);
+      if (d < bd) { best = o; bd = d; }
+    }
+    return best;
+  }
 
   function updateSkills(dt){
     const p = R.player, st = R.stats, area = st.area;
     // --- マジックボルト ---
     const bolt = Skills.stat('bolt');
     if (bolt && cdReady('bolt', bolt.cd)) {
-      const tgt = nearestEnemy(p.x, p.y, 480);
+      const tgt = nearestEnemy(p.x, p.y, 480) || nearestObject(p.x, p.y, 300);
       if (tgt) {
         Sfx.shoot();
         for (let i = 0; i < bolt.count; i++) {
@@ -706,7 +886,7 @@ const Run = (() => {
         if (R.time > t.until) { R.turrets.splice(i, 1); continue; }
         t.fireCd -= dt;
         if (t.fireCd <= 0) {
-          const tgt = nearestEnemy(t.x, t.y, tu.range * area);
+          const tgt = nearestEnemy(t.x, t.y, tu.range * area) || nearestObject(t.x, t.y, 260);
           if (tgt) {
             t.fireCd = tu.fireCd * (1 - st.cdr);
             const d = Math.hypot(tgt.x-t.x, tgt.y-t.y) || 1;
@@ -787,6 +967,50 @@ const Run = (() => {
           if (diff < br.arc) { e.hp -= br.dps * st.atk * dt; e.flash = 0.05; if (e.hp <= 0) killEnemy(e); }
         }
       }
+    }
+    // --- 嵐の加護(基地強化: 自動落雷) ---
+    if (st.stormDmg > 0 && (R.cd['gstorm'] || 0) <= R.time) {
+      const tgt = nearestEnemy(p.x, p.y, 420);
+      if (tgt) {
+        R.cd['gstorm'] = R.time + 9;
+        effect('thunder', tgt.x, tgt.y, {});
+        dealDamage(tgt, st.stormDmg / st.atk);
+      } else R.cd['gstorm'] = R.time + 0.5;
+    }
+    // --- 混沌の瘴気(敵を混乱させ同士討ち) ※対象がいない時は保留 ---
+    const cf = Skills.stat('confuse');
+    if (cf && (R.cd['confuse'] || 0) <= R.time) {
+      const cands = R.enemies.filter(e => !e.dead && !e.boss && !e.def.isReaper &&
+        Math.hypot(e.x - p.x, e.y - p.y) < cf.radius * area);
+      if (cands.length >= 2) {   // 同士討ちには2体以上必要
+        R.cd['confuse'] = R.time + cf.cd * (1 - st.cdr);
+        for (let i = 0; i < cf.count && cands.length; i++) {
+          const e = cands.splice(Math.floor(Math.random() * cands.length), 1)[0];
+          e.confusedUntil = R.time + cf.dur;
+          popup(e.x, e.y - e.def.r - 10, '混乱!', '#c084fc');
+        }
+        effect('ring', p.x, p.y, { color:'#c084fc', r:cf.radius * area });
+      } else R.cd['confuse'] = R.time + 0.3;
+    }
+    // --- 衰弱の呪印(被ダメ増+減速の呪い) ※対象がいない時は保留 ---
+    const cu = Skills.stat('curse');
+    if (cu && (R.cd['curse'] || 0) <= R.time) {
+      const rad = cu.radius * area;
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < rad + e.def.r) {
+          e.shred = Math.max(e.shred, cu.shred);
+          e.slowUntil = Math.max(e.slowUntil, R.time + cu.dur);
+          e.slowMul = cu.slow;
+          e.cursedUntil = R.time + cu.dur;
+          n++;
+        }
+      }
+      if (n > 0) {
+        R.cd['curse'] = R.time + cu.cd * (1 - st.cdr);
+        effect('ring', p.x, p.y, { color:'#a78bfa', r:rad });
+      } else R.cd['curse'] = R.time + 0.3;
     }
     // --- ヘルメスの靴(残像) ---
     const bo = Skills.stat('boots');
@@ -1057,12 +1281,13 @@ const Run = (() => {
   function update(dt){
     if (R.over) return;
     R.time += dt;
+    R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
     const p = R.player, st = R.stats;
     p.invuln = Math.max(0, p.invuln - dt);
 
     // 移動
     const ax = Input.axis();
-    const spd = p.onBoat ? 260 : st.speed;
+    const spd = p.onBoat ? st.boatSpeed : st.speed;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
@@ -1096,6 +1321,7 @@ const Run = (() => {
     director(dt);
     updateEnemies(dt);
     updateAllies(dt);
+    separateUnits();   // 敵・仲間が重ならない(合戦の戦線を形成)
     updateSkills(dt);
     updateProjectiles(dt);
     updatePickups(dt);
@@ -1159,6 +1385,14 @@ const Run = (() => {
       g.strokeStyle = 'rgba(63,185,80,.35)'; g.lineWidth = 2;
       g.beginPath(); g.arc(p.x, p.y, sa.radius * R.stats.area, 0, 7); g.stroke();
     }
+    // 威圧のオーラ
+    const feD = Skills.stat('fear');
+    if (feD) {
+      g.strokeStyle = 'rgba(248,81,73,.25)'; g.lineWidth = 2;
+      g.setLineDash([8, 8]);
+      g.beginPath(); g.arc(p.x, p.y, feD.radius, 0, 7); g.stroke();
+      g.setLineDash([]);
+    }
 
     // オブジェクト
     for (const o of R.objects || []) {
@@ -1215,8 +1449,20 @@ const Run = (() => {
     }
 
     // 敵
+    const RANK_COLORS = [null, '#c9d1d9', '#ffd766', '#f85149', '#c084fc'];
     for (const e of R.enemies) {
       const sz = e.def.r * 2.6 * (e.sizeMul || 1);
+      // 強化ランクのオーラ(強い個体ほど禍々しい)
+      if (e.rank > 0) {
+        const rc = RANK_COLORS[e.rank];
+        g.strokeStyle = rc; g.globalAlpha = 0.55; g.lineWidth = 1.5 + e.rank;
+        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 5, 0, 7); g.stroke();
+        if (e.rank >= 3) {
+          g.globalAlpha = 0.18; g.fillStyle = rc;
+          g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 9, 0, 7); g.fill();
+        }
+        g.globalAlpha = 1;
+      }
       if (e.flash > 0) { g.globalAlpha = 0.6; }
       Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
       g.globalAlpha = 1;
@@ -1228,6 +1474,13 @@ const Run = (() => {
       if (e.def.heal) {
         g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
         g.fillText('✚', e.x, e.y - e.def.r - 12);
+      }
+      if (R.time < (e.confusedUntil || 0)) {
+        g.fillStyle = '#c084fc'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
+        g.fillText('?', e.x, e.y - e.def.r - 14);
+      } else if (R.time < (e.cursedUntil || 0)) {
+        g.fillStyle = '#a78bfa'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
+        g.fillText('†', e.x, e.y - e.def.r - 14);
       }
     }
 
@@ -1288,15 +1541,17 @@ const Run = (() => {
 
     g.restore();
 
-    // ボスHPバー
+    // ボスHPバー(小画面ではHUDと重ならない位置に)
     if (R.bossAlive && !R.bossAlive.dead) {
       const e = R.bossAlive;
+      const bw = Math.min(440, W - 40);
+      const by = W < 700 ? 108 : 54;
       g.fillStyle = 'rgba(0,0,0,.6)';
-      g.fillRect(W/2 - 220, 54, 440, 26);
+      g.fillRect(W/2 - bw/2, by, bw, 26);
       g.fillStyle = '#8b1e24';
-      g.fillRect(W/2 - 216, 58, 432 * Math.max(0, e.hp / e.maxHp), 18);
+      g.fillRect(W/2 - bw/2 + 4, by + 4, (bw - 8) * Math.max(0, e.hp / e.maxHp), 18);
       g.fillStyle = '#fff'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
-      g.fillText(e.bossName || 'BOSS', W/2, 72);
+      g.fillText(e.bossName || 'BOSS', W/2, by + 18);
     }
 
     drawMinimap(g, W);
@@ -1369,15 +1624,16 @@ const Run = (() => {
   }
 
   function drawMinimap(g, W){
-    const mm = World.minimap();
     const sz = World.MM_SIZE;
     const x0 = W - sz - 12, y0 = 12;
-    g.globalAlpha = 0.9;
-    g.drawImage(mm, x0, y0);
+    const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
+    g.globalAlpha = 0.92;
+    g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
     g.globalAlpha = 1;
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const dot = (wx, wy, c, r) => {
-      const q = World.worldToMM(wx, wy);
+      if (!view.inView(wx, wy)) return;
+      const q = view.toMM(wx, wy);
       if (q.x < 0 || q.x > sz || q.y < 0 || q.y > sz) return;
       g.fillStyle = c;
       g.beginPath(); g.arc(x0 + q.x, y0 + q.y, r || 2, 0, 7); g.fill();
@@ -1386,7 +1642,10 @@ const Run = (() => {
     for (const port of World.ports) dot(port.x, port.y, SaveSys.data.ports[port.id] ? '#76e3ea' : '#d29922', 2.5);
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
+    g.fillStyle = '#8b949e'; g.font = '11px sans-serif'; g.textAlign = 'center';
+    g.fillText(R.mmWorld ? '全体図 [N/タップ:周辺]' : '周辺図 [N/タップ:全体]', x0 + sz / 2, y0 + sz + 13);
   }
+  function toggleMap(){ R.mmWorld = !R.mmWorld; }
 
   // ---------------- HUD (DOM) ----------------
   const hpBar = document.getElementById('hp-bar');
@@ -1410,6 +1669,7 @@ const Run = (() => {
     timerEl.textContent = fmtTime(R.time);
     timerEl.style.color = R.time >= DATA.REAPER_AT ? '#f85149' : (R.time >= DATA.REAPER_AT - 60 ? '#ffd766' : '');
     coinEl.textContent = fmtNum(R.coins);
+    document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
     // 素材チップ
     let h = '';
     const mats = Skills.mats();
@@ -1420,7 +1680,12 @@ const Run = (() => {
     }
     matStrip.innerHTML = h;
     const waiting = R.allies.filter(a => a.waitAt).length;
-    allyView.textContent = '仲間 ' + R.allies.length + '/' + st.allyCap + (waiting ? '(待機' + waiting + ')' : '');
+    allyView.textContent = '仲間 ' + R.allies.length + (waiting ? '(待機' + waiting + ')' : '');
+    // スキルボタン: 取得可能なスキルがあれば光って数を出す
+    const rc = Skills.readyCount();
+    const skBtn = document.getElementById('btn-skill');
+    skBtn.classList.toggle('ready', rc > 0);
+    document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
     if (R.warnT > 0) { warnEl.textContent = R.warnMsg; warnEl.classList.remove('hidden'); }
     else warnEl.classList.add('hidden');
     if (R.interact && R.interact.type !== 'land') {
@@ -1457,6 +1722,6 @@ const Run = (() => {
              recruits:R.recruits, retired, dist:Math.round(R.maxDist) };
   }
 
-  return { start, update, draw, updateHud, doInteract, finishRun,
+  return { start, update, draw, updateHud, doInteract, finishRun, toggleMap,
            get state(){ return R; } };
 })();

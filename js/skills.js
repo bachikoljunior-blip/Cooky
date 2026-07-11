@@ -41,11 +41,15 @@ const Skills = (() => {
     for (const m in cost) if (matCount(m) < cost[m]) return false;
     return true;
   }
-  // 表示条件: 所持済み or 必要素材のどれかを1つ以上持っている
-  function revealed(id, cost){
-    if (lv(id) > 0) return true;
-    for (const m in cost) if (matCount(m) > 0) return true;
-    return false;
+  // 取得可能(=素材が全部揃っている)スキルの数。HUDのボタン通知に使う
+  function readyCount(){
+    let n = 0;
+    for (const id in DATA.SKILLS) {
+      if (!skillUnlocked(id)) continue;
+      const cost = nextCost(id);
+      if (cost && costMet(cost)) n++;
+    }
+    return n;
   }
 
   function acquire(id){
@@ -81,14 +85,13 @@ const Skills = (() => {
     }
     ownedEl.innerHTML = oh || '<span class="small">まだスキルなし</span>';
 
-    // 取得可能・進行中
-    const ready = [], progress = [], maxed = [];
+    // 素材が揃ったスキルだけを表示(スキルは無数にあり、素材が集まるまで見えない)
+    const ready = [], maxed = [];
     for (const id in DATA.SKILLS) {
       if (!skillUnlocked(id)) continue;
       const cost = nextCost(id);
       if (cost === null) { if (lv(id) > 0) maxed.push(id); continue; }
-      if (!revealed(id, cost)) continue;
-      (costMet(cost) ? ready : progress).push({ id, cost });
+      if (costMet(cost)) ready.push({ id, cost });
     }
 
     let h = '';
@@ -108,18 +111,14 @@ const Skills = (() => {
       </div>`;
     };
     if (ready.length) {
-      h += '<div class="sec-head">✦ 素材が揃った!</div>';
+      h += '<div class="sec-head">✦ 素材が揃った!(' + ready.length + '件)</div>';
       for (const e of ready) h += card(e, true);
-    }
-    if (progress.length) {
-      h += '<div class="sec-head">素材あつめ中…</div>';
-      for (const e of progress) h += card(e, false);
     }
     if (maxed.length) {
       h += '<div class="sec-head">上限到達(書庫で上限解放可能)</div>';
       for (const id of maxed) h += `<div class="skill-card"><div class="info"><div class="name">${DATA.SKILLS[id].name} Lv${lv(id)} (MAX)</div></div></div>`;
     }
-    if (!h) h = '<p class="small" style="padding:20px">敵やオブジェクトを壊して素材を集めよう。素材が集まり始めたスキルがここに表示される。</p>';
+    if (!h) h = '<p class="small" style="padding:20px">スキルは無数にある。敵やオブジェクトを壊して素材を集めると、素材が揃ったスキルだけがここに現れる。</p>';
     listEl.innerHTML = h;
 
     listEl.querySelectorAll('.buy-btn').forEach(b => {
@@ -132,5 +131,6 @@ const Skills = (() => {
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
   return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
-           nextCost, costMet, acquire, open, close, isOpen, render, get owned(){ return owned; } };
+           nextCost, costMet, acquire, open, close, isOpen, render, readyCount,
+           get owned(){ return owned; } };
 })();

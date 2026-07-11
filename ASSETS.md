@@ -88,7 +88,7 @@
 |---|---|---|
 | `coin` | コイン | 金貨 |
 | `potion` | ポーション | 赤い回復薬(霊薬精製で解放) |
-| `mat_jelly` | スライムゼリー | 緑のしずく型ジェム |
+| `mat_jelly` | スライムゼリー | 緑のしずく(素材ごとに形が違う) |
 | `mat_bone` | 骨のかけら | 白 |
 | `mat_hide` | 獣の毛皮 | 茶 |
 | `mat_wood` | 木材 | 焦げ茶 |
@@ -131,6 +131,16 @@
 | `sk_magnet` | マグネットフィールド |
 | `sk_boots` | ヘルメスの靴 |
 | `sk_banner` | ウォーバナー |
+| `sk_charisma` | カリスマの歌(仲間になる確率UP) |
+| `sk_bond` | 魂の共鳴(仲間数で攻撃UP) |
+| `sk_fear` | 威圧のオーラ(敵の攻撃力DOWN) |
+| `sk_sharpen` | 武器研磨(全攻撃UP・会心) |
+| `sk_focus` | 集中詠唱(発動間隔・範囲) |
+| `sk_vampire` | 吸血の刻印(撃破で回復) |
+| `sk_treasure` | トレジャーハント(ドロップUP) |
+| `sk_confuse` | 混沌の瘴気(敵を同士討ちに・書庫で解放) |
+| `sk_curse` | 衰弱の呪印(敵の被ダメ増・書庫で解放) |
+| `sk_p_*` | 「心得」パッシブ群26種(未定義の場合は素材色の◆アイコンが自動生成される。個別に上書き可: sk_p_vital, sk_p_power, sk_p_swift, sk_p_guard, sk_p_mend, sk_p_reach, sk_p_greed, sk_p_forage, sk_p_keen, sk_p_haste, sk_p_might, sk_p_hunter, sk_p_slayer, sk_p_warder, sk_p_leader, sk_p_shepherd, sk_p_beacon, sk_p_thorn, sk_p_sea, sk_p_scholar, sk_p_flame, sk_p_ice, sk_p_storm, sk_p_veil, sk_p_epoch, sk_p_phantom) |
 | `sk_laser` | プリズムレーザー(書庫で解放) |
 | `sk_meteor` | メテオストーム(書庫で解放) |
 | `sk_sands` | 時の砂(書庫で解放) |

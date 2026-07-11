@@ -80,14 +80,37 @@ const Sprites = (() => {
     sk_magnet:  { kind:'icon', c:'#f778ba', a:'#ffd6a5', opt:{sym:'U' } },
     sk_boots:   { kind:'icon', c:'#b08968', a:'#ffd766', opt:{sym:'♞' } },
     sk_banner:  { kind:'icon', c:'#da3633', a:'#ffd766', opt:{sym:'⚑' } },
+    sk_charisma:{ kind:'icon', c:'#f778ba', a:'#ffd6a5', opt:{sym:'♪' } },
+    sk_bond:    { kind:'icon', c:'#3fb950', a:'#7ee787', opt:{sym:'∞' } },
+    sk_fear:    { kind:'icon', c:'#da3633', a:'#ffa657', opt:{sym:'!' } },
+    sk_sharpen: { kind:'icon', c:'#f0883e', a:'#e6edf3', opt:{sym:'⚒' } },
+    sk_focus:   { kind:'icon', c:'#1f6feb', a:'#a5d8ff', opt:{sym:'◉' } },
+    sk_vampire: { kind:'icon', c:'#8b1e24', a:'#f85149', opt:{sym:'♥' } },
+    sk_treasure:{ kind:'icon', c:'#d29922', a:'#ffd766', opt:{sym:'$' } },
+    sk_confuse: { kind:'icon', c:'#c084fc', a:'#e6edf3', opt:{sym:'?' } },
+    sk_curse:   { kind:'icon', c:'#6e40c9', a:'#a78bfa', opt:{sym:'†' } },
     sk_laser:   { kind:'icon', c:'#d2a8ff', a:'#ffffff', opt:{sym:'≡' } },
     sk_meteor:  { kind:'icon', c:'#f0883e', a:'#f85149', opt:{sym:'☄' } },
     sk_sands:   { kind:'icon', c:'#d29922', a:'#fde047', opt:{sym:'⌛' } },
     sk_breath:  { kind:'icon', c:'#2dd4bf', a:'#f85149', opt:{sym:'〰' } },
   };
-  // 素材ピックアップ: mat_<id>
+  // 素材ピックアップ: mat_<id> ― 素材ごとに形が違い、一目で見分けられる
+  const MAT_KINDS = {
+    jelly:'m_drop', bone:'m_bone', hide:'m_fur', wood:'m_log', scrap:'m_gear',
+    crystal:'m_shard', shell:'m_shell', magic:'m_orb', coral:'m_coral',
+    scale:'m_scale', star:'m_star', abyss:'m_abyss',
+  };
   for (const m in DATA.MATERIALS) {
-    DEFS['mat_' + m] = { kind:'gem', c:DATA.MATERIALS[m].color, a:'#ffffff' };
+    DEFS['mat_' + m] = { kind: MAT_KINDS[m] || 'gem', c:DATA.MATERIALS[m].color, a:'#ffffff' };
+  }
+  // 心得(パッシブ)スキル等、専用アイコン未定義のスキルは素材色の◆アイコンを自動生成
+  for (const sid in DATA.SKILLS) {
+    const def = DATA.SKILLS[sid];
+    if (!DEFS[def.icon]) {
+      const cost = def.cost(1);
+      const m0 = Object.keys(cost)[0];
+      DEFS[def.icon] = { kind:'icon', c:(DATA.MATERIALS[m0] || {color:'#8b949e'}).color, a:'#e6edf3', opt:{sym:'◆'} };
+    }
   }
 
   // ---- 形状ペインタ ----
@@ -221,6 +244,60 @@ const Sprites = (() => {
       case 'gem':
         g.fillStyle=c; g.beginPath(); g.moveTo(0,-11); g.lineTo(9,0); g.lineTo(0,11); g.lineTo(-9,0); g.closePath(); g.fill();
         g.fillStyle='rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(0,-11); g.lineTo(9,0); g.lineTo(0,0); g.closePath(); g.fill(); break;
+      // ---- 素材の固有形状 ----
+      case 'm_drop':   // ゼリー: しずく
+        g.fillStyle=c; g.beginPath(); g.moveTo(0,-13); g.quadraticCurveTo(11,2,7,8);
+        g.arc(0,8,8,0,Math.PI); g.quadraticCurveTo(-11,2,0,-13); g.fill();
+        g.fillStyle='rgba(255,255,255,.5)'; g.beginPath(); g.arc(-3,4,3,0,7); g.fill(); break;
+      case 'm_bone':   // 骨: 両端にコブ
+        g.strokeStyle=c; g.lineWidth=5; g.beginPath(); g.moveTo(-7,7); g.lineTo(7,-7); g.stroke();
+        g.fillStyle=c;
+        for (const s2 of [[-9,5],[-5,9],[9,-5],[5,-9]]) { g.beginPath(); g.arc(s2[0],s2[1],4,0,7); g.fill(); } break;
+      case 'm_fur':    // 毛皮: ふさふさの三角
+        g.fillStyle=c; g.beginPath(); g.moveTo(-11,-8); g.lineTo(11,-8);
+        g.lineTo(8,2); g.lineTo(5,-2); g.lineTo(3,6); g.lineTo(0,1); g.lineTo(-3,9);
+        g.lineTo(-6,0); g.lineTo(-9,4); g.closePath(); g.fill();
+        g.fillStyle=a; g.globalAlpha=.3; g.fillRect(-11,-8,22,3); g.globalAlpha=1; break;
+      case 'm_log':    // 木材: 丸太
+        g.fillStyle=c; rr(g,-11,-6,22,12,3);
+        g.fillStyle=a; g.globalAlpha=.7; g.beginPath(); g.ellipse(-11,0,3,6,0,0,7); g.fill(); g.globalAlpha=1;
+        g.strokeStyle='rgba(0,0,0,.3)'; g.lineWidth=1.5;
+        g.beginPath(); g.moveTo(-4,-6); g.lineTo(-4,6); g.moveTo(4,-6); g.lineTo(4,6); g.stroke(); break;
+      case 'm_gear':   // 鉄クズ: 歯車
+        g.fillStyle=c;
+        for (let i=0;i<6;i++){ g.save(); g.rotate(i*Math.PI/3); g.fillRect(-2.5,-12,5,24); g.restore(); }
+        g.beginPath(); g.arc(0,0,8,0,7); g.fill();
+        g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,3.5,0,7); g.fill(); break;
+      case 'm_shard':  // 水晶: 細長い結晶
+        g.fillStyle=c; g.beginPath(); g.moveTo(0,-13); g.lineTo(6,-4); g.lineTo(4,12); g.lineTo(-4,12); g.lineTo(-6,-4); g.closePath(); g.fill();
+        g.fillStyle='rgba(255,255,255,.6)'; g.beginPath(); g.moveTo(0,-13); g.lineTo(6,-4); g.lineTo(1,-2); g.closePath(); g.fill(); break;
+      case 'm_shell':  // 貝殻: 扇
+        g.fillStyle=c; g.beginPath(); g.moveTo(0,10);
+        g.arc(0,-2,12,Math.PI*0.15,Math.PI*0.85,true); g.closePath(); g.fill();
+        g.strokeStyle='rgba(0,0,0,.25)'; g.lineWidth=1.5;
+        for (const d2 of [-0.5,0,0.5]) { g.beginPath(); g.moveTo(0,10); g.lineTo(Math.sin(d2)*11,-2-Math.cos(d2)*8); g.stroke(); } break;
+      case 'm_orb':    // 魔石: 光る球
+        g.fillStyle=c; g.beginPath(); g.arc(0,0,10,0,7); g.fill();
+        g.strokeStyle=a; g.globalAlpha=.6; g.lineWidth=2; g.beginPath(); g.arc(0,0,13,0,7); g.stroke(); g.globalAlpha=1;
+        g.fillStyle='#fff'; g.beginPath(); g.arc(-3,-3,3,0,7); g.fill(); break;
+      case 'm_coral':  // 珊瑚: 枝
+        g.strokeStyle=c; g.lineWidth=4.5; g.lineCap='round';
+        g.beginPath(); g.moveTo(0,12); g.lineTo(0,-2); g.moveTo(0,4); g.lineTo(-7,-7); g.moveTo(0,0); g.lineTo(7,-9);
+        g.moveTo(-7,-7); g.lineTo(-10,-12); g.stroke(); break;
+      case 'm_scale':  // 竜のうろこ: 盾型
+        g.fillStyle=c; g.beginPath(); g.moveTo(0,-12); g.quadraticCurveTo(12,-6,10,4);
+        g.quadraticCurveTo(6,12,0,13); g.quadraticCurveTo(-6,12,-10,4); g.quadraticCurveTo(-12,-6,0,-12); g.fill();
+        g.strokeStyle='rgba(0,0,0,.3)'; g.lineWidth=2; g.beginPath(); g.moveTo(0,-10); g.lineTo(0,11); g.stroke(); break;
+      case 'm_star':   // 星のかけら: 五芒星
+        g.fillStyle=c; g.beginPath();
+        for (let i=0;i<10;i++){ const rr2=i%2===0?12:5, an=-Math.PI/2+i*Math.PI/5;
+          const px2=Math.cos(an)*rr2, py2=Math.sin(an)*rr2; i===0?g.moveTo(px2,py2):g.lineTo(px2,py2); }
+        g.closePath(); g.fill();
+        g.fillStyle='rgba(255,255,255,.6)'; g.beginPath(); g.arc(0,-2,2.5,0,7); g.fill(); break;
+      case 'm_abyss':  // 深淵の核: 暗黒球+紫リング
+        g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,9,0,7); g.fill();
+        g.strokeStyle=c; g.lineWidth=3; g.beginPath(); g.ellipse(0,0,13,5,-0.5,0,7); g.stroke();
+        g.fillStyle=c; g.beginPath(); g.arc(0,0,3,0,7); g.fill(); break;
       case 'building':
         g.fillStyle=c; rr(g,-18,-8,36,24,4);
         g.beginPath(); g.moveTo(-22,-8); g.lineTo(0,-24); g.lineTo(22,-8); g.closePath(); g.fill();

@@ -37,7 +37,7 @@ const World = (() => {
       const d = Math.hypot(x - c.x, y - c.y) - c.r;
       if (d < minGap) minGap = d;
     }
-    return minGap > 700 ? 'deep' : 'sea';
+    return minGap > 2200 ? 'deep' : 'sea';
   }
 
   // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
@@ -130,21 +130,26 @@ const World = (() => {
     return out;
   }
 
-  // ---- ミニマップ(低解像度プリレンダ) ----
-  const MM_SIZE = 180, MM_EXTENT = 8600;
-  let mmCanvas = null;
-  function minimap(){
-    if (mmCanvas) return mmCanvas;
-    mmCanvas = document.createElement('canvas');
-    mmCanvas.width = MM_SIZE; mmCanvas.height = MM_SIZE;
-    const g = mmCanvas.getContext('2d');
-    const img = g.createImageData(MM_SIZE, MM_SIZE);
-    for (let py = 0; py < MM_SIZE; py++){
-      for (let px = 0; px < MM_SIZE; px++){
-        const wx = (px / MM_SIZE * 2 - 1) * MM_EXTENT;
-        const wy = (py / MM_SIZE * 2 - 1) * MM_EXTENT;
+  // ---- ミニマップ(全世界を一度だけプリレンダし、切り抜いて使う) ----
+  const MM_SIZE = 180;                    // 画面上の表示サイズ
+  const MM_EXTENT = DATA.WORLD_EXTENT;    // 世界の半径
+  const WM_RES = 1024;                    // 全世界画像の解像度
+  const LOCAL_EXTENT = 13000;             // ローカルモードの表示半径
+  let wmCanvas = null;
+
+  // 全世界画像(1024x1024、1px≈168ユニット)。起動時に一度だけ生成
+  function worldImage(){
+    if (wmCanvas) return wmCanvas;
+    wmCanvas = document.createElement('canvas');
+    wmCanvas.width = WM_RES; wmCanvas.height = WM_RES;
+    const g = wmCanvas.getContext('2d');
+    const img = g.createImageData(WM_RES, WM_RES);
+    for (let py = 0; py < WM_RES; py++){
+      for (let px = 0; px < WM_RES; px++){
+        const wx = (px / WM_RES * 2 - 1) * MM_EXTENT;
+        const wy = (py / WM_RES * 2 - 1) * MM_EXTENT;
         const t = terrainAt(wx, wy);
-        const i = (py * MM_SIZE + px) * 4;
+        const i = (py * WM_RES + px) * 4;
         let c;
         if (t === 'grass') c = [46, 100, 60];
         else if (t === 'sand') c = [160, 140, 90];
@@ -154,10 +159,34 @@ const World = (() => {
       }
     }
     g.putImageData(img, 0, 0);
-    return mmCanvas;
+    return wmCanvas;
   }
-  function worldToMM(x, y){
-    return { x: (x / MM_EXTENT + 1) / 2 * MM_SIZE, y: (y / MM_EXTENT + 1) / 2 * MM_SIZE };
+
+  // ミニマップ描画情報: mode 'local'(周辺13,000) / 'world'(全体)
+  // 戻り値: {img, sx, sy, sw} = worldImage内の切り抜き範囲、toMM(wx,wy)=表示座標変換
+  function minimapView(cx, cy, mode){
+    const img = worldImage();
+    if (mode === 'world') {
+      return {
+        img, sx: 0, sy: 0, sw: WM_RES,
+        toMM(x, y){ return { x: (x / MM_EXTENT + 1) / 2 * MM_SIZE, y: (y / MM_EXTENT + 1) / 2 * MM_SIZE }; },
+        inView(){ return true; },
+      };
+    }
+    const scale = WM_RES / (MM_EXTENT * 2);           // world→画像px
+    const sw = LOCAL_EXTENT * 2 * scale;
+    const sx = Math.max(0, Math.min(WM_RES - sw, (cx + MM_EXTENT) * scale - sw / 2));
+    const sy = Math.max(0, Math.min(WM_RES - sw, (cy + MM_EXTENT) * scale - sw / 2));
+    return {
+      img, sx, sy, sw,
+      toMM(x, y){
+        return { x: ((x + MM_EXTENT) * scale - sx) / sw * MM_SIZE,
+                 y: ((y + MM_EXTENT) * scale - sy) / sw * MM_SIZE };
+      },
+      inView(x, y){
+        return Math.abs(x - cx) < LOCAL_EXTENT * 1.05 && Math.abs(y - cy) < LOCAL_EXTENT * 1.05;
+      },
+    };
   }
 
   // 距離リング(敵の強さ)
@@ -165,5 +194,5 @@ const World = (() => {
 
   return { isLand, landAt, terrainAt, ports, bases, resetRun,
            nearbyObjects, destroyObject, objectDrops,
-           minimap, worldToMM, MM_SIZE, ringOf, edgeR, CHUNK };
+           worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK };
 })();

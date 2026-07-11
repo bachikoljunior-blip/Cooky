@@ -157,6 +157,79 @@ DATA.SKILLS = {
     stats:(lv)=>({ atk:1.2+(lv>=2?0.2:0)+(lv>=4?0.25:0)+(lv>=6?0.35:0),
       hp:1+(lv>=3?0.3:0)+(lv>=6?0.35:0), spd:(lv>=5?1.2:1) }),
   },
+  // ---- 多角スキル: 仲間・敵・武器・経済 ----
+  charisma: {
+    name:'カリスマの歌', icon:'sk_charisma',
+    desc:'【仲間】歌声で敵の心を掴む。敵が仲間になる確率が上がる(仲間数に上限なし)。',
+    cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:4,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
+    lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
+    stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
+      allyMul:Math.pow(1.08,(lv>=3?1:0)+(lv>=5?1:0)+(lv>=7?1:0)) }),
+  },
+  bond: {
+    name:'魂の共鳴', icon:'sk_bond',
+    desc:'【仲間】絆が力になる。仲間1体につき自分の攻撃力が上がる。',
+    cost:(lv)=>matCost(lv,{bone:4,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'star',qty:1}]),
+    lvText:['攻撃+4%/体に強化','仲間1体につき被ダメ-1%','攻撃+5%/体に強化','仲間になった敵のHP+20%','攻撃+7%/体に強化'],
+    stats:(lv)=>({ atkPerAlly:0.03+(lv>=2?0.01:0)+(lv>=4?0.01:0)+(lv>=6?0.02:0),
+      defPerAlly:(lv>=3?0.01:0), allyHp:1+(lv>=5?0.2:0) }),
+  },
+  fear: {
+    name:'威圧のオーラ', icon:'sk_fear',
+    desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
+    cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
+    lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
+    stats:(lv)=>({ radius:150+(lv>=3?45:0)+(lv>=6?65:0),
+      reduce:Math.min(0.6, 0.15+(lv>=2?0.10:0)+(lv>=4?0.05:0)+(lv>=5?0.10:0)), flee:(lv>=7) }),
+  },
+  sharpen: {
+    name:'武器研磨', icon:'sk_sharpen',
+    desc:'【武器】すべての攻撃の威力が上がる。',
+    cost:(lv)=>matCost(lv,{scrap:5,wood:3},[{from:4,mat:'crystal',qty:4},{from:7,mat:'scale',qty:1}]),
+    lvText:['威力+8%','威力+10%','会心率+5%','威力+12%','会心率+7%','威力+15%'],
+    stats:(lv)=>({ mult:1.08*(lv>=2?1.08:1)*(lv>=3?1.10:1)*(lv>=5?1.12:1)*(lv>=7?1.15:1),
+      crit:(lv>=4?0.05:0)+(lv>=6?0.07:0) }),
+  },
+  focus: {
+    name:'集中詠唱', icon:'sk_focus',
+    desc:'【武器】スキルの発動間隔が短くなる。',
+    cost:(lv)=>matCost(lv,{crystal:4,bone:4},[{from:4,mat:'magic',qty:3},{from:6,mat:'star',qty:1}]),
+    lvText:['発動間隔-5%','効果範囲+10%','発動間隔-5%','効果範囲+10%','発動間隔-6%'],
+    stats:(lv)=>({ cdr:0.06+(lv>=2?0.05:0)+(lv>=4?0.05:0)+(lv>=6?0.06:0),
+      area:(lv>=3?1.1:1)*(lv>=5?1.1:1) }),
+  },
+  vampire: {
+    name:'吸血の刻印', icon:'sk_vampire',
+    desc:'【主人公】敵を倒すとHPを吸収する。',
+    cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
+    lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
+    stats:(lv)=>({ killHeal:3+(lv>=2?2:0)+(lv>=4?3:0)+(lv>=6?5:0),
+      lifesteal:(lv>=3?0.01:0)+(lv>=5?0.01:0)+(lv>=7?0.01:0) }),
+  },
+  treasure: {
+    name:'トレジャーハント', icon:'sk_treasure',
+    desc:'【経済】コインと素材のドロップが増える。',
+    cost:(lv)=>matCost(lv,{wood:4,scrap:4},[{from:4,mat:'shell',qty:4},{from:6,mat:'star',qty:1}]),
+    lvText:['素材ドロップ+15%','コイン+15%','素材が2個落ちる確率+5%','素材ドロップ+20%','素材2個の確率+8%'],
+    stats:(lv)=>({ coin:1.15*(lv>=3?1.15:1), drop:1.15*(lv>=2?1.15:1)*(lv>=5?1.2:1),
+      luck:(lv>=4?0.05:0)+(lv>=6?0.08:0) }),
+  },
+  confuse: {
+    name:'混沌の瘴気', icon:'sk_confuse', unlock:'lib_sk_confuse',
+    desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
+    cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:4,mat:'star',qty:2}]),
+    lvText:['混乱数+1','混乱時間+50%','混乱数+2','発動間隔-25%','混乱数+2・時間さらに+'],
+    stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
+      dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340 }),
+  },
+  curse: {
+    name:'衰弱の呪印', icon:'sk_curse', unlock:'lib_sk_curse',
+    desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放】',
+    cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:3,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
+    lvText:['被ダメ増+10%','減速強化','発動間隔-25%','被ダメ増+15%','範囲拡大'],
+    stats:(lv)=>({ radius:260+(lv>=6?100:0), shred:0.2+(lv>=2?0.1:0)+(lv>=5?0.15:0),
+      slow:0.1+(lv>=3?0.15:0), dur:4, cd:6*(lv>=4?0.75:1) }),
+  },
   // ---- 魂の広場で解放するスキル ----
   laser: {
     name:'プリズムレーザー', icon:'sk_laser', unlock:'lib_sk_laser',
@@ -193,6 +266,46 @@ DATA.SKILLS = {
 };
 function crystalKey(){ return 'crystal'; }
 
+// ---- 「心得」パッシブスキル群: 素材の組み合わせごとに存在する多数の強化 ----
+// [id, 名前, 効果説明, 効果キー, 1Lvあたりの値, 表示単位, 素材A, 個数A, 素材B, 個数B]
+const PASSIVE_DEFS = [
+  ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',5,'bone',3],
+  ['p_power',   '剛力の心得',     '全ダメージ',           'atkMul',     .05,  '+5%',    'hide',5,'scrap',3],
+  ['p_swift',   '疾風の心得',     '移動速度',             'speedMul',   .03,  '+3%',    'hide',4,'jelly',4],
+  ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',5,'scrap',4],
+  ['p_mend',    '治癒の心得',     'HP自動回復/秒',        'regenAdd',   .6,   '+0.6',   'jelly',6,'crystal',2],
+  ['p_reach',   '収集の心得',     'アイテム回収範囲',     'magnetMul',  .15,  '+15%',   'scrap',4,'jelly',3],
+  ['p_greed',   '強欲の心得',     'コイン獲得',           'coinMul',    .08,  '+8%',    'wood',5,'shell',3],
+  ['p_forage',  '採集の心得',     '素材ドロップ率',       'dropMul',    .08,  '+8%',    'wood',4,'hide',4],
+  ['p_keen',    '会心の心得',     'クリティカル率',       'critAdd',    .02,  '+2%',    'crystal',4,'bone',4],
+  ['p_haste',   '神速の心得',     'スキル発動間隔短縮',   'cdrAdd',     .02,  '-2%',    'crystal',5,'magic',2],
+  ['p_might',   '破壊の心得',     'スキル効果範囲',       'areaMul',    .03,  '+3%',    'magic',3,'wood',5],
+  ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',6,'scale',1],
+  ['p_slayer',  '死神狩りの心得', 'リーパーへのダメージ', 'reaperMul',  .06,  '+6%',    'star',2,'abyss',1],
+  ['p_warder',  '終焉守りの心得', 'リーパー被ダメ軽減',   'reaperResAdd',.02, '+2%',    'scale',2,'abyss',1],
+  ['p_leader',  '統率の心得',     '仲間の攻撃力',         'allyAtkMul', .06,  '+6%',    'hide',5,'bone',4],
+  ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',5,'wood',4],
+  ['p_beacon',  '誘引の心得',     '仲間になる確率',       'recruitAdd', .015, '+1.5%',  'shell',4,'crystal',3],
+  ['p_thorn',   '棘の心得',       '接触反撃ダメージ',     'thornsAdd',  4,    '+4',     'wood',5,'scrap',4],
+  ['p_sea',     '海神の心得',     '船の速度',             'boatMul',    .06,  '+6%',    'shell',5,'coral',2],
+  ['p_scholar', '学者の心得',     '素材2個ドロップ確率',  'luckAdd',    .03,  '+3%',    'crystal',4,'shell',3],
+  ['p_flame',   '火門の心得',     '攻撃の炎上付与確率',   'burnAdd',    .03,  '+3%',    'magic',3,'scale',1],
+  ['p_ice',     '氷門の心得',     '攻撃の氷結付与確率',   'slowAdd',    .025, '+2.5%',  'crystal',5,'coral',2],
+  ['p_storm',   '雷門の心得',     '自動落雷の威力',       'stormAdd',   12,   '+12',    'magic',4,'star',1],
+  ['p_veil',    '霞の心得',       '回避率',               'dodgeAdd',   .01,  '+1%',    'coral',3,'star',1],
+  ['p_epoch',   '刻の心得',       '敵の時間強化を緩和',   'mitigAdd',   .015, '+1.5%',  'star',2,'abyss',1],
+  ['p_phantom', '幻影の心得',     '被弾後の無敵時間',     'invulnAdd',  .04,  '+0.04秒','magic',4,'coral',2],
+];
+for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) {
+  DATA.SKILLS[id] = {
+    name, icon: 'sk_' + id,
+    desc: `【心得】${effDesc} ${unit}/Lv。素材を集め直すたびに積み重なる。`,
+    cost: (lv) => matCost(lv, { [ma]: qa, [mb]: qb }),
+    lvText: Array.from({ length: 9 }, (_, i) => `${effDesc} ${unit}(累計${i + 2}段)`),
+    stats: (lv) => ({ passive: { key, value: per * lv } }),
+  };
+}
+
 DATA.SKILL_BASE_CAP = 5; // 書庫の上限解放で +1 ずつ(最大10)
 DATA.SKILL_CAP_MAX = 10;
 
@@ -200,29 +313,29 @@ DATA.SKILL_CAP_MAX = 10;
 // env: land / sea / both, move: chase / kite / wander
 // heal: {radius, hps} を持つ敵はヒーラー(kite挙動で距離を保つ)
 DATA.ENEMIES = {
-  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:55,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
-  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:95,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
-  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:60,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
-  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:120, r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
-  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:70,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:200}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
-  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:178,  r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
-  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:50,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
-  orc:      { name:'オーク',          hp:60,  dmg:16, speed:75,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
-  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:40,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
-  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:150, r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
-  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:65,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
-  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:135, r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
-  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:188, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
-  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:95,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
-  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:65,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
-  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:85,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
-  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:195, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
-  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:110, r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
-  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:105, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:240}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
-  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:90, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:280}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
-  demon:    { name:'デーモン',        hp:700, dmg:60, speed:110, r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
-  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:95,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
-  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:130, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
+  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:36,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
+  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:60,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
+  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:40,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
+  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:76,  r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
+  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:46,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:200}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
+  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:120, r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
+  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:33,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
+  orc:      { name:'オーク',          hp:60,  dmg:16, speed:48,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
+  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:27,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
+  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:92,  r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
+  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:42,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
+  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:85,  r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
+  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:125, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
+  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:60,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
+  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:42,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
+  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:54,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
+  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:128, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
+  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:70,  r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
+  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:66, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:240}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
+  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:58, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:280}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
+  demon:    { name:'デーモン',        hp:700, dmg:60, speed:70,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
+  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:60,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
+  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:95, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
 };
 
 // ボス: minute = 出現時刻(分)
@@ -235,28 +348,64 @@ DATA.BOSSES = [
 ];
 
 // ---------------- 世界 ----------------
+// 多重リング構造: 初期大陸 → 第1環(~10,000) → 中間の小島(~17,000)
+//   → 第2環(~26,000) → 第3環(~52,000) → 最果て(~80,000)
+// 遠環は死に戻り強化(健脚・帆・ワープゲート)を重ねないと到達できない距離
 DATA.CONTINENTS = [
-  { id:'main',  x:0,     y:0,     r:2600, seed:11, name:'始まりの大陸' },
-  { id:'east',  x:6400,  y:300,   r:1700, seed:23, name:'竜骨の大陸' },
-  { id:'west',  x:-6400, y:-500,  r:1700, seed:37, name:'黄昏の大陸' },
-  { id:'north', x:500,   y:-6400, r:1600, seed:41, name:'星降りの大陸' },
-  { id:'south', x:-400,  y:6400,  r:1600, seed:53, name:'深緑の大陸' },
-  { id:'ne',    x:4800,  y:-4800, r:1300, seed:67, name:'白亜の島' },
-  { id:'sw',    x:-4800, y:4800,  r:1300, seed:71, name:'黒曜の島' },
+  { id:'main',  x:0,      y:0,      r:2600, seed:11,  name:'始まりの大陸' },
+  // --- 第1環 ---
+  { id:'east',  x:10500,  y:800,    r:2100, seed:23,  name:'竜骨の大陸' },
+  { id:'west',  x:-10200, y:-900,   r:2100, seed:37,  name:'黄昏の大陸' },
+  { id:'north', x:900,    y:-10600, r:2000, seed:41,  name:'星降りの大陸' },
+  { id:'south', x:-700,   y:10400,  r:2000, seed:53,  name:'深緑の大陸' },
+  { id:'ne',    x:7800,   y:-7600,  r:1500, seed:67,  name:'白亜の島' },
+  { id:'sw',    x:-7500,  y:7900,   r:1500, seed:71,  name:'黒曜の島' },
+  // --- 中間の小島(航海の中継地) ---
+  { id:'i_mist',  x:17000,  y:-5200,  r:1000, seed:83,  name:'霧の小島' },
+  { id:'i_bones', x:-16600, y:6300,   r:1000, seed:89,  name:'骨の小島' },
+  { id:'i_ember', x:5600,   y:17400,  r:1000, seed:97,  name:'燃えさしの小島' },
+  { id:'i_frost', x:-6100,  y:-16800, r:1000, seed:101, name:'霜の小島' },
+  // --- 第2環(初期大陸から2つ離れた大陸) ---
+  { id:'r2_forge', x:26500,  y:4000,   r:2400, seed:103, name:'鍛冶神の大陸' },
+  { id:'r2_moon',  x:-25800, y:-5000,  r:2400, seed:107, name:'月影の大陸' },
+  { id:'r2_storm', x:4600,   y:-26600, r:2300, seed:109, name:'嵐の大陸' },
+  { id:'r2_grave', x:-4200,  y:26200,  r:2300, seed:113, name:'墓標の大陸' },
+  // --- 第3環 ---
+  { id:'r3_sun',  x:52500,  y:-8000, r:2800, seed:127, name:'太陽の大陸' },
+  { id:'r3_void', x:-51600, y:9000,  r:2800, seed:131, name:'虚無の大陸' },
+  // --- 最果て ---
+  { id:'r4_end',  x:200, y:-80500, r:3200, seed:137, name:'最果ての大陸' },
 ];
 
-// 基地: unlock条件=8秒チャネリング。gateStation = 魂の広場の専用強化
+// 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
+  // 初期大陸(最初の目標。足が遅いうちはここまでも命がけ)
   { id:'b_north', name:'北の砦',     x:60,    y:-1500, cont:'main' },
   { id:'b_east',  name:'東の遺跡',   x:1650,  y:850,   cont:'main' },
   { id:'b_south', name:'南の泉',     x:-250,  y:1750,  cont:'main' },
   { id:'b_west',  name:'西の炉',     x:-1800, y:-350,  cont:'main' },
-  { id:'b_dragon',name:'竜骨の前哨', x:6400,  y:300,   cont:'east' },
-  { id:'b_dusk',  name:'黄昏の前哨', x:-6400, y:-500,  cont:'west' },
-  { id:'b_star',  name:'星降りの祭壇', x:500, y:-6400, cont:'north' },
-  { id:'b_green', name:'深緑の社',   x:-400,  y:6400,  cont:'south' },
-  { id:'b_white', name:'白亜の灯台', x:4800,  y:-4800, cont:'ne' },
-  { id:'b_black', name:'黒曜の祠',   x:-4800, y:4800,  cont:'sw' },
+  // 第1環
+  { id:'b_dragon',name:'竜骨の前哨', x:10500,  y:800,    cont:'east' },
+  { id:'b_dusk',  name:'黄昏の前哨', x:-10200, y:-900,   cont:'west' },
+  { id:'b_star',  name:'星降りの祭壇', x:900,  y:-10600, cont:'north' },
+  { id:'b_green', name:'深緑の社',   x:-700,   y:10400,  cont:'south' },
+  { id:'b_white', name:'白亜の灯台', x:7800,   y:-7600,  cont:'ne' },
+  { id:'b_black', name:'黒曜の祠',   x:-7500,  y:7900,   cont:'sw' },
+  // 中間の小島
+  { id:'b_mist',  name:'霧の観測所', x:17000,  y:-5200,  cont:'i_mist' },
+  { id:'b_bones', name:'骨の祭場',   x:-16600, y:6300,   cont:'i_bones' },
+  { id:'b_ember', name:'燃えさしの炉', x:5600, y:17400,  cont:'i_ember' },
+  { id:'b_frost', name:'霜の祠',     x:-6100,  y:-16800, cont:'i_frost' },
+  // 第2環
+  { id:'b_forge', name:'鍛冶神の工房', x:26500,  y:4000,   cont:'r2_forge' },
+  { id:'b_moon',  name:'月影の社',   x:-25800, y:-5000,  cont:'r2_moon' },
+  { id:'b_storm', name:'嵐の塔',     x:4600,   y:-26600, cont:'r2_storm' },
+  { id:'b_grave', name:'墓標の祭壇', x:-4200,  y:26200,  cont:'r2_grave' },
+  // 第3環
+  { id:'b_sun',   name:'太陽の神殿', x:52500,  y:-8000,  cont:'r3_sun' },
+  { id:'b_void',  name:'虚無の門',   x:-51600, y:9000,   cont:'r3_void' },
+  // 最果て
+  { id:'b_end',   name:'最果ての碑', x:200,    y:-80500, cont:'r4_end' },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる
@@ -279,7 +428,7 @@ DATA.META = {
   // --- 強化の祭壇(戦闘) ---
   altar_hp:     { st:'altar', name:'生命力',       desc:'最大HP +20',            max:40, cost:gcost(15,1.32),  },
   altar_atk:    { st:'altar', name:'攻撃力',       desc:'全ダメージ +8%',        max:40, cost:gcost(20,1.34),  },
-  altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +3%',          max:15, cost:gcost(30,1.5),   },
+  altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +4%(広大な世界の探索に必須)', max:25, cost:gcost(30,1.42), },
   altar_regen:  { st:'altar', name:'自然治癒',     desc:'HP自動回復 +0.5/秒',    max:20, cost:gcost(40,1.42),  },
   altar_armor:  { st:'altar', name:'鉄の皮膚',     desc:'被ダメージ -2%(最大60%)', max:30, cost:gcost(35,1.4) },
   altar_crit:   { st:'altar', name:'会心の心得',   desc:'クリティカル率 +2%(2倍ダメージ)', max:25, cost:gcost(50,1.42) },
@@ -290,14 +439,15 @@ DATA.META = {
   lab_magnet:   { st:'lab', name:'磁力',           desc:'アイテム回収範囲 +12%', max:15, cost:gcost(20,1.45) },
   lab_luck:     { st:'lab', name:'幸運',           desc:'素材が2個落ちる確率 +4%', max:20, cost:gcost(60,1.4) },
   lab_starter:  { st:'lab', name:'出撃支度',       desc:'開始時に基本素材を+2ずつ所持', max:10, cost:gcost(100,1.6) },
+  lab_sail:     { st:'lab', name:'帆の改良',       desc:'船の速度 +8%(遠海の大陸へ)', max:15, cost:gcost(200,1.42) },
   lab_mat_magic:{ st:'lab', name:'【解放】魔石',   desc:'新素材「魔石」が世界に出現する', max:1, cost:gcost(400,1) },
   lab_mat_coral:{ st:'lab', name:'【解放】珊瑚',   desc:'新素材「珊瑚」が海域に出現する', max:1, cost:gcost(1500,1) },
   lab_mat_scale:{ st:'lab', name:'【解放】竜のうろこ', desc:'新素材「竜のうろこ」が出現する', max:1, cost:gcost(6000,1) },
   lab_mat_star: { st:'lab', name:'【解放】星のかけら', desc:'新素材「星のかけら」が出現する', max:1, cost:gcost(15000,1) },
   lab_mat_abyss:{ st:'lab', name:'【解放】深淵の核', desc:'新素材「深淵の核」が出現する', max:1, cost:gcost(50000,1) },
   // --- 仲間の宿舎 ---
-  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1%(基本3%)', max:22, cost:gcost(40,1.38) },
-  camp_cap:     { st:'camp', name:'隊列拡張',      desc:'仲間の同時上限 +1(基本3)', max:12, cost:gcost(80,1.75) },
+  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1.5%(基本8%・上限なし)', max:22, cost:gcost(40,1.38) },
+  camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +15%',           max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +12%',       max:30, cost:gcost(30,1.35) },
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
@@ -307,6 +457,8 @@ DATA.META = {
   lib_sk_meteor:{ st:'lib', name:'【解放】メテオストーム', desc:'スキル「メテオストーム」が出現候補になる', max:1, cost:gcost(2500,1) },
   lib_sk_breath:{ st:'lib', name:'【解放】ドラゴンブレス', desc:'スキル「ドラゴンブレス」が出現候補になる', max:1, cost:gcost(8000,1) },
   lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」が出現候補になる', max:1, cost:gcost(20000,1) },
+  lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
+  lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },
   lib_cap:      { st:'lib', name:'スキル上限解放', desc:'全スキルの最大レベル +1(基本5)', max:5, cost:gcost(1000,3.2) },
   lib_cdr:      { st:'lib', name:'詠唱加速',       desc:'スキルの発動間隔 -2%(最大40%)', max:20, cost:gcost(80,1.42) },
   // --- 基地ゲート専用強化(基地を解放すると買えるようになる) ---
@@ -324,6 +476,21 @@ DATA.META = {
   g_green_ally:  { st:'b_green', name:'森の恵み',  desc:'仲間の全能力 +8%',      max:15, cost:gcost(2500,1.5) },
   g_white_gold:  { st:'b_white', name:'白亜の商才', desc:'コイン獲得量 +15%(金運と加算)', max:15, cost:gcost(3000,1.5) },
   g_black_dark:  { st:'b_black', name:'黒曜の契約', desc:'全ダメージ+10% / 最大HP+40', max:15, cost:gcost(4000,1.55) },
+  // --- 中間の小島 ---
+  g_mist_dodge:  { st:'b_mist',  name:'霧隠れ',     desc:'回避率 +1%(攻撃を完全に避ける)', max:15, cost:gcost(1500,1.45) },
+  g_bones_army:  { st:'b_bones', name:'骸骨の軍勢', desc:'周回開始時に骸骨の仲間を連れて出撃(2Lvごとに+1体)', max:10, cost:gcost(1800,1.5) },
+  g_ember_burn:  { st:'b_ember', name:'燃えさしの祝福', desc:'全攻撃に4%で炎上を付与', max:10, cost:gcost(1600,1.5) },
+  g_frost_slow:  { st:'b_frost', name:'霜の吐息',   desc:'全攻撃に3%で氷結(減速)を付与', max:10, cost:gcost(1600,1.5) },
+  // --- 第2環 ---
+  g_forge_gear:  { st:'b_forge', name:'神鉄の装備', desc:'全ダメージ+6% / 最大HP+10', max:25, cost:gcost(8000,1.4) },
+  g_moon_shadow: { st:'b_moon',  name:'影歩き',     desc:'被弾後の無敵時間 +0.06秒', max:10, cost:gcost(9000,1.5) },
+  g_storm_bolt:  { st:'b_storm', name:'嵐の加護',   desc:'9秒ごとに自動で落雷が敵を撃つ(威力+20/Lv)', max:15, cost:gcost(8500,1.45) },
+  g_grave_blast: { st:'b_grave', name:'弔いの爆炎', desc:'仲間が倒れた時に爆発(威力+30/Lv)', max:15, cost:gcost(8000,1.45) },
+  // --- 第3環 ---
+  g_sun_grace:   { st:'b_sun',   name:'太陽の恩寵', desc:'攻撃・HP・移動速度 +2%', max:20, cost:gcost(40000,1.5) },
+  g_void_null:   { st:'b_void',  name:'虚無の帳',   desc:'リーパー耐性+2% / リーパー特効+5%', max:15, cost:gcost(45000,1.5) },
+  // --- 最果て ---
+  g_end_beyond:  { st:'b_end',   name:'終焉超越',   desc:'敵の時間強化をさらに2%緩和 / 全ダメージ+8%', max:20, cost:gcost(150000,1.55) },
 };
 
 DATA.STATIONS = {
@@ -336,5 +503,6 @@ DATA.STATIONS = {
 // 時間による敵強化(分あたり)。星読みで緩和可能
 DATA.TIME_HP_GROWTH = 1.115;   // HP: ×1.115^分 (30分で約26倍)
 DATA.TIME_DMG_GROWTH = 1.055;  // ダメージ: 30分で約5倍
-DATA.DIST_RING = 1150;         // 距離リング幅(px)
+DATA.DIST_RING = 2400;         // 距離リング幅(px) 遠くほど敵が強い
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
+DATA.WORLD_EXTENT = 86000;     // 世界の半径(ミニマップ用)
