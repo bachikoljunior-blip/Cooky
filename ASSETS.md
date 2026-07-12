@@ -127,6 +127,9 @@
 | `st_camp` | 仲間の宿舎 | 青の建物。仲間強化 |
 | `st_lib` | スキル書庫 | 紫の建物。スキル解放・上限・地図修復 |
 | `st_armory` | 武器庫 | 赤の建物。攻撃手段の購入・強化・切替 |
+| `st_war` | 武練場(基地) | 深紅の建物。基地の攻撃系強化 |
+| `st_life` | 生命の祠(基地) | 緑の建物。基地の生存系強化 |
+| `st_lore` | 秘宝の蔵(基地) | 金の建物。基地の経済・特殊強化 |
 | `st_gate` | 転送ゲート | 金色の楕円ポータル。出撃地点の選択と基地への移動 |
 | `st_warp` | ワープゲート | 水色の楕円ポータル(予備) |
 
@@ -134,7 +137,7 @@
 
 | ID | スキル名 |
 |---|---|
-| `sk_bolt` | マジックボルト(初期攻撃) |
+| `sk_bolt` | マジックボルト(初期の攻撃手段。sk_bolt〜sk_turret/laser/meteor/prism/breathは武器庫の「攻撃手段」) |
 | `sk_homing` | 追尾ミサイル |
 | `sk_orbit` | オービットオーブ |
 | `sk_chain` | チェインライトニング |
@@ -161,11 +164,11 @@
 | `sk_prism` | 虹の奔流(実績「幻を見た者」で解放) |
 | `sk_oath` | 老兵の誓い(クエスト報酬・仲間攻撃UP) |
 | `sk_relic` | 遺跡の加護(クエスト報酬・全能力UP) |
-| `sk_p_*` | 「心得」パッシブ群26種(未定義の場合は素材色の◆アイコンが自動生成される。個別に上書き可: sk_p_vital, sk_p_power, sk_p_swift, sk_p_guard, sk_p_mend, sk_p_reach, sk_p_greed, sk_p_forage, sk_p_keen, sk_p_haste, sk_p_might, sk_p_hunter, sk_p_slayer, sk_p_warder, sk_p_leader, sk_p_shepherd, sk_p_beacon, sk_p_thorn, sk_p_sea, sk_p_scholar, sk_p_flame, sk_p_ice, sk_p_storm, sk_p_veil, sk_p_epoch, sk_p_phantom) |
-| `sk_laser` | プリズムレーザー(書庫で解放) |
-| `sk_meteor` | メテオストーム(書庫で解放) |
+| `sk_p_*` | 「心得」パッシブ群17種(未定義の場合は素材色の◆アイコンが自動生成される。個別に上書き可: sk_p_vital, sk_p_guard, sk_p_hunter, sk_p_slayer, sk_p_warder, sk_p_shepherd, sk_p_thorn, sk_p_sea, sk_p_scholar, sk_p_flame, sk_p_ice, sk_p_storm, sk_p_veil, sk_p_epoch, sk_p_phantom, sk_p_amber, sk_p_pearl) |
+| `sk_laser` | プリズムレーザー(武器庫で購入) |
+| `sk_meteor` | メテオストーム(武器庫で購入) |
 | `sk_sands` | 時の砂(書庫で解放) |
-| `sk_breath` | ドラゴンブレス(書庫で解放) |
+| `sk_breath` | ドラゴンブレス(武器庫で購入) |
 
 ## 地形タイル(現状はコードで塗り分け。画像タイル化する場合の参考)
 

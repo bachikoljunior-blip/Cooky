@@ -23,7 +23,7 @@ const Run = (() => {
   function calcStats(){
     const m = SaveSys.metaLv;
     const sun = 0.02*m('g_sun_grace');   // 太陽の恩寵: 全能力
-    return {
+    const st = {
       maxHp: (100 + 20*m('altar_hp') + 40*m('g_black_dark') + 10*m('g_forge_gear')) * (1 + sun),
       atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
@@ -44,7 +44,7 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.045 + 0.015*m('camp_recruit'),
+      recruit: 0.08 + 0.02*m('camp_recruit'),   // 仲間になりやすさ(合戦の軍勢はゲームの華)
       allyCap: 150,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
@@ -66,6 +66,19 @@ const Run = (() => {
       exploreRad: 1 + (m('m_cartography') >= 1 ? 1 : 0) + (m('m_cartography') >= 3 ? 1 : 0),
       killHeal: 0, lifesteal: 0,
     };
+    // 汎用効果: effAdd/effMul を持つメタ強化はデータ定義だけで反映される(基地の施設群)
+    for (const id in DATA.META) {
+      const d = DATA.META[id];
+      const lv = m(id);
+      if (!lv) continue;
+      if (d.effAdd) for (const k in d.effAdd) st[k] += d.effAdd[k] * lv;
+      if (d.effMul) for (const k in d.effMul) st[k] *= 1 + d.effMul[k] * lv;
+    }
+    st.armor = Math.min(0.75, st.armor);
+    st.dodge = Math.min(0.5, st.dodge);
+    st.cdr = Math.min(0.5, st.cdr);
+    st.reaperRes = Math.min(0.92, st.reaperRes);
+    return st;
   }
 
   // 周回中に取ったスキルのパッシブ効果を毎フレーム反映する

@@ -29,11 +29,16 @@ const Hub = (() => {
         { kind:'stats',  x:-620, y:240 },
       ];
     }
-    // 基地エリア: その基地の特別強化 + ゲート
-    return [
-      { kind:'meta', st:H.area, x:0, y:-160 },
-      { kind:'gate', x:0, y:260 },
-    ];
+    // 基地エリア: 3種類の特別強化施設(武練場/生命の祠/秘宝の蔵)+ ゲート
+    const list = [];
+    const facs = Object.keys(DATA.BASE_FACS);
+    const present = facs.filter(f => Object.values(DATA.META).some(d => d.st === H.area && d.fac === f));
+    present.forEach((f, i) => {
+      const x = (i - (present.length - 1) / 2) * 260;
+      list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
+    });
+    list.push({ kind:'gate', x:0, y:260 });
+    return list;
   }
 
   function areaName(){
@@ -52,7 +57,7 @@ const Hub = (() => {
   function travel(areaId){
     H.area = areaId;
     H.list = stations();
-    H.player.x = 0; H.player.y = 150;
+    H.player.x = 0; H.player.y = 90;
     Sfx.skill();
   }
 
@@ -83,8 +88,9 @@ const Hub = (() => {
     if (s.kind === 'meta') {
       const st = DATA.STATIONS[s.st];
       if (st) return st.name;
+      const fac = s.fac && DATA.BASE_FACS[s.fac];
       const b = DATA.BASES.find(b => b.id === s.st);
-      return b ? b.name + 'の特別強化' : '強化';
+      return (b ? b.name + 'の' : '') + (fac ? fac.name + '(' + fac.desc + ')' : '特別強化');
     }
     if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
     if (s.kind === 'gate') return '転送ゲート(出撃 / 基地へ移動)';
@@ -95,7 +101,7 @@ const Hub = (() => {
   function doInteract(){
     const s = H.interact;
     if (!s) return;
-    if (s.kind === 'meta') openMetaPanel(s.st);
+    if (s.kind === 'meta') openMetaPanel(s.st, s.fac);
     else if (s.kind === 'armory') openArmoryPanel();
     else if (s.kind === 'gate') openGatePanel();
     else if (s.kind === 'stats') openStatsPanel();
@@ -126,9 +132,11 @@ const Hub = (() => {
     for (const b of unlocked) {
       if (b.id === H.area) continue;
       anyTravel = true;
-      const ups = Object.values(DATA.META).filter(d => d.st === b.id).map(d => d.name).join('・');
+      const items = Object.values(DATA.META).filter(d => d.st === b.id);
+      const facs = Object.keys(DATA.BASE_FACS).filter(f => items.some(d => d.fac === f))
+        .map(f => DATA.BASE_FACS[f].name).join('・');
       h += `<div class="up-card"><div class="info">
-        <div class="name">${b.name}</div><div class="desc">施設: ${ups || '?'}</div></div>
+        <div class="name">${b.name}</div><div class="desc">施設: ${facs || '?'}(${items.length}種の強化)</div></div>
         <button class="buy-btn" data-travel="${b.id}">移動</button></div>`;
     }
     if (!anyTravel && H.area === 'main') {
@@ -220,22 +228,25 @@ const Hub = (() => {
   }
 
   // ---------------- 強化パネル ----------------
-  function openMetaPanel(stKey){
+  function openMetaPanel(stKey, fac){
     Game.pauseFor('station');
     const stDef = DATA.STATIONS[stKey];
     const base = DATA.BASES.find(b => b.id === stKey);
+    const facDef = fac && DATA.BASE_FACS[fac];
     document.getElementById('station-title').textContent =
-      (stDef ? stDef.name : '✦ ' + (base ? base.name : '') + ' の特別強化') +
+      (stDef ? stDef.name : '✦ ' + (base ? base.name : '') + 'の' + (facDef ? facDef.name : '特別強化')) +
       ' ― 🪙 ' + fmtNum(SaveSys.data.coins);
-    renderMetaList(stKey);
+    renderMetaList(stKey, fac);
   }
 
-  function renderMetaList(stKey){
+  function renderMetaList(stKey, fac){
     const body = document.getElementById('station-body');
     let h = '';
+    if (fac && DATA.BASE_FACS[fac]) h += `<p class="small">${DATA.BASE_FACS[fac].desc}。施設は基地ごとに品揃えが違う。</p>`;
     for (const id in DATA.META) {
       const def = DATA.META[id];
       if (def.st !== stKey) continue;
+      if (fac && def.fac !== fac) continue;
       // 実績で解放される項目
       if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) {
         const ach = DATA.ACHIEVEMENTS.find(a => a.id === def.unlockAch);
@@ -293,7 +304,7 @@ const Hub = (() => {
         SaveSys.data.skillHidden[id] = !SaveSys.data.skillHidden[id];
         SaveSys.save();
         Sfx.buy();
-        renderMetaList(stKey);
+        renderMetaList(stKey, fac);
       };
     });
     body.querySelectorAll('.buy-btn[data-meta]').forEach(b => {
@@ -302,7 +313,7 @@ const Hub = (() => {
           Sfx.buy();
           document.getElementById('station-title').textContent =
             document.getElementById('station-title').textContent.replace(/🪙 .+$/, '🪙 ' + fmtNum(SaveSys.data.coins));
-          renderMetaList(stKey);
+          renderMetaList(stKey, fac);
         } else Sfx.deny();
       };
     });
@@ -339,8 +350,9 @@ const Hub = (() => {
     if (s.kind === 'meta') {
       const stDef = DATA.STATIONS[s.st];
       if (stDef) return { spr: stDef.sprite, label: stDef.name, short: stDef.name.slice(-2) };
-      const b = DATA.BASES.find(b => b.id === s.st);
-      return { spr:'st_altar', label:(b ? b.name : '') + 'の強化', short:'強化' };
+      const fac = s.fac && DATA.BASE_FACS[s.fac];
+      if (fac) return { spr: fac.sprite, label: fac.name, short: fac.short };
+      return { spr:'st_altar', label:'特別強化', short:'強化' };
     }
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
