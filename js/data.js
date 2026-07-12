@@ -42,87 +42,6 @@ function matCost(lv, base, extras){
 // stats(lv) は run.js の各スキル実装が参照する数値群
 // lvText[lv-2] = lv へ上げた時の強化説明(レベルごとに違う強化)
 DATA.SKILLS = {
-  bolt: {
-    name:'マジックボルト', cat:'atk', icon:'sk_bolt', innate:true,
-    desc:'最も近い敵へ自動で魔弾を放つ。最初から持っている基本攻撃。',
-    cost:(lv)=>matCost(lv,{jelly:3,bone:2},[{from:4,mat:crystalKey(),qty:2},{from:7,mat:'magic',qty:2}]),
-    lvText:['威力+50%','2連射になる','連射間隔-20%','威力+60%','3連射になる','貫通+1','連射間隔-25%','威力+80%','4連射・弾速アップ'],
-    stats:(lv)=>({ dmg:10*Math.pow(1.5,Math.min(lv-1,3))*(lv>=8?1.8:1)*(lv>=5?1.6:1),
-      count:1+(lv>=2?1:0)+(lv>=5?1:0)+(lv>=9?1:0),
-      cd:0.9*(lv>=3?0.8:1)*(lv>=7?0.75:1), pierce:(lv>=6?1:0), speed:420*(lv>=9?1.3:1) }),
-  },
-  homing: {
-    name:'追尾ミサイル', cat:'atk', icon:'sk_homing',
-    desc:'敵を追尾する魔法ミサイルを放つ。',
-    cost:(lv)=>matCost(lv,{bone:4,scrap:2},[{from:3,mat:'crystal',qty:2},{from:6,mat:'magic',qty:3}]),
-    lvText:['同時発射+1','威力+70%','同時発射+1','追尾性能・弾速アップ','威力+80%','同時発射+2','爆発するようになる'],
-    stats:(lv)=>({ dmg:14*Math.pow(1.75,(lv>=3?1:0)+(lv>=6?1:0)), count:1+(lv>=2?1:0)+(lv>=4?1:0)+(lv>=7?2:0),
-      cd:1.6, turn:(lv>=5?7:3.5), speed:300*(lv>=5?1.3:1), blast:(lv>=8?70:0) }),
-  },
-  orbit: {
-    name:'オービットオーブ', cat:'atk', icon:'sk_orbit',
-    desc:'自分の周囲を回るオーブ。触れた敵にダメージ。',
-    cost:(lv)=>matCost(lv,{jelly:4,crystal:2},[{from:4,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
-    lvText:['オーブ+1','回転速度アップ','威力+75%','オーブ+1','範囲(半径)拡大','威力+80%','オーブ+2・巨大化'],
-    stats:(lv)=>({ dmg:9*Math.pow(1.75,(lv>=4?1:0)+(lv>=7?1:0)), count:2+(lv>=2?1:0)+(lv>=5?1:0)+(lv>=8?2:0),
-      radius:70+(lv>=6?35:0), spin:2+(lv>=3?1.2:0), size:12*(lv>=8?1.5:1) }),
-  },
-  chain: {
-    name:'チェインライトニング', cat:'atk', icon:'sk_chain',
-    desc:'敵から敵へ連鎖する稲妻。集団に強い。',
-    cost:(lv)=>matCost(lv,{scrap:4,crystal:3},[{from:3,mat:'magic',qty:2},{from:6,mat:'star',qty:1}]),
-    lvText:['連鎖+2','威力+60%','連鎖+2','発動間隔-25%','威力+80%','連鎖+3・射程アップ'],
-    stats:(lv)=>({ dmg:16*Math.pow(1.6,(lv>=3?1:0)+(lv>=6?1:0)), jumps:3+(lv>=2?2:0)+(lv>=4?2:0)+(lv>=7?3:0),
-      cd:2.4*(lv>=5?0.75:1), range:240*(lv>=7?1.3:1) }),
-  },
-  flame: {
-    name:'フレイムリング', cat:'atk', icon:'sk_flame',
-    desc:'周囲に炎の波動を放ち、触れた敵を燃やす。',
-    cost:(lv)=>matCost(lv,{hide:4,wood:3},[{from:3,mat:'scrap',qty:3},{from:6,mat:'magic',qty:3}]),
-    lvText:['範囲拡大','延焼ダメージ追加','威力+70%','発動間隔-30%','範囲拡大・威力+50%','延焼強化・威力+70%'],
-    stats:(lv)=>({ dmg:12*Math.pow(1.7,(lv>=4?1:0))*(lv>=6?1.5:1)*(lv>=7?1.7:1),
-      radius:90+(lv>=2?30:0)+(lv>=6?40:0), cd:2.2*(lv>=5?0.7:1), burn:(lv>=3?4:0)*(lv>=7?2.5:1) }),
-  },
-  nova: {
-    name:'フロストノヴァ', cat:'atk', icon:'sk_nova',
-    desc:'氷の衝撃波で敵を減速させる。生存の要。',
-    cost:(lv)=>matCost(lv,{crystal:4,jelly:3},[{from:4,mat:'shell',qty:3},{from:7,mat:'coral',qty:2}]),
-    lvText:['減速強化','範囲拡大','威力+80%','短時間の凍結付与','発動間隔-30%','凍結時間+・威力+80%'],
-    stats:(lv)=>({ dmg:8*Math.pow(1.8,(lv>=4?1:0)+(lv>=7?1:0)), radius:120+(lv>=3?50:0),
-      slow:0.35+(lv>=2?0.2:0), slowDur:2.5, freeze:(lv>=5?0.6:0)+(lv>=7?0.6:0), cd:3.5*(lv>=6?0.7:1) }),
-  },
-  poison: {
-    name:'ポイズンミスト', cat:'atk', icon:'sk_poison',
-    desc:'移動した跡に毒の霧を残す。触れた敵は継続ダメージ。',
-    cost:(lv)=>matCost(lv,{jelly:5,hide:3},[{from:3,mat:'shell',qty:2},{from:6,mat:'coral',qty:2}]),
-    lvText:['霧が大きくなる','持続時間+50%','毒ダメージ+80%','霧の発生間隔-40%','毒が敵の防御を下げる','毒ダメージ+100%・巨大化'],
-    stats:(lv)=>({ dps:6*Math.pow(1.8,(lv>=4?1:0))*(lv>=7?2:1), size:46+(lv>=2?20:0)+(lv>=7?26:0),
-      dur:4*(lv>=3?1.5:1), interval:0.55*(lv>=5?0.6:1), shred:(lv>=6?0.25:0) }),
-  },
-  axe: {
-    name:'ブーメランアクス', cat:'atk', icon:'sk_axe',
-    desc:'投げた斧が戻ってくる。往復で2回当たる。',
-    cost:(lv)=>matCost(lv,{wood:4,scrap:3},[{from:4,mat:'hide',qty:4},{from:7,mat:'scale',qty:1}]),
-    lvText:['同時投擲+1','威力+65%','飛距離アップ','同時投擲+1','威力+80%','巨大な斧になる(範囲+)'],
-    stats:(lv)=>({ dmg:20*Math.pow(1.65,(lv>=3?1:0)+(lv>=6?1:0)), count:1+(lv>=2?1:0)+(lv>=5?1:0),
-      cd:2.0, range:260+(lv>=4?90:0), size:14*(lv>=7?1.7:1) }),
-  },
-  thunder: {
-    name:'サンダーフォール', cat:'atk', icon:'sk_thunder',
-    desc:'ランダムな敵の頭上に落雷。単体高火力。',
-    cost:(lv)=>matCost(lv,{crystal:5,magic:1},[{from:3,mat:'magic',qty:3},{from:6,mat:'star',qty:2}]),
-    lvText:['落雷数+1','威力+70%','落雷数+1','範囲(爆風)追加','威力+90%','落雷数+2・爆風拡大'],
-    stats:(lv)=>({ dmg:36*Math.pow(1.7,(lv>=3?1:0))*(lv>=6?1.9:1), count:1+(lv>=2?1:0)+(lv>=4?1:0)+(lv>=7?2:0),
-      cd:2.8, blast:(lv>=5?60:26)*(lv>=7?1.5:1) }),
-  },
-  turret: {
-    name:'オートタレット', cat:'atk', icon:'sk_turret',
-    desc:'その場に自動砲台を設置する。設置数に上限あり。',
-    cost:(lv)=>matCost(lv,{scrap:6,wood:4},[{from:3,mat:'crystal',qty:3},{from:6,mat:'magic',qty:4}]),
-    lvText:['設置上限+1','連射速度アップ','威力+70%','設置上限+1','射程アップ','威力+90%・2丁掃射'],
-    stats:(lv)=>({ dmg:9*Math.pow(1.7,(lv>=4?1:0))*(lv>=7?1.9:1), maxTurrets:1+(lv>=2?1:0)+(lv>=5?1:0),
-      fireCd:0.8*(lv>=3?0.6:1), range:280+(lv>=6?100:0), dual:(lv>=7), placeCd:9, life:20 }),
-  },
   shield: {
     name:'ガーディアンシールド', cat:'sup', icon:'sk_shield',
     desc:'ダメージを1回無効化するバリアを張る。',
@@ -188,10 +107,10 @@ DATA.SKILLS = {
   },
   sharpen: {
     name:'武器研磨', cat:'sup', icon:'sk_sharpen',
-    desc:'【武器】すべての攻撃の威力が上がる。',
+    desc:'【武器】装備中の攻撃手段の威力が大きく上がる。',
     cost:(lv)=>matCost(lv,{scrap:5,wood:3},[{from:4,mat:'crystal',qty:4},{from:7,mat:'scale',qty:1}]),
-    lvText:['威力+8%','威力+10%','会心率+5%','威力+12%','会心率+7%','威力+15%'],
-    stats:(lv)=>({ mult:1.08*(lv>=2?1.08:1)*(lv>=3?1.10:1)*(lv>=5?1.12:1)*(lv>=7?1.15:1),
+    lvText:['威力+12%','威力+14%','会心率+5%','威力+16%','会心率+7%','威力+20%'],
+    stats:(lv)=>({ mult:1.12*(lv>=2?1.12:1)*(lv>=3?1.14:1)*(lv>=5?1.16:1)*(lv>=7?1.20:1),
       crit:(lv>=4?0.05:0)+(lv>=6?0.07:0) }),
   },
   focus: {
@@ -235,37 +154,13 @@ DATA.SKILLS = {
       slow:0.1+(lv>=3?0.15:0), dur:4, cd:6*(lv>=4?0.75:1) }),
   },
   // ---- 魂の広場で解放するスキル ----
-  laser: {
-    name:'プリズムレーザー', cat:'atk', icon:'sk_laser', unlock:'lib_sk_laser', requires:{skill:'bolt', lv:4},
-    desc:'貫通する極太レーザーを一直線に放つ。【要解放】',
-    cost:(lv)=>matCost(lv,{magic:4,crystal:6},[{from:4,mat:'star',qty:2}]),
-    lvText:['威力+70%','照射時間+','2方向に発射','威力+90%','4方向に発射'],
-    stats:(lv)=>({ dmg:30*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1), cd:4.5, dur:0.6*(lv>=3?1.6:1),
-      beams:1+(lv>=4?1:0)+(lv>=6?2:0), width:18 }),
-  },
-  meteor: {
-    name:'メテオストーム', cat:'atk', icon:'sk_meteor', unlock:'lib_sk_meteor', requires:{skill:'thunder', lv:3},
-    desc:'広範囲に隕石を降らせる大火力スキル。【要解放】',
-    cost:(lv)=>matCost(lv,{magic:5,scale:1},[{from:3,mat:'star',qty:2},{from:5,mat:'abyss',qty:1}]),
-    lvText:['隕石+2','威力+80%','隕石+2','爆発範囲拡大','隕石+3・威力+100%'],
-    stats:(lv)=>({ dmg:50*Math.pow(1.8,(lv>=3?1:0))*(lv>=6?2:1), count:3+(lv>=2?2:0)+(lv>=4?2:0)+(lv>=6?3:0),
-      cd:6, blast:80*(lv>=5?1.4:1) }),
-  },
   sands: {
-    name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands', requires:{skill:'nova', lv:3},
+    name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands',
     desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:3,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','発動間隔-25%','ほぼ静止級の減速'],
     stats:(lv)=>({ slow:0.4+(lv>=2?0.15:0)+(lv>=6?0.25:0), dur:3*(lv>=3?1.5:1),
       radius:220+(lv>=4?120:0), cd:12*(lv>=5?0.75:1) }),
-  },
-  dragonbreath: {
-    name:'ドラゴンブレス', cat:'atk', icon:'sk_breath', unlock:'lib_sk_breath', requires:{skill:'flame', lv:3},
-    desc:'移動方向へ焼き尽くす吐息を放つ。【要解放】',
-    cost:(lv)=>matCost(lv,{scale:2,magic:4},[{from:4,mat:'abyss',qty:1}]),
-    lvText:['威力+70%','範囲(角度)拡大','持続+','威力+90%','超射程・威力+80%'],
-    stats:(lv)=>({ dps:35*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1)*(lv>=6?1.8:1),
-      arc:0.6+(lv>=3?0.35:0), range:170+(lv>=6?130:0), dur:1.4*(lv>=4?1.5:1), cd:5 }),
   },
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
@@ -281,20 +176,122 @@ DATA.SKILLS = {
     lvText:Array.from({length:9},(_,i)=>`全能力+1.5%(累計${((i+2)*1.5).toFixed(1)}%)`),
     stats:(lv)=>({ passive:{ key:'allMul', value:0.015*lv } }),
   },
+};
+function crystalKey(){ return 'crystal'; }
+
+// ---------------- 攻撃手段(武器) ----------------
+// 主人公の攻撃はスキルではなく「攻撃手段」。魂の広場の武器庫でコインで購入・強化し、
+// どれか1つを選んで出撃する(切り替え自由)。max = lvText.length + 1
+function wcost(base){ return (lv) => Math.round(base * Math.pow(1.6, lv - 1)); }
+DATA.WEAPONS = {
+  bolt: {
+    name:'マジックボルト', icon:'sk_bolt', buy:0, up:wcost(40),
+    desc:'最も近い敵へ自動で魔弾を放つ。最初から持っている基本攻撃。',
+    lvText:['威力+50%','2連射になる','連射間隔-20%','威力+60%','3連射になる','貫通+1','連射間隔-25%','威力+80%','4連射・弾速アップ'],
+    stats:(lv)=>({ dmg:10*Math.pow(1.5,Math.min(lv-1,3))*(lv>=8?1.8:1)*(lv>=5?1.6:1),
+      count:1+(lv>=2?1:0)+(lv>=5?1:0)+(lv>=9?1:0),
+      cd:0.9*(lv>=3?0.8:1)*(lv>=7?0.75:1), pierce:(lv>=6?1:0), speed:420*(lv>=9?1.3:1) }),
+  },
+  axe: {
+    name:'ブーメランアクス', icon:'sk_axe', buy:150, up:wcost(60),
+    desc:'投げた斧が戻ってくる。往復で2回当たる。',
+    lvText:['同時投擲+1','威力+65%','飛距離アップ','同時投擲+1','威力+80%','巨大な斧になる(範囲+)'],
+    stats:(lv)=>({ dmg:20*Math.pow(1.65,(lv>=3?1:0)+(lv>=6?1:0)), count:1+(lv>=2?1:0)+(lv>=5?1:0),
+      cd:2.0, range:260+(lv>=4?90:0), size:14*(lv>=7?1.7:1) }),
+  },
+  homing: {
+    name:'追尾ミサイル', icon:'sk_homing', buy:250, up:wcost(70),
+    desc:'敵を追尾する魔法ミサイルを放つ。',
+    lvText:['同時発射+1','威力+70%','同時発射+1','追尾性能・弾速アップ','威力+80%','同時発射+2','爆発するようになる'],
+    stats:(lv)=>({ dmg:14*Math.pow(1.75,(lv>=3?1:0)+(lv>=6?1:0)), count:1+(lv>=2?1:0)+(lv>=4?1:0)+(lv>=7?2:0),
+      cd:1.6, turn:(lv>=5?7:3.5), speed:300*(lv>=5?1.3:1), blast:(lv>=8?70:0) }),
+  },
+  orbit: {
+    name:'オービットオーブ', icon:'sk_orbit', buy:300, up:wcost(75),
+    desc:'自分の周囲を回るオーブ。触れた敵にダメージ。',
+    lvText:['オーブ+1','回転速度アップ','威力+75%','オーブ+1','範囲(半径)拡大','威力+80%','オーブ+2・巨大化'],
+    stats:(lv)=>({ dmg:9*Math.pow(1.75,(lv>=4?1:0)+(lv>=7?1:0)), count:2+(lv>=2?1:0)+(lv>=5?1:0)+(lv>=8?2:0),
+      radius:70+(lv>=6?35:0), spin:2+(lv>=3?1.2:0), size:12*(lv>=8?1.5:1) }),
+  },
+  flame: {
+    name:'フレイムリング', icon:'sk_flame', buy:420, up:wcost(85),
+    desc:'周囲に炎の波動を放ち、触れた敵を燃やす。',
+    lvText:['範囲拡大','延焼ダメージ追加','威力+70%','発動間隔-30%','範囲拡大・威力+50%','延焼強化・威力+70%'],
+    stats:(lv)=>({ dmg:12*Math.pow(1.7,(lv>=4?1:0))*(lv>=6?1.5:1)*(lv>=7?1.7:1),
+      radius:90+(lv>=2?30:0)+(lv>=6?40:0), cd:2.2*(lv>=5?0.7:1), burn:(lv>=3?4:0)*(lv>=7?2.5:1) }),
+  },
+  nova: {
+    name:'フロストノヴァ', icon:'sk_nova', buy:550, up:wcost(90),
+    desc:'氷の衝撃波で敵を減速させる。生存の要。',
+    lvText:['減速強化','範囲拡大','威力+80%','短時間の凍結付与','発動間隔-30%','凍結時間+・威力+80%'],
+    stats:(lv)=>({ dmg:8*Math.pow(1.8,(lv>=4?1:0)+(lv>=7?1:0)), radius:120+(lv>=3?50:0),
+      slow:0.35+(lv>=2?0.2:0), slowDur:2.5, freeze:(lv>=5?0.6:0)+(lv>=7?0.6:0), cd:3.5*(lv>=6?0.7:1) }),
+  },
+  chain: {
+    name:'チェインライトニング', icon:'sk_chain', buy:700, up:wcost(100),
+    desc:'敵から敵へ連鎖する稲妻。集団に強い。',
+    lvText:['連鎖+2','威力+60%','連鎖+2','発動間隔-25%','威力+80%','連鎖+3・射程アップ'],
+    stats:(lv)=>({ dmg:16*Math.pow(1.6,(lv>=3?1:0)+(lv>=6?1:0)), jumps:3+(lv>=2?2:0)+(lv>=4?2:0)+(lv>=7?3:0),
+      cd:2.4*(lv>=5?0.75:1), range:240*(lv>=7?1.3:1) }),
+  },
+  poison: {
+    name:'ポイズンミスト', icon:'sk_poison', buy:850, up:wcost(110),
+    desc:'移動した跡に毒の霧を残す。触れた敵は継続ダメージ。',
+    lvText:['霧が大きくなる','持続時間+50%','毒ダメージ+80%','霧の発生間隔-40%','毒が敵の防御を下げる','毒ダメージ+100%・巨大化'],
+    stats:(lv)=>({ dps:6*Math.pow(1.8,(lv>=4?1:0))*(lv>=7?2:1), size:46+(lv>=2?20:0)+(lv>=7?26:0),
+      dur:4*(lv>=3?1.5:1), interval:0.55*(lv>=5?0.6:1), shred:(lv>=6?0.25:0) }),
+  },
+  thunder: {
+    name:'サンダーフォール', icon:'sk_thunder', buy:1100, up:wcost(130),
+    desc:'ランダムな敵の頭上に落雷。単体高火力。',
+    lvText:['落雷数+1','威力+70%','落雷数+1','範囲(爆風)追加','威力+90%','落雷数+2・爆風拡大'],
+    stats:(lv)=>({ dmg:36*Math.pow(1.7,(lv>=3?1:0))*(lv>=6?1.9:1), count:1+(lv>=2?1:0)+(lv>=4?1:0)+(lv>=7?2:0),
+      cd:2.8, blast:(lv>=5?60:26)*(lv>=7?1.5:1) }),
+  },
+  turret: {
+    name:'オートタレット', icon:'sk_turret', buy:1500, up:wcost(150),
+    desc:'その場に自動砲台を設置する。設置数に上限あり。',
+    lvText:['設置上限+1','連射速度アップ','威力+70%','設置上限+1','射程アップ','威力+90%・2丁掃射'],
+    stats:(lv)=>({ dmg:9*Math.pow(1.7,(lv>=4?1:0))*(lv>=7?1.9:1), maxTurrets:1+(lv>=2?1:0)+(lv>=5?1:0),
+      fireCd:0.8*(lv>=3?0.6:1), range:280+(lv>=6?100:0), dual:(lv>=7), placeCd:9, life:20 }),
+  },
+  laser: {
+    name:'プリズムレーザー', icon:'sk_laser', buy:2200, up:wcost(220), requires:{weapon:'bolt', lv:4},
+    desc:'貫通する極太レーザーを一直線に放つ。',
+    lvText:['威力+70%','照射時間+','2方向に発射','威力+90%','4方向に発射'],
+    stats:(lv)=>({ dmg:30*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1), cd:4.5, dur:0.6*(lv>=3?1.6:1),
+      beams:1+(lv>=4?1:0)+(lv>=6?2:0), width:18 }),
+  },
+  meteor: {
+    name:'メテオストーム', icon:'sk_meteor', buy:4500, up:wcost(350), requires:{weapon:'thunder', lv:3},
+    desc:'広範囲に隕石を降らせる大火力の攻撃手段。',
+    lvText:['隕石+2','威力+80%','隕石+2','爆発範囲拡大','隕石+3・威力+100%'],
+    stats:(lv)=>({ dmg:50*Math.pow(1.8,(lv>=3?1:0))*(lv>=6?2:1), count:3+(lv>=2?2:0)+(lv>=4?2:0)+(lv>=6?3:0),
+      cd:6, blast:80*(lv>=5?1.4:1) }),
+  },
   prism_ray: {
-    name:'虹の奔流', cat:'atk', icon:'sk_prism', unlockAch:'ach_rare', requires:{skill:'laser', lv:2},
-    desc:'【実績解放】回転する虹の光線が全てを薙ぎ払う。レインボースライムの落とす「虹のかけら」が必要。',
-    cost:(lv)=>matCost(lv,{prism:1,crystal:8},[{from:4,mat:'star',qty:2}]),
+    name:'虹の奔流', icon:'sk_prism', buy:6000, up:wcost(420), unlockAch:'ach_rare', requires:{weapon:'laser', lv:2},
+    desc:'【実績解放】回転する虹の光線が全てを薙ぎ払う。',
     lvText:['威力+70%','光線+1','回転が速くなる','威力+90%','光線+2'],
     stats:(lv)=>({ dmg:40*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1), beams:3+(lv>=3?1:0)+(lv>=6?2:0),
       width:14, len:430, spin:0.7*(lv>=4?1.6:1), cd:7 }),
   },
+  dragonbreath: {
+    name:'ドラゴンブレス', icon:'sk_breath', buy:9000, up:wcost(550), requires:{weapon:'flame', lv:3},
+    desc:'移動方向へ焼き尽くす吐息を放つ最強格の攻撃手段。',
+    lvText:['威力+70%','範囲(角度)拡大','持続+','威力+90%','超射程・威力+80%'],
+    stats:(lv)=>({ dps:35*Math.pow(1.7,(lv>=2?1:0))*(lv>=5?1.9:1)*(lv>=6?1.8:1),
+      arc:0.6+(lv>=3?0.35:0), range:170+(lv>=6?130:0), dur:1.4*(lv>=4?1.5:1), cd:5 }),
+  },
 };
-function crystalKey(){ return 'crystal'; }
 
 // ---- 「心得」パッシブスキル群: 素材の組み合わせごとに存在する多数の強化 ----
 // [id, 名前, 効果説明, 効果キー, 1Lvあたりの値, 表示単位, 素材A, 個数A, 素材B, 個数B]
 const PASSIVE_DEFS = [
+  // 武器を鍛える心得(攻撃手段そのものはスキルでは手に入らないが、装備中の武器を伸ばせる)
+  ['p_might',   '剛撃の心得',     '攻撃力',               'atkMul',     .10,  '+10%',   'jelly',5,'bone',4],
+  ['p_swift',   '早業の心得',     'スキル発動間隔短縮',   'cdrAdd',     .03,  '+3%',    'bone',5,'wood',4],
+  ['p_keen',    '会心の心得',     '会心率',               'critAdd',    .03,  '+3%',    'hide',5,'scrap',3],
   ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
   ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
   ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',10,'scale',4],
@@ -323,7 +320,7 @@ for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) 
   };
 }
 
-DATA.SKILL_CATS = { atk:'攻撃', sup:'補助', ally:'仲間', foe:'敵干渉', kokoroe:'心得' };
+DATA.SKILL_CATS = { sup:'補助', ally:'仲間', foe:'敵干渉', kokoroe:'心得' };
 DATA.SKILL_BASE_CAP = 5; // 書庫の上限解放で +1 ずつ(最大10)
 DATA.SKILL_CAP_MAX = 10;
 
@@ -494,9 +491,7 @@ DATA.META = {
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
   // --- スキル書庫 ---
-  lib_sk_laser: { st:'lib', name:'【解放】プリズムレーザー', desc:'スキル「プリズムレーザー」が出現候補になる', max:1, cost:gcost(800,1) },
-  lib_sk_meteor:{ st:'lib', name:'【解放】メテオストーム', desc:'スキル「メテオストーム」が出現候補になる', max:1, cost:gcost(2500,1) },
-  lib_sk_breath:{ st:'lib', name:'【解放】ドラゴンブレス', desc:'スキル「ドラゴンブレス」が出現候補になる', max:1, cost:gcost(8000,1) },
+  lib_map:      { st:'lib', name:'古い地図の修復', desc:'周回中にマップ(周辺図/全体図)が使えるようになる', max:1, cost:gcost(120,1), unlockBases:1 },
   lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」が出現候補になる', max:1, cost:gcost(20000,1) },
   lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
   lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },

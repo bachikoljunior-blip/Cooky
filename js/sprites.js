@@ -71,6 +71,7 @@ const Sprites = (() => {
     st_lab:     { kind:'building',c:'#3fb950', a:'#7ee787', opt:{sym:'⚗'} },
     st_camp:    { kind:'building',c:'#58a6ff', a:'#a5d8ff', opt:{sym:'🏕'} },
     st_lib:     { kind:'building',c:'#c084fc', a:'#d2a8ff', opt:{sym:'📖'} },
+    st_armory:  { kind:'building',c:'#f85149', a:'#ffa198', opt:{sym:'🗡'} },
     st_gate:    { kind:'gate',    c:'#ffd766', a:'#f0883e' },
     st_warp:    { kind:'gate',    c:'#76e3ea', a:'#1f6feb' },
 

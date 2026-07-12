@@ -1,47 +1,69 @@
 // =============================================================
 // hub.js - 魂の広場(死後のフィールド)
-//   歩き回って各施設で恒久強化 / 基地ワープゲート / 出撃
+//   ・初期の広場: 祭壇/研究所/宿舎/書庫/武器庫/石碑 + 転送ゲート
+//   ・転送ゲート(最初からある): 出撃地点の選択 と 解放済み基地への移動
+//   ・解放済み基地は独自の小さなマップを持ち、その基地の特別強化施設がある
+//   ・画面隅に施設マップを常時表示
 // =============================================================
 'use strict';
 
 const Hub = (() => {
-  const H = { player:{ x:0, y:80, dir:1 }, interact:null };
+  const H = { player:{ x:0, y:80, dir:1 }, interact:null, area:'main' };
 
-  // 施設配置
+  // ---------------- エリアと施設配置 ----------------
+  function bounds(){
+    return H.area === 'main'
+      ? { x0:-800, y0:-360, x1:800, y1:400 }
+      : { x0:-460, y0:-360, x1:460, y1:400 };
+  }
+
   function stations(){
-    const list = [
-      { kind:'meta', st:'altar', x:-420, y:-170 },
-      { kind:'meta', st:'lab',   x:-140, y:-170 },
-      { kind:'meta', st:'camp',  x:140,  y:-170 },
-      { kind:'meta', st:'lib',   x:420,  y:-170 },
-      { kind:'depart', x:0, y:260 },
-      { kind:'stats',  x:-620, y:260 },
-    ];
-    // 解放済み基地のワープゲート + 専用強化(最大21基地のグリッド)
-    let i = 0;
-    for (const b of DATA.BASES) {
-      if (!SaveSys.data.bases[b.id]) continue;
-      const gx = -560 + (i % 4) * 310, gy = 470 + Math.floor(i / 4) * 185;
-      list.push({ kind:'warp', base:b, x:gx, y:gy });
-      list.push({ kind:'meta', st:b.id, x:gx + 118, y:gy, small:true });
-      i++;
+    if (H.area === 'main') {
+      return [
+        { kind:'meta', st:'altar',  x:-420, y:-170 },
+        { kind:'meta', st:'lab',    x:-140, y:-170 },
+        { kind:'meta', st:'camp',   x:140,  y:-170 },
+        { kind:'meta', st:'lib',    x:420,  y:-170 },
+        { kind:'armory', x:620, y:240 },
+        { kind:'gate',   x:0,   y:260 },
+        { kind:'stats',  x:-620, y:240 },
+      ];
     }
-    return list;
+    // 基地エリア: その基地の特別強化 + ゲート
+    return [
+      { kind:'meta', st:H.area, x:0, y:-160 },
+      { kind:'gate', x:0, y:260 },
+    ];
+  }
+
+  function areaName(){
+    if (H.area === 'main') return '魂の広場';
+    const b = DATA.BASES.find(b => b.id === H.area);
+    return b ? '拠点「' + b.name + '」' : '拠点';
   }
 
   function enter(){
+    H.area = 'main';
     H.player.x = 0; H.player.y = 80;
     SaveSys.checkAchievements();
     H.list = stations();
   }
 
+  function travel(areaId){
+    H.area = areaId;
+    H.list = stations();
+    H.player.x = 0; H.player.y = 150;
+    Sfx.skill();
+  }
+
   function update(dt){
     const p = H.player;
     const ax = Input.axis();
+    const b = bounds();
     p.x += ax.x * 240 * dt;
     p.y += ax.y * 240 * dt;
-    p.x = Math.max(-760, Math.min(760, p.x));
-    p.y = Math.max(-320, Math.min(1500, p.y));
+    p.x = Math.max(b.x0 + 40, Math.min(b.x1 - 40, p.x));
+    p.y = Math.max(b.y0 + 40, Math.min(b.y1 - 40, p.y));
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
     H.interact = null;
@@ -62,10 +84,10 @@ const Hub = (() => {
       const st = DATA.STATIONS[s.st];
       if (st) return st.name;
       const b = DATA.BASES.find(b => b.id === s.st);
-      return b ? b.name + 'の強化' : '強化';
+      return b ? b.name + 'の特別強化' : '強化';
     }
-    if (s.kind === 'depart') return '出撃する(初期地点)';
-    if (s.kind === 'warp') return 'ワープ出撃: ' + s.base.name;
+    if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
+    if (s.kind === 'gate') return '転送ゲート(出撃 / 基地へ移動)';
     if (s.kind === 'stats') return '記録の石碑を見る';
     return '調べる';
   }
@@ -74,9 +96,127 @@ const Hub = (() => {
     const s = H.interact;
     if (!s) return;
     if (s.kind === 'meta') openMetaPanel(s.st);
-    else if (s.kind === 'depart') Game.startRun({ x:0, y:0 });
-    else if (s.kind === 'warp') Game.startRun({ x:s.base.x, y:s.base.y + 60 });
+    else if (s.kind === 'armory') openArmoryPanel();
+    else if (s.kind === 'gate') openGatePanel();
     else if (s.kind === 'stats') openStatsPanel();
+  }
+
+  // ---------------- 転送ゲート ----------------
+  function openGatePanel(){
+    Game.pauseFor('station');
+    document.getElementById('station-title').textContent = '⛩ 転送ゲート';
+    const body = document.getElementById('station-body');
+    const unlocked = DATA.BASES.filter(b => SaveSys.data.bases[b.id]);
+    let h = '<div class="sec-head">出撃する(出撃場所を選ぶ)</div>';
+    h += `<div class="up-card"><div class="info">
+      <div class="name">初期地点</div><div class="desc">始まりの大陸の中心から出撃する</div></div>
+      <button class="buy-btn" data-depart="__origin">出撃</button></div>`;
+    for (const b of unlocked) {
+      h += `<div class="up-card"><div class="info">
+        <div class="name">${b.name}</div><div class="desc">解放済みの基地から出撃する(危険度に注意)</div></div>
+        <button class="buy-btn" data-depart="${b.id}">出撃</button></div>`;
+    }
+    h += '<div class="sec-head">基地へ移動(それぞれの基地に特別強化の施設がある)</div>';
+    if (H.area !== 'main') {
+      h += `<div class="up-card"><div class="info">
+        <div class="name">魂の広場</div><div class="desc">祭壇・研究所・宿舎・書庫・武器庫のある最初の広場へ戻る</div></div>
+        <button class="buy-btn" data-travel="main">移動</button></div>`;
+    }
+    let anyTravel = false;
+    for (const b of unlocked) {
+      if (b.id === H.area) continue;
+      anyTravel = true;
+      const ups = Object.values(DATA.META).filter(d => d.st === b.id).map(d => d.name).join('・');
+      h += `<div class="up-card"><div class="info">
+        <div class="name">${b.name}</div><div class="desc">施設: ${ups || '?'}</div></div>
+        <button class="buy-btn" data-travel="${b.id}">移動</button></div>`;
+    }
+    if (!anyTravel && H.area === 'main') {
+      h += '<p class="small">まだ移動できる基地がない。周回中に基地を解放すると、ここから行き来できるようになる。</p>';
+    }
+    body.innerHTML = h;
+    body.querySelectorAll('[data-depart]').forEach(btn => {
+      btn.onclick = () => {
+        const id = btn.dataset.depart;
+        Sfx.buy();
+        Game.closeStation();
+        if (id === '__origin') Game.startRun({ x:0, y:0 });
+        else { const b = DATA.BASES.find(b => b.id === id); Game.startRun({ x:b.x, y:b.y + 60 }); }
+      };
+    });
+    body.querySelectorAll('[data-travel]').forEach(btn => {
+      btn.onclick = () => {
+        Game.closeStation();
+        travel(btn.dataset.travel);
+      };
+    });
+  }
+
+  // ---------------- 武器庫(攻撃手段) ----------------
+  function openArmoryPanel(){
+    Game.pauseFor('station');
+    renderArmory();
+  }
+  function renderArmory(){
+    document.getElementById('station-title').textContent =
+      '🗡 武器庫 ― 攻撃手段はここで選ぶ ― 🪙 ' + fmtNum(SaveSys.data.coins);
+    const body = document.getElementById('station-body');
+    let h = '<p class="small">主人公の攻撃手段は周回中のスキルでは手に入らない。ここで購入・強化し、どれか1つを選んで出撃する。</p>';
+    for (const id in DATA.WEAPONS) {
+      const def = DATA.WEAPONS[id];
+      const lv = SaveSys.weaponLv(id);
+      const max = SaveSys.weaponMax(id);
+      const active = SaveSys.data.weapon === id;
+      const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
+      // 実績ロック
+      if (!lv && def.unlockAch && !SaveSys.data.ach[def.unlockAch]) {
+        const ach = DATA.ACHIEVEMENTS.find(a => a.id === def.unlockAch);
+        h += `<div class="up-card" style="opacity:.55"><div class="info">
+          <div class="name">🔒 ???</div>
+          <div class="desc">実績「${ach ? ach.name : '???'}」(${ach ? ach.desc : ''})で解放</div></div></div>`;
+        continue;
+      }
+      if (!lv) {
+        // 未購入
+        const req = def.requires;
+        const reqOk = !req || SaveSys.weaponLv(req.weapon) >= req.lv;
+        const reqTxt = req ? `条件: ${DATA.WEAPONS[req.weapon].name} Lv${req.lv}` : '';
+        const can = reqOk && SaveSys.data.coins >= def.buy;
+        h += `<div class="up-card" ${reqOk ? '' : 'style="opacity:.6"'}>
+          <img class="icon" src="${iconUrl}" alt="" style="width:34px;height:34px">
+          <div class="info">
+            <div class="name">${def.name}</div>
+            <div class="desc">${def.desc}${reqTxt ? ' <span class="small">[' + reqTxt + ']</span>' : ''}</div>
+          </div>
+          <button class="buy-btn" data-wbuy="${id}" ${can ? '' : 'disabled'}>🪙 ${fmtNum(def.buy)}</button>
+        </div>`;
+        continue;
+      }
+      // 所持済み: 切替 + 強化
+      const maxed = lv >= max;
+      const cost = maxed ? 0 : def.up(lv);
+      const canUp = !maxed && SaveSys.data.coins >= cost;
+      const nextTxt = maxed ? '最大レベル' : 'Lv' + (lv + 1) + ': ' + (def.lvText[lv - 1] || '強化');
+      h += `<div class="up-card" ${active ? 'style="border-color:#ffd766"' : ''}>
+        <img class="icon" src="${iconUrl}" alt="" style="width:34px;height:34px">
+        <div class="info">
+          <div class="name">${active ? '⚔ ' : ''}${def.name} <span class="small">Lv ${lv}/${max}${active ? ' ― 選択中' : ''}</span></div>
+          <div class="desc">${nextTxt}</div>
+        </div>
+        ${active ? '' : `<button class="buy-btn" data-wsel="${id}" style="background:#1f6feb">装備</button>`}
+        <button class="buy-btn" data-wup="${id}" ${canUp ? '' : 'disabled'}>${maxed ? 'MAX' : '🪙 ' + fmtNum(cost)}</button>
+      </div>`;
+    }
+    body.innerHTML = h;
+    body.querySelectorAll('[data-wbuy]').forEach(b => {
+      b.onclick = () => { if (SaveSys.buyWeapon(b.dataset.wbuy)) { Sfx.buy(); renderArmory(); } else Sfx.deny(); };
+    });
+    body.querySelectorAll('[data-wup]').forEach(b => {
+      b.onclick = () => { if (SaveSys.upWeapon(b.dataset.wup)) { Sfx.buy(); renderArmory(); } else Sfx.deny(); };
+    });
+    body.querySelectorAll('[data-wsel]').forEach(b => {
+      b.onclick = () => { if (SaveSys.setWeapon(b.dataset.wsel)) { Sfx.skill(); renderArmory(); } else Sfx.deny(); };
+    });
   }
 
   // ---------------- 強化パネル ----------------
@@ -103,6 +243,15 @@ const Hub = (() => {
           <div class="info">
             <div class="name">🔒 ???</div>
             <div class="desc">実績「${ach ? ach.name : '???'}」(${ach ? ach.desc : ''})で解放</div>
+          </div></div>`;
+        continue;
+      }
+      // 基地の解放数で解放される項目(古い地図の修復など)
+      if (def.unlockBases && Object.keys(SaveSys.data.bases).length < def.unlockBases) {
+        h += `<div class="up-card" style="opacity:.55">
+          <div class="info">
+            <div class="name">🔒 ???</div>
+            <div class="desc">周回中に基地を${def.unlockBases}つ解放すると現れる</div>
           </div></div>`;
         continue;
       }
@@ -186,11 +335,27 @@ const Hub = (() => {
   }
 
   // ---------------- 描画 ----------------
+  function stationVisual(s){
+    if (s.kind === 'meta') {
+      const stDef = DATA.STATIONS[s.st];
+      if (stDef) return { spr: stDef.sprite, label: stDef.name, short: stDef.name.slice(-2) };
+      const b = DATA.BASES.find(b => b.id === s.st);
+      return { spr:'st_altar', label:(b ? b.name : '') + 'の強化', short:'強化' };
+    }
+    if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
+    if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
+    if (s.kind === 'stats') return { spr:'ob_rock', label:'記録の石碑', short:'石碑' };
+    return { spr:'st_altar', label:'', short:'' };
+  }
+  // 施設マップ用の短い名前
+  const SHORT_NAMES = { altar:'祭壇', lab:'研究所', camp:'宿舎', lib:'書庫' };
+
   function draw(g, W, H2){
     const p = H.player;
     const camX = p.x - W/2, camY = p.y - H2/2;
+    const bnd = bounds();
     // 床
-    g.fillStyle = '#131a2b';
+    g.fillStyle = H.area === 'main' ? '#131a2b' : '#16202b';
     g.fillRect(0, 0, W, H2);
     const T = 48;
     const x0 = Math.floor(camX/T), y0 = Math.floor(camY/T);
@@ -206,40 +371,33 @@ const Hub = (() => {
 
     // 広場の縁(装飾つき)
     g.strokeStyle = '#2b3654'; g.lineWidth = 6;
-    g.strokeRect(-800, -360, 1600, 1920);
+    g.strokeRect(bnd.x0, bnd.y0, bnd.x1 - bnd.x0, bnd.y1 - bnd.y0);
     g.strokeStyle = 'rgba(118,227,234,.14)'; g.lineWidth = 2;
-    g.strokeRect(-786, -346, 1572, 1892);
+    g.strokeRect(bnd.x0 + 14, bnd.y0 + 14, bnd.x1 - bnd.x0 - 28, bnd.y1 - bnd.y0 - 28);
 
     // 浮遊する魂の粒
     const hbT = performance.now() / 1000;
+    const bw = bnd.x1 - bnd.x0, bh = bnd.y1 - bnd.y0;
     for (let i = 0; i < 26; i++) {
-      const sx = -760 + ((i * 331) % 1520);
-      const sy = -340 + (((hbT * (8 + i % 5 * 4) + i * 197) % 1880));
+      const sx = bnd.x0 + 40 + ((i * 331) % (bw - 80));
+      const sy = bnd.y0 + (((hbT * (8 + i % 5 * 4) + i * 197)) % bh);
       g.fillStyle = `hsla(${185 + (i % 3) * 30}, 80%, 70%, ${0.10 + (i % 3) * 0.06})`;
-      g.beginPath(); g.arc(sx + Math.sin(hbT + i) * 14, -360 + 1920 - (sy + 360), 2 + (i % 3), 0, 7); g.fill();
+      g.beginPath(); g.arc(sx + Math.sin(hbT + i) * 14, bnd.y0 + bh - (sy - bnd.y0), 2 + (i % 3), 0, 7); g.fill();
     }
 
     // 施設
     for (const s of H.list) {
-      let spr = 'st_altar', label = '';
-      if (s.kind === 'meta') {
-        const stDef = DATA.STATIONS[s.st];
-        if (stDef) { spr = stDef.sprite; label = stDef.name; }
-        else { spr = 'st_altar'; const b = DATA.BASES.find(b => b.id === s.st); label = (b?b.name:'') + 'の強化'; }
-      } else if (s.kind === 'depart') { spr = 'st_gate'; label = '出撃ゲート'; }
-      else if (s.kind === 'warp') { spr = 'st_warp'; label = '→ ' + s.base.name; }
-      else if (s.kind === 'stats') { spr = 'ob_rock'; label = '記録の石碑'; }
+      const v = stationVisual(s);
       const glow = H.interact === s;
-      // 施設の足元の常時グロー
-      const gg = g.createRadialGradient(s.x, s.y + 20, 4, s.x, s.y + 20, s.small ? 44 : 66);
+      const gg = g.createRadialGradient(s.x, s.y + 20, 4, s.x, s.y + 20, 66);
       gg.addColorStop(0, glow ? 'rgba(255,215,102,.30)' : 'rgba(118,227,234,.12)');
       gg.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = gg;
-      g.beginPath(); g.arc(s.x, s.y + 20, s.small ? 44 : 66, 0, 7); g.fill();
-      Sprites.draw(g, spr, s.x, s.y, s.small ? 52 : 84);
+      g.beginPath(); g.arc(s.x, s.y + 20, 66, 0, 7); g.fill();
+      Sprites.draw(g, v.spr, s.x, s.y, 84);
       g.fillStyle = glow ? '#ffd766' : '#c9d1d9';
-      g.font = (s.small ? '11px' : '13px') + ' sans-serif'; g.textAlign = 'center';
-      g.fillText(label, s.x, s.y + (s.small ? 40 : 60));
+      g.font = '13px sans-serif'; g.textAlign = 'center';
+      g.fillText(v.label, s.x, s.y + 60);
     }
 
     // プレイヤー(魂verは少し透ける)
@@ -253,10 +411,42 @@ const Hub = (() => {
     g.fillStyle = 'rgba(0,0,0,.5)';
     g.fillRect(0, 0, W, 40);
     g.fillStyle = '#ffd766'; g.font = 'bold 17px sans-serif'; g.textAlign = 'left';
-    g.fillText('魂の広場  🪙 ' + fmtNum(SaveSys.data.coins), 14, 26);
+    g.fillText(areaName() + '  🪙 ' + fmtNum(SaveSys.data.coins), 14, 26);
     g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'right';
     g.fillText('周回 ' + SaveSys.data.stats.runs + ' / 最長 ' + fmtTime(SaveSys.data.stats.bestTime), W - 14, 26);
+
+    drawFacilityMap(g, W);
   }
 
-  return { enter, update, draw, doInteract, get state(){ return H; } };
+  // 施設マップ: どこに何のパワーアップ施設があるか一目でわかる
+  function drawFacilityMap(g, W){
+    const bnd = bounds();
+    const mw = Math.min(200, Math.floor(W * 0.36));
+    const scale = mw / (bnd.x1 - bnd.x0);
+    const mh = Math.ceil((bnd.y1 - bnd.y0) * scale);
+    const x0 = W - mw - 10, y0 = 48;
+    g.fillStyle = 'rgba(5,9,18,.72)';
+    g.fillRect(x0, y0, mw, mh);
+    g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, mw, mh);
+    const pt = (wx, wy) => ({ x: x0 + (wx - bnd.x0) * scale, y: y0 + (wy - bnd.y0) * scale });
+    g.textAlign = 'center';
+    for (const s of H.list) {
+      const q = pt(s.x, s.y);
+      const col = s.kind === 'gate' ? '#76e3ea' : s.kind === 'stats' ? '#8b949e' : '#ffd766';
+      g.fillStyle = col;
+      g.beginPath(); g.arc(q.x, q.y, 3, 0, 7); g.fill();
+      const v = stationVisual(s);
+      const short = s.kind === 'meta' && SHORT_NAMES[s.st] ? SHORT_NAMES[s.st] : v.short;
+      g.font = '9px sans-serif';
+      g.fillStyle = H.interact === s ? '#ffd766' : '#c9d1d9';
+      g.fillText(short, q.x, q.y - 6);
+    }
+    const pq = pt(H.player.x, H.player.y);
+    g.fillStyle = '#fff';
+    g.beginPath(); g.arc(pq.x, pq.y, 3, 0, 7); g.fill();
+    g.fillStyle = '#8b949e'; g.font = '10px sans-serif';
+    g.fillText('施設マップ', x0 + mw / 2, y0 + mh + 12);
+  }
+
+  return { enter, update, draw, doInteract, travel, get state(){ return H; } };
 })();

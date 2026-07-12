@@ -14,7 +14,7 @@ const Skills = (() => {
   let cat = 'all';     // カテゴリフィルタ
 
   function reset(){
-    owned = { bolt: 1 };
+    owned = {};   // 攻撃手段は武器庫(魂の広場)管理になり、スキルは補助・仲間・敵干渉・心得
     mats = {};
     SaveSys.data.skillsRevealed = SaveSys.data.skillsRevealed || {};
     revealed = SaveSys.data.skillsRevealed;

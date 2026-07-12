@@ -146,6 +146,7 @@ const Run = (() => {
     R.bossAlive = null;
     R.mmWorld = false;   // ミニマップ: false=周辺 / true=全体
     R.over = false;
+    lootFeed = []; if (lootEl) lootEl.innerHTML = '';
     // 骸骨の軍勢: 開始時から仲間を連れて出撃
     const army = Math.ceil(SaveSys.metaLv('g_bones_army') / 2);
     for (let i = 0; i < army; i++) {
@@ -198,6 +199,13 @@ const Run = (() => {
     R.popups.push({ x, y, txt, color, t:0.8 });
   }
 
+  // 現在の攻撃手段(武器庫で選択)。key が選択中の武器ならそのレベルの性能を返す
+  function wstat(key){
+    if (SaveSys.data.weapon !== key) return null;
+    const lv = SaveSys.weaponLv(key);
+    return lv > 0 ? DATA.WEAPONS[key].stats(lv) : null;
+  }
+
   function killEnemy(e, opts = {}){
     if (e.dead) return;
     e.dead = true;
@@ -209,7 +217,10 @@ const Run = (() => {
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
-    const valueMul = (e.boss || e.def.isReaper) ? 0.9 : (0.36 + Math.random() * 0.18);
+    // 武器の成長がハブ(コイン)管理になったぶん、コインは気持ち多めに落ちる。
+    // ただし同じ周回で狩り続けるほど相場が下がる(無限farm対策: 1200体で半減)
+    const glut = 1 / (1 + R.kills / 1200);
+    const valueMul = (e.boss || e.def.isReaper) ? 0.9 : (0.55 + Math.random() * 0.25) * glut;
     const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * valueMul));
     dropPickup(e.x, e.y, { type:'coin', value:c });
     // 素材ドロップ(エリアの得意素材は2倍出やすい)
@@ -381,12 +392,7 @@ const Run = (() => {
         else if (pk.type === 'mat') {
           Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat();
           effect('spark', pk.x, pk.y, { color: DATA.MATERIALS[pk.mat].color });
-          // 「〜を手に入れた」テキスト(同じ素材の連続入手は間引く)
-          R.matPopT = R.matPopT || {};
-          if (R.time - (R.matPopT[pk.mat] || -9) > 0.8) {
-            R.matPopT[pk.mat] = R.time;
-            popup(p.x, p.y - 34, DATA.MATERIALS[pk.mat].name + ' を手に入れた', DATA.MATERIALS[pk.mat].color);
-          }
+          lootAdd(pk.mat);   // 画面左上の入手フィードに表示(戦闘の混雑に埋もれない)
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         R.pickups.splice(i, 1);
@@ -854,7 +860,7 @@ const Run = (() => {
   function updateSkills(dt){
     const p = R.player, st = R.stats, area = st.area;
     // --- マジックボルト ---
-    const bolt = Skills.stat('bolt');
+    const bolt = wstat('bolt');
     if (bolt && cdReady('bolt', bolt.cd)) {
       const tgt = nearestEnemy(p.x, p.y, effRange(360)) || nearestObject(p.x, p.y, effRange(280));
       if (tgt) {
@@ -869,7 +875,7 @@ const Run = (() => {
       } else R.cd['bolt'] = R.time + 0.15;
     }
     // --- 追尾ミサイル ---
-    const hom = Skills.stat('homing');
+    const hom = wstat('homing');
     if (hom && cdReady('homing', hom.cd)) {
       for (let i = 0; i < hom.count; i++) {
         const a = Math.random() * Math.PI * 2;
@@ -879,7 +885,7 @@ const Run = (() => {
       }
     }
     // --- ブーメランアクス ---
-    const axe = Skills.stat('axe');
+    const axe = wstat('axe');
     if (axe && cdReady('axe', axe.cd)) {
       for (let i = 0; i < axe.count; i++) {
         const tgt = nearestEnemy(p.x, p.y, effRange(420));
@@ -890,7 +896,7 @@ const Run = (() => {
       }
     }
     // --- チェインライトニング ---
-    const ch = Skills.stat('chain');
+    const ch = wstat('chain');
     if (ch && cdReady('chain', ch.cd)) {
       let cur = nearestEnemy(p.x, p.y, ch.range * area) || nearestObject(p.x, p.y, ch.range * area * 0.6);
       const hit = new Set();
@@ -915,7 +921,7 @@ const Run = (() => {
       }
     }
     // --- フレイムリング ---
-    const fl = Skills.stat('flame');
+    const fl = wstat('flame');
     if (fl && cdReady('flame', fl.cd)) {
       const rad = fl.radius * area;
       effect('flamering', p.x, p.y, { r:rad });
@@ -928,7 +934,7 @@ const Run = (() => {
       damageObjectsIn(p.x, p.y, rad, fl.dmg);
     }
     // --- フロストノヴァ ---
-    const nv = Skills.stat('nova');
+    const nv = wstat('nova');
     if (nv && cdReady('nova', nv.cd)) {
       const rad = nv.radius * area;
       effect('ring', p.x, p.y, { color:'#76e3ea', r:rad });
@@ -942,13 +948,13 @@ const Run = (() => {
       damageObjectsIn(p.x, p.y, rad, nv.dmg);
     }
     // --- ポイズンミスト ---
-    const po = Skills.stat('poison');
+    const po = wstat('poison');
     if (po && cdReady('poison', po.interval)) {
       R.zones.push({ x:p.x, y:p.y, size:po.size * area, until:R.time + po.dur, dps:po.dps, shred:po.shred });
       if (R.zones.length > 40) R.zones.shift();
     }
     // --- サンダーフォール ---
-    const th = Skills.stat('thunder');
+    const th = wstat('thunder');
     if (th && cdReady('thunder', th.cd)) {
       const thR = effRange(400);
       const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < thR);
@@ -967,7 +973,7 @@ const Run = (() => {
       }
     }
     // --- オートタレット ---
-    const tu = Skills.stat('turret');
+    const tu = wstat('turret');
     if (tu) {
       if (cdReady('turret', tu.placeCd) && R.turrets.length < tu.maxTurrets) {
         R.turrets.push({ x:p.x, y:p.y, until:R.time + tu.life, fireCd:0 });
@@ -1009,7 +1015,7 @@ const Run = (() => {
       }
     }
     // --- プリズムレーザー ---
-    const la = Skills.stat('laser');
+    const la = wstat('laser');
     if (la && cdReady('laser', la.cd)) {
       const dirs = la.beams === 1 ? [p.moveA] :
                    la.beams === 2 ? [p.moveA, p.moveA + Math.PI] :
@@ -1021,7 +1027,7 @@ const Run = (() => {
       }
     }
     // --- メテオストーム ---
-    const me = Skills.stat('meteor');
+    const me = wstat('meteor');
     if (me && cdReady('meteor', me.cd)) {
       for (let i = 0; i < me.count; i++) {
         const x = p.x + rnd(-380, 380), y = p.y + rnd(-280, 280);
@@ -1037,7 +1043,7 @@ const Run = (() => {
       effect('ring', p.x, p.y, { color:'#d29922', r:R.sandsRadius });
     }
     // --- ドラゴンブレス ---
-    const br = Skills.stat('dragonbreath');
+    const br = wstat('dragonbreath');
     if (br) {
       if (cdReady('breath', br.cd)) { R.breathUntil = R.time + br.dur; }
       if (R.breathUntil && R.time < R.breathUntil) {
@@ -1061,7 +1067,7 @@ const Run = (() => {
       }
     }
     // --- 虹の奔流(実績解放: 回転する虹光線) ---
-    const przz = Skills.stat('prism_ray');
+    const przz = wstat('prism_ray');
     if (przz && cdReady('prism_ray', przz.cd)) {
       for (let i = 0; i < przz.beams; i++) {
         const a = R.time * przz.spin + i / przz.beams * Math.PI * 2;
@@ -1187,7 +1193,7 @@ const Run = (() => {
   function updateProjectiles(dt){
     const p = R.player;
     // オービット
-    const ob = Skills.stat('orbit');
+    const ob = wstat('orbit');
     if (ob) {
       R.orbitA = (R.orbitA || 0) + ob.spin * dt;
       for (let i = 0; i < ob.count; i++) {
@@ -1617,7 +1623,7 @@ const Run = (() => {
     }
 
     // タレット
-    const tu = Skills.stat('turret');
+    const tu = wstat('turret');
     for (const t of R.turrets) {
       Sprites.draw(g, 'sk_turret', t.x, t.y, 30);
     }
@@ -1688,7 +1694,7 @@ const Run = (() => {
     }
 
     // オービット描画
-    const ob = Skills.stat('orbit');
+    const ob = wstat('orbit');
     if (ob) {
       for (let i = 0; i < ob.count; i++) {
         const a = (R.orbitA || 0) + i / ob.count * Math.PI * 2;
@@ -1840,8 +1846,8 @@ const Run = (() => {
   }
 
   function drawMinimap(g, W){
-    // マップは最初の基地を解放する(=古い地図をもらう)まで存在しない
-    if (Object.keys(SaveSys.data.bases).length < 1) return;
+    // マップは書庫の「古い地図の修復」を買うまで存在しない(地図は最初の基地の解放で入手)
+    if (!SaveSys.metaLv('lib_map')) return;
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     const x0 = W - sz - 10, y0 = 10;
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
@@ -1896,11 +1902,35 @@ const Run = (() => {
   const timerEl = document.getElementById('timer');
   const coinEl = document.getElementById('coin-text');
   const allyView = document.getElementById('ally-view');
+  const lootEl = document.getElementById('loot-feed');
   const warnEl = document.getElementById('warn-banner');
   const hintEl = document.getElementById('interact-hint');
   let hudAcc = 0;
+  let lootFeed = [];   // 素材入手フィード { mat, n, t }
+
+  function lootAdd(mat){
+    const e = lootFeed.find(l => l.mat === mat);
+    if (e) { e.n++; e.t = 2.4; }
+    else { lootFeed.push({ mat, n: 1, t: 2.4 }); if (lootFeed.length > 5) lootFeed.shift(); }
+  }
+  function renderLoot(){
+    let h = '';
+    for (const l of lootFeed) {
+      const md = DATA.MATERIALS[l.mat];
+      h += `<div class="loot-line" style="opacity:${Math.min(1, l.t * 1.5).toFixed(2)}">
+        <span class="mat-dot" style="background:${md.color}"></span>${md.name}${l.n > 1 ? ' ×' + l.n : ''} を手に入れた</div>`;
+    }
+    lootEl.innerHTML = h;
+  }
 
   function updateHud(dt){
+    // 入手フィードの減衰は毎フレーム(表示の消え際をなめらかに)
+    let lootDirty = lootFeed.length > 0;
+    for (let i = lootFeed.length - 1; i >= 0; i--) {
+      lootFeed[i].t -= dt;
+      if (lootFeed[i].t <= 0) lootFeed.splice(i, 1);
+    }
+    if (lootDirty) renderLoot();
     hudAcc -= dt;
     if (hudAcc > 0) return;
     hudAcc = 0.15;
