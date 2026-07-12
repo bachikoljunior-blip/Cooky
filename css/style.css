@@ -21,11 +21,8 @@ canvas#game { position:absolute; inset:0; width:100%; height:100%; display:block
 #coin-view, #danger-view, #dist-view { background:rgba(5,9,18,.55); padding:3px 10px; border-radius:12px;
   border:1px solid rgba(255,255,255,.08); }
 #coin-view { font-size:16px; font-weight:bold; text-shadow:0 2px 4px #000; }
-#mat-strip { position:absolute; top:44px; left:10px; display:flex; flex-wrap:wrap; gap:4px;
-  max-width:calc(100vw - 200px); }
-.mat-chip { display:flex; align-items:center; gap:3px; background:rgba(0,0,0,.55); border-radius:10px; padding:1px 7px 1px 3px; font-size:12px; }
 .mat-dot { width:10px; height:10px; border-radius:50%; border:1px solid #000; }
-#ally-view { position:absolute; top:70px; left:10px; font-size:13px; text-shadow:0 1px 2px #000; }
+#ally-view { position:absolute; top:44px; left:10px; font-size:13px; text-shadow:0 1px 2px #000; }
 #warn-banner { position:absolute; top:18%; left:0; right:0; text-align:center; font-size:30px; font-weight:bold;
   color:#ff7b72; text-shadow:0 0 12px #f00, 0 2px 4px #000; animation:blink 1s infinite; }
 @keyframes blink { 50% { opacity:.25; } }
@@ -145,17 +142,15 @@ body.pad-visible #touch-buttons { display:flex; }
   .panel { width:100vw; height:100vh; border-radius:0; padding:10px; }
   .big-btn { padding:14px; }
   .buy-btn { padding:12px 14px; }
-  #mat-strip { top:64px; max-width:calc(100vw - 145px); }
-  #ally-view { top:88px; }
-  .stab { font-size:13px; padding:8px 2px; }
+  #ally-view { top:64px; }
+  .stab { font-size:12px; padding:8px 1px; white-space:nowrap; }
+  #skill-tabs { gap:4px; }
   .scat { padding:5px 9px; font-size:12px; }
 }
 
-/* ---------- クエスト(RPGシーン) ---------- */
+/* ---------- クエスト(マップ内) ---------- */
 #quest-obj { position:absolute; top:44px; left:0; right:0; text-align:center; z-index:6;
   font-size:16px; font-weight:bold; color:#ffd766; text-shadow:0 2px 4px #000; pointer-events:none; }
-#quest-exit { position:absolute; top:74px; left:10px; z-index:8; padding:8px 12px; font-size:12px;
-  background:rgba(13,17,23,.75); color:#8b949e; border:1px solid #30363d; border-radius:10px; }
 #dialog-box { position:absolute; left:50%; transform:translateX(-50%); bottom:18px; z-index:22;
   width:min(620px, 94vw); background:linear-gradient(160deg, rgba(22,29,44,.97), rgba(13,17,23,.97));
   border:1px solid #3a4763; border-radius:14px; padding:14px 16px;

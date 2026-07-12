@@ -150,7 +150,24 @@ const Skills = (() => {
     </div>`;
   }
 
-  // ステータスタブ: 現在の能力値と所持素材(ゲームは止まったまま)
+  // 素材タブ: 所持素材の一覧(ゲームは止まったまま)
+  function matsHtml(){
+    let h = '<div class="sec-head">所持素材</div><div class="st-grid">';
+    let any = false;
+    for (const m in DATA.MATERIALS) {
+      const n = matCount(m);
+      if (!matUnlocked(m) && !n) continue;
+      any = true;
+      const md = DATA.MATERIALS[m];
+      h += `<div class="st-cell"><span class="st-k"><span class="mat-dot" style="background:${md.color};display:inline-block;margin-right:4px"></span>${md.name}</span><span class="st-v">${n}</span></div>`;
+    }
+    h += '</div>';
+    if (!any) h += '<p class="small" style="padding:8px 4px">まだ素材がない。敵やオブジェクトを壊すと手に入る。</p>';
+    else h += '<p class="small" style="padding:8px 4px">エリアごとに採れやすい素材が違う。レア素材は特定のレアモンスター・オブジェクト限定。</p>';
+    return h;
+  }
+
+  // ステータスタブ: 現在の能力値(ゲームは止まったまま)
   function statusHtml(){
     const st = (typeof Run !== 'undefined' && Run.state && Run.state.stats) ? Run.state.stats : null;
     if (!st) return '<p class="small" style="padding:20px">周回中のみ表示できる。</p>';
@@ -176,16 +193,6 @@ const Skills = (() => {
     ];
     let h = '<div class="sec-head">ステータス</div><div class="st-grid">';
     for (const [k, v] of rows) h += `<div class="st-cell"><span class="st-k">${k}</span><span class="st-v">${v}</span></div>`;
-    h += '</div><div class="sec-head">所持素材</div><div class="st-grid">';
-    let any = false;
-    for (const m in DATA.MATERIALS) {
-      const n = matCount(m);
-      if (!matUnlocked(m) && !n) continue;
-      any = true;
-      const md = DATA.MATERIALS[m];
-      h += `<div class="st-cell"><span class="st-k"><span class="mat-dot" style="background:${md.color};display:inline-block;margin-right:4px"></span>${md.name}</span><span class="st-v">${n}</span></div>`;
-    }
-    if (!any) h += '<p class="small">まだ素材がない。</p>';
     return h + '</div>';
   }
 
@@ -219,11 +226,12 @@ const Skills = (() => {
       <button class="stab ${tab==='up'?'on':''}" data-tab="up">強化 <span class="stab-n">${upIds.length}</span>${upBadge ? '<span class="stab-badge">'+upBadge+'</span>' : ''}</button>
       <button class="stab ${tab==='new'?'on':''}" data-tab="new">新規 <span class="stab-n">${newIds.length}</span>${newBadge ? '<span class="stab-badge">'+newBadge+'</span>' : ''}</button>
       <button class="stab ${tab==='info'?'on':''}" data-tab="info">効果一覧</button>
+      <button class="stab ${tab==='mat'?'on':''}" data-tab="mat">素材</button>
       <button class="stab ${tab==='st'?'on':''}" data-tab="st">ステータス</button>`;
     tabsEl.querySelectorAll('.stab').forEach(b => b.onclick = () => { tab = b.dataset.tab; render(); });
 
     // カテゴリタブ(取得/強化できるものがあるカテゴリには●)
-    if (tab === 'info' || tab === 'st') { catsEl.innerHTML = ''; }
+    if (tab === 'info' || tab === 'st' || tab === 'mat') { catsEl.innerHTML = ''; }
     else {
       const ids = tab === 'up' ? upIds : newIds;
       let ch = `<button class="scat ${cat==='all'?'on':''}" data-cat="all">全て${catCount('all', ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
@@ -238,6 +246,8 @@ const Skills = (() => {
     let h = '';
     if (tab === 'st') {
       h = statusHtml();
+    } else if (tab === 'mat') {
+      h = matsHtml();
     } else if (tab === 'info') {
       const ids = Object.keys(owned);
       h = ids.length ? ids.map(infoCard).join('') : '<p class="small" style="padding:20px">まだスキルがない。</p>';

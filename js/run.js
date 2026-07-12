@@ -1886,7 +1886,6 @@ const Run = (() => {
   const hpText = document.getElementById('hp-text');
   const timerEl = document.getElementById('timer');
   const coinEl = document.getElementById('coin-text');
-  const matStrip = document.getElementById('mat-strip');
   const allyView = document.getElementById('ally-view');
   const warnEl = document.getElementById('warn-banner');
   const hintEl = document.getElementById('interact-hint');
@@ -1909,15 +1908,6 @@ const Run = (() => {
     dEl.textContent = '☠ 危険度 ' + danger;
     dEl.style.color = danger <= 2 ? '#7ee787' : danger <= 4 ? '#ffd766' : danger <= 8 ? '#f85149' : '#c084fc';
     document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
-    // 素材チップ
-    let h = '';
-    const mats = Skills.mats();
-    for (const m in mats) {
-      if (!mats[m]) continue;
-      const md = DATA.MATERIALS[m];
-      h += `<span class="mat-chip"><span class="mat-dot" style="background:${md.color}"></span>${mats[m]}</span>`;
-    }
-    matStrip.innerHTML = h;
     const waiting = R.allies.filter(a => a.waitAt).length;
     allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
     // スキルボタン: 「まだ見ていない」取得可能スキルがあれば光る(開けば消える)
