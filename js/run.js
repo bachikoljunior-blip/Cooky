@@ -625,12 +625,20 @@ const Run = (() => {
         }
       }
     }
-    // 敵弾
+    // 敵弾(プレイヤーにも仲間にも当たる)
     for (let i = R.eprojs.length - 1; i >= 0; i--) {
       const b = R.eprojs[i];
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.life <= 0) { R.eprojs.splice(i, 1); continue; }
-      if (Math.hypot(b.x - p.x, b.y - p.y) < 16) { damagePlayer(b.dmg); R.eprojs.splice(i, 1); }
+      if (Math.hypot(b.x - p.x, b.y - p.y) < 16) { damagePlayer(b.dmg); R.eprojs.splice(i, 1); continue; }
+      for (const a of R.allies) {
+        if (a.waitAt || a.dead) continue;
+        if (Math.hypot(b.x - a.x, b.y - a.y) < a.def.r + 5) {
+          damageAlly(a, b.dmg * 0.35, b);   // 接触と同じく仲間への弾ダメージは控えめ
+          R.eprojs.splice(i, 1);
+          break;
+        }
+      }
     }
   }
 
@@ -694,8 +702,9 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      // ターゲット探索: 陣形半径+αの敵のみ(仲間は主人公から一定以上離れない)
-      const leash = formationRadius(n) + 110;
+      // ターゲット探索: 陣形のすぐ外まで来た敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
+      const formR = formationRadius(n);
+      const leash = formR + 60;
       let tgt = null, td = leash;
       for (const e of R.enemies) {
         if (e.dead) continue;
@@ -746,9 +755,9 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ: 主人公から一定以上は絶対に離れない
+      // ハードリーシュ: 陣形の少し外まで。敵を追って主人公から離れることはない
       {
-        const maxD = formationRadius(n) + 150;
+        const maxD = formR + 80;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
