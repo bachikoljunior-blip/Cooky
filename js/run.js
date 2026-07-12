@@ -118,6 +118,9 @@ const Run = (() => {
         case 'reaperResAdd':s.reaperRes = Math.min(0.95, s.reaperRes + v); break;
         case 'allyAtkMul':  s.allyAtk *= 1 + v; break;
         case 'allyHpMul':   s.allyHp *= 1 + v; break;
+        case 'allyRegenAdd':  s.allyRegen += v; break;
+        case 'allyReviveAdd': s.allyReviveChance = Math.min(0.8, s.allyReviveChance + v); break;
+        case 'allyAtkSpdAdd': s.allyAtkSpd = Math.min(0.6, s.allyAtkSpd + v); break;
         case 'recruitAdd':  s.recruit += v; break;
         case 'thornsAdd':   s.thorns += v; break;
         case 'boatMul':     s.boatSpeed *= 1 + v; break;
@@ -473,10 +476,10 @@ const Run = (() => {
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
     const rate = (0.5 + min * 0.24 + ring0 * 0.18) * (isReaperTime ? 0.5 : 1);
     R.spawnAcc += dt * rate;
-    const cap = Math.min(240, 20 + R.time * 0.6 + ring0 * 8);
+    const cap = Math.min(280, 20 + R.time * 0.6 + ring0 * 8);
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (R.enemies.length >= cap) break;
+      if (R.enemies.length >= cap) break;   // 見切れた敵は反対側から登場し直すので圧は途切れない
       const tier = allowedTier();
       const onSea = !World.isLand(R.player.x, R.player.y);
       const pool = [];
@@ -540,9 +543,18 @@ const Run = (() => {
     for (let i = R.enemies.length - 1; i >= 0; i--) {
       const e = R.enemies[i];
       if (e.dead) { R.enemies.splice(i, 1); continue; }
-      // 遠すぎたら消滅(ボスは除く)
-      const pd = Math.hypot(e.x - p.x, e.y - p.y);
-      if (pd > 1500 && !e.boss) { R.enemies.splice(i, 1); continue; }
+      // 画面から見切れた敵は消えず、プレイヤーの反対側から登場し直す
+      // (下限820: 出現直後の敵(560-760)が即座に巻き直されるのを防ぐ)
+      let pd = Math.hypot(e.x - p.x, e.y - p.y);
+      if (pd > Math.max(R.offscreenR || 950, 820) && !e.boss && !e.def.isReaper && !e.def.rare) {
+        const nd = rnd(560, 760);
+        for (let t = 0; t < 3; t++) {
+          // 反対側(プレイヤーの向こう)へ。地形が合わなければ数回だけ別角度を試す
+          const ang = t === 0 ? Math.atan2(p.y - e.y, p.x - e.x) : Math.random() * 7;
+          const nx = p.x + Math.cos(ang) * nd, ny = p.y + Math.sin(ang) * nd;
+          if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; pd = nd; break; }
+        }
+      }
       e.flash = Math.max(0, e.flash - dt);
       e.contactCd = Math.max(0, e.contactCd - dt);
       // 燃焼・時間系
@@ -721,15 +733,25 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      // ターゲット探索: 陣形のすぐ外まで来た敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
+      // ターゲット探索: 陣形に触れるほど近づいた敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
       const formR = formationRadius(n);
-      const leash = formR + 60;
+      const leash = formR + 12;
       let tgt = null, td = leash;
       for (const e of R.enemies) {
         if (e.dead) continue;
         if (Math.hypot(e.x - p.x, e.y - p.y) > leash) continue;
         const d = Math.hypot(e.x - a.x, e.y - a.y);
         if (d < td) { tgt = e; td = d; }
+      }
+      // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる
+      if (tgt) {
+        const ax2 = R.botAxis || Input.axis();
+        if (ax2.x || ax2.y) {
+          const dx = tgt.x - p.x, dy = tgt.y - p.y;
+          const dl = Math.hypot(dx, dy) || 1;
+          const al = Math.hypot(ax2.x, ax2.y) || 1;
+          if ((dx * ax2.x + dy * ax2.y) / (dl * al) < -0.15) tgt = null;
+        }
       }
       let dest, spd = a.speed * spdMul;
       if (tgt) {
@@ -774,9 +796,9 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ: 陣形の少し外まで。敵を追って主人公から離れることはない
+      // ハードリーシュ: 陣形のほんの少し外まで。敵を追って主人公から離れることはない
       {
-        const maxD = formR + 80;
+        const maxD = formR + 16;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
@@ -1517,6 +1539,7 @@ const Run = (() => {
     const z = R.zoom || 1;
     const effW = W / z, effH = H / z;
     const camX = p.x - effW/2, camY = p.y - effH/2;
+    R.offscreenR = Math.hypot(effW, effH) / 2 + 140;   // これより遠い敵は「見切れた」扱い
 
     g.save();
     g.scale(z, z);

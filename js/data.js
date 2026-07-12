@@ -114,10 +114,10 @@ DATA.SKILLS = {
       crit:(lv>=4?0.05:0)+(lv>=6?0.07:0) }),
   },
   focus: {
-    name:'集中詠唱', cat:'sup', icon:'sk_focus',
-    desc:'【武器】スキルの発動間隔が短くなる。連射は正義。',
+    name:'速撃の構え', cat:'sup', icon:'sk_focus',
+    desc:'【武器】攻撃の間隔が短くなり、手数が増える。',
     cost:(lv)=>matCost(lv,{crystal:3,bone:4},[{from:4,mat:'magic',qty:3},{from:6,mat:'star',qty:1}]),
-    lvText:['発動間隔-5%','効果範囲+10%','発動間隔-5%','効果範囲+10%','発動間隔-6%','発動間隔-4%','発動間隔-4%'],
+    lvText:['攻撃間隔-5%','効果範囲+10%','攻撃間隔-5%','効果範囲+10%','攻撃間隔-6%','攻撃間隔-4%','攻撃間隔-4%'],
     stats:(lv)=>({ cdr:0.06+(lv>=2?0.05:0)+(lv>=4?0.05:0)+(lv>=6?0.06:0)+(lv>=7?0.04:0)+(lv>=8?0.04:0),
       area:(lv>=3?1.1:1)*(lv>=5?1.1:1) }),
   },
@@ -141,7 +141,7 @@ DATA.SKILLS = {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
     desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:4,mat:'star',qty:2}]),
-    lvText:['混乱数+1','混乱時間+50%','混乱数+2','発動間隔-25%','混乱数+2・時間さらに+'],
+    lvText:['混乱数+1','混乱時間+50%','混乱数+2','再発動-25%','混乱数+2・時間さらに+'],
     stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
       dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340 }),
   },
@@ -149,7 +149,7 @@ DATA.SKILLS = {
     name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',
     desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:3,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
-    lvText:['被ダメ増+10%','減速強化','発動間隔-25%','被ダメ増+15%','範囲拡大'],
+    lvText:['被ダメ増+10%','減速強化','再発動-25%','被ダメ増+15%','範囲拡大'],
     stats:(lv)=>({ radius:260+(lv>=6?100:0), shred:0.2+(lv>=2?0.1:0)+(lv>=5?0.15:0),
       slow:0.1+(lv>=3?0.15:0), dur:4, cd:6*(lv>=4?0.75:1) }),
   },
@@ -158,7 +158,7 @@ DATA.SKILLS = {
     name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands',
     desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:3,mat:'abyss',qty:1}]),
-    lvText:['減速率アップ','効果時間+50%','範囲拡大','発動間隔-25%','ほぼ静止級の減速'],
+    lvText:['減速率アップ','効果時間+50%','範囲拡大','再発動-25%','ほぼ静止級の減速'],
     stats:(lv)=>({ slow:0.4+(lv>=2?0.15:0)+(lv>=6?0.25:0), dur:3*(lv>=3?1.5:1),
       radius:220+(lv>=4?120:0), cd:12*(lv>=5?0.75:1) }),
   },
@@ -216,21 +216,21 @@ DATA.WEAPONS = {
   flame: {
     name:'フレイムリング', icon:'sk_flame', buy:420, up:wcost(85),
     desc:'周囲に炎の波動を放ち、触れた敵を燃やす。',
-    lvText:['範囲拡大','延焼ダメージ追加','威力+70%','発動間隔-30%','範囲拡大・威力+50%','延焼強化・威力+70%'],
+    lvText:['範囲拡大','延焼ダメージ追加','威力+70%','攻撃間隔-30%','範囲拡大・威力+50%','延焼強化・威力+70%'],
     stats:(lv)=>({ dmg:12*Math.pow(1.7,(lv>=4?1:0))*(lv>=6?1.5:1)*(lv>=7?1.7:1),
       radius:90+(lv>=2?30:0)+(lv>=6?40:0), cd:2.2*(lv>=5?0.7:1), burn:(lv>=3?4:0)*(lv>=7?2.5:1) }),
   },
   nova: {
     name:'フロストノヴァ', icon:'sk_nova', buy:550, up:wcost(90),
     desc:'氷の衝撃波で敵を減速させる。生存の要。',
-    lvText:['減速強化','範囲拡大','威力+80%','短時間の凍結付与','発動間隔-30%','凍結時間+・威力+80%'],
+    lvText:['減速強化','範囲拡大','威力+80%','短時間の凍結付与','攻撃間隔-30%','凍結時間+・威力+80%'],
     stats:(lv)=>({ dmg:8*Math.pow(1.8,(lv>=4?1:0)+(lv>=7?1:0)), radius:120+(lv>=3?50:0),
       slow:0.35+(lv>=2?0.2:0), slowDur:2.5, freeze:(lv>=5?0.6:0)+(lv>=7?0.6:0), cd:3.5*(lv>=6?0.7:1) }),
   },
   chain: {
     name:'チェインライトニング', icon:'sk_chain', buy:700, up:wcost(100),
     desc:'敵から敵へ連鎖する稲妻。集団に強い。',
-    lvText:['連鎖+2','威力+60%','連鎖+2','発動間隔-25%','威力+80%','連鎖+3・射程アップ'],
+    lvText:['連鎖+2','威力+60%','連鎖+2','攻撃間隔-25%','威力+80%','連鎖+3・射程アップ'],
     stats:(lv)=>({ dmg:16*Math.pow(1.6,(lv>=3?1:0)+(lv>=6?1:0)), jumps:3+(lv>=2?2:0)+(lv>=4?2:0)+(lv>=7?3:0),
       cd:2.4*(lv>=5?0.75:1), range:240*(lv>=7?1.3:1) }),
   },
@@ -286,14 +286,22 @@ DATA.WEAPONS = {
 };
 
 // ---- 「心得」パッシブスキル群: 素材の組み合わせごとに存在する多数の強化 ----
-// [id, 名前, 効果説明, 効果キー, 1Lvあたりの値, 表示単位, 素材A, 個数A, 素材B, 個数B]
+// スキルは仲間(軍勢)主体。主人公の攻撃関連は武器研磨・集中詠唱など一部のみ
+// [id, 名前, 効果説明, 効果キー, 1Lvあたりの値, 表示単位, 素材A, 個数A, 素材B, 個数B, カテゴリ]
 const PASSIVE_DEFS = [
+  // 仲間(軍勢)を育てる心得
+  ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',8,'wood',7, 'ally'],
+  ['p_vanguard','先陣の心得',     '仲間の攻撃力',         'allyAtkMul', .06,  '+6%',    'wood',7,'hide',6,  'ally'],
+  ['p_warcry',  '鬨の心得',       '仲間の攻撃間隔短縮',   'allyAtkSpdAdd',.03, '+3%',   'hide',7,'bone',6,  'ally'],
+  ['p_mend',    '軍医の心得',     '仲間のHP自動回復',     'allyRegenAdd',.008, '+0.8%/秒','jelly',7,'hide',5,'ally'],
+  ['p_stand',   '不倒の心得',     '仲間が倒れても踏みとどまる確率', 'allyReviveAdd', .05, '+5%', 'bone',7,'crystal',5, 'ally'],
+  ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .006, '+0.6%',  'hide',6,'jelly',6, 'ally'],
+  // 主人公・共通の心得
   ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
   ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
   ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',10,'scale',4],
   ['p_slayer',  '死神狩りの心得', 'リーパーへのダメージ', 'reaperMul',  .06,  '+6%',    'star',6,'abyss',4],
   ['p_warder',  '終焉守りの心得', 'リーパー被ダメ軽減',   'reaperResAdd',.02, '+2%',    'scale',6,'abyss',4],
-  ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',8,'wood',7],
   ['p_thorn',   '棘の心得',       '接触反撃ダメージ',     'thornsAdd',  4,    '+4',     'wood',8,'scrap',7],
   ['p_sea',     '海神の心得',     '船の速度',             'boatMul',    .06,  '+6%',    'shell',8,'coral',4],
   ['p_scholar', '学者の心得',     '素材2個ドロップ確率',  'luckAdd',    .03,  '+3%',    'crystal',7,'shell',5],
@@ -306,9 +314,9 @@ const PASSIVE_DEFS = [
   ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',6,'wood',10],
   ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',6,'shell',8],
 ];
-for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb] of PASSIVE_DEFS) {
+for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat] of PASSIVE_DEFS) {
   DATA.SKILLS[id] = {
-    name, icon: 'sk_' + id, cat: 'kokoroe',
+    name, icon: 'sk_' + id, cat: cat || 'kokoroe',
     desc: `【心得】${effDesc} ${unit}/Lv。素材を集め直すたびに積み重なる。`,
     cost: (lv) => matCost(lv, { [ma]: qa, [mb]: qb }),
     lvText: Array.from({ length: 9 }, (_, i) => `${effDesc} ${unit}(累計${i + 2}段)`),
@@ -492,7 +500,7 @@ DATA.META = {
   lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
   lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },
   lib_cap:      { st:'lib', name:'スキル上限解放', desc:'全スキルの最大レベル +1(基本5)', max:5, cost:gcost(1000,3.2) },
-  lib_cdr:      { st:'lib', name:'詠唱加速',       desc:'スキルの発動間隔 -2%(最大40%)', max:20, cost:gcost(80,1.42) },
+  lib_cdr:      { st:'lib', name:'速撃術',         desc:'武器の攻撃間隔 -2%(最大40%)', max:20, cost:gcost(80,1.42) },
   // --- 基地専用強化(基地を解放すると、その基地のマップの施設で買える) ---
   // fac: war=武練場(攻撃) / life=生命の祠(生存) / lore=秘宝の蔵(経済・仲間・特殊)
   // effAdd/effMul はデータ定義だけでステータスに反映される汎用効果
@@ -501,7 +509,7 @@ DATA.META = {
   g_north_supply:{ st:'b_north', fac:'lore', name:'兵站術',    desc:'素材ドロップ量 +3%', max:15, cost:gcost(180,1.42), effMul:{dropMul:.03} },
   g_east_area:   { st:'b_east', fac:'war',  name:'魔力増幅',   desc:'スキルの効果範囲 +4%',  max:20, cost:gcost(180,1.42) },
   g_east_ward:   { st:'b_east', fac:'life', name:'遺跡の結界', desc:'被ダメージ -1%', max:10, cost:gcost(220,1.45), effAdd:{armor:.01} },
-  g_east_cdr:    { st:'b_east', fac:'lore', name:'古代の叡智', desc:'スキル発動間隔 -1.5%(書庫と加算)', max:20, cost:gcost(180,1.42) },
+  g_east_cdr:    { st:'b_east', fac:'lore', name:'古代の叡智', desc:'武器の攻撃間隔 -1.5%(書庫と加算)', max:20, cost:gcost(180,1.42) },
   g_south_bless: { st:'b_south', fac:'war',  name:'清めの刃',  desc:'全ダメージ +3%', max:15, cost:gcost(200,1.42), effMul:{atk:.03} },
   g_south_heal:  { st:'b_south', fac:'life', name:'癒しの水',  desc:'HP自動回復 +1/秒',      max:15, cost:gcost(220,1.45) },
   g_south_potion:{ st:'b_south', fac:'lore', name:'霊薬精製',  desc:'敵が回復ポーション(HP20%)を落とす確率 +0.4%', max:10, cost:gcost(300,1.5) },
@@ -560,7 +568,7 @@ DATA.META = {
   g_sun_grace:   { st:'b_sun',   fac:'lore', name:'太陽の恩寵', desc:'攻撃・HP・移動速度 +2%', max:20, cost:gcost(40000,1.5) },
   g_void_edge:   { st:'b_void',  fac:'war',  name:'虚無の刃',  desc:'リーパーへのダメージ +6%', max:15, cost:gcost(42000,1.5), effMul:{reaperDmg:.06} },
   g_void_null:   { st:'b_void',  fac:'life', name:'虚無の帳',   desc:'リーパー耐性+2% / リーパー特効+5%', max:15, cost:gcost(45000,1.5) },
-  g_void_calm:   { st:'b_void',  fac:'lore', name:'無の悟り',  desc:'スキル発動間隔 -1%', max:10, cost:gcost(48000,1.55), effAdd:{cdr:.01} },
+  g_void_calm:   { st:'b_void',  fac:'lore', name:'無の悟り',  desc:'武器の攻撃間隔 -1%', max:10, cost:gcost(48000,1.55), effAdd:{cdr:.01} },
   // --- 実績で解放される強化項目 ---
   m_war:       { st:'altar', name:'戦意',     desc:'全ダメージ +2%',            max:10, cost:gcost(500,1.4),   unlockAch:'ach_kill1' },
   m_ashura:    { st:'altar', name:'修羅',     desc:'クリティカル率 +1.5%',      max:10, cost:gcost(5000,1.45), unlockAch:'ach_kill2' },
@@ -570,7 +578,7 @@ DATA.META = {
   m_bond2:     { st:'camp',  name:'友の絆',   desc:'仲間HP +6%',                max:10, cost:gcost(600,1.4),   unlockAch:'ach_recruit1' },
   m_legion:    { st:'camp',  name:'軍団旗',   desc:'仲間攻撃力 +6%',            max:10, cost:gcost(2000,1.45), unlockAch:'ach_allies20' },
   m_bosslore:  { st:'lib',   name:'弱点研究', desc:'ボスへのダメージ +5%',      max:10, cost:gcost(1500,1.45), unlockAch:'ach_boss1' },
-  m_satori:    { st:'lib',   name:'悟り',     desc:'スキル発動間隔 -1%',        max:10, cost:gcost(2500,1.5),  unlockAch:'ach_skills' },
+  m_satori:    { st:'lib',   name:'悟り',     desc:'武器の攻撃間隔 -1%',        max:10, cost:gcost(2500,1.5),  unlockAch:'ach_skills' },
   m_endbook:   { st:'lib',   name:'終焉の書', desc:'リーパー被ダメ -2%',        max:10, cost:gcost(8000,1.5),  unlockAch:'ach_time2' },
   m_reaplore:  { st:'lab',   name:'終焉の知識', desc:'リーパーへのダメージ +4%', max:10, cost:gcost(3000,1.45), unlockAch:'ach_reaper1' },
   m_cartography:{ st:'lab',  name:'地図学',   desc:'探索でマップに記録される範囲が広がる', max:4, cost:gcost(1500,1.8), unlockAch:'ach_dist1' },

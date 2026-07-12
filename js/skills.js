@@ -179,7 +179,7 @@ const Skills = (() => {
       ['移動速度', Math.round(st.speed)],
       ['射程', '+' + pct(st.range)],
       ['効果範囲', '+' + pct(st.area)],
-      ['発動間隔短縮', Math.round(st.cdr * 100) + '%'],
+      ['攻撃間隔短縮', Math.round(st.cdr * 100) + '%'],
       ['会心率', Math.round(st.crit * 100) + '%'],
       ['被ダメ軽減', Math.round(st.armor * 100) + '%'],
       ['回避率', Math.round(st.dodge * 100) + '%'],
