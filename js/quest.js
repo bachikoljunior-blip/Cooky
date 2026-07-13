@@ -150,41 +150,45 @@ const Quest = (() => {
     Sfx.unlock();
   }
 
-  // 基地解放時のストーリー進行(マップの解放と発見)
+  // 最寄りの未解放の主大陸の基地
+  function nextLockedBase(fx, fy){
+    let best = null, bd = 1e18;
+    for (const b of DATA.BASES) {
+      if (b.cont !== 'main' || SaveSys.data.bases[b.id]) continue;
+      const d = Math.hypot(b.x - fx, b.y - fy);
+      if (d < bd) { best = b; bd = d; }
+    }
+    return best;
+  }
+
+  // 基地解放時のストーリー進行: マップには常に「次の基地」を一つだけ記す
   function onBaseUnlocked(id, def){
     const n = Object.keys(SaveSys.data.bases).length;
     const face = def.npc || 'npc_elder';
     SaveSys.data.seen = SaveSys.data.seen || {};
+    const b0 = DATA.BASES.find(b => b.id === id);
+    const best = nextLockedBase(b0 ? b0.x : 0, b0 ? b0.y : 0);
+    if (best) { SaveSys.data.nextHint = best.id; SaveSys.data.seen[best.id] = true; }
+    else SaveSys.data.nextHint = null;   // 主大陸の基地を全て解放した
+
     if (n === 1) {
-      // 最初の基地: マップが使えるようになり、「次の拠点」が1つだけ記される
-      const b0 = DATA.BASES.find(b => b.id === id);
-      let best = null, bd = 1e18;
-      for (const b of DATA.BASES) {
-        if (b.cont !== 'main' || SaveSys.data.bases[b.id]) continue;
-        const d = Math.hypot(b.x - b0.x, b.y - b0.y);
-        if (d < bd) { best = b; bd = d; }
-      }
-      if (best) {
-        SaveSys.data.nextHint = best.id;
-        SaveSys.data.seen[best.id] = true;
-      }
       Game.dialog(def.npcName, face, [
         'これを持っていけ。この辺り一帯の古い地図じゃ。',
-        '…ほとんど擦り切れて読めんが、ひとつだけ、別の拠点の場所が記されておる。',
-        'マップを持っておるなら、この拠点の場所も記されるじゃろう。',
-        '(🗺 マップは魂の広場の「スキル書庫」でいつでも作成できる)',
+        '…擦り切れておるが、次の拠点の場所だけは読み取れる。',
+        'マップに印がついた。次はそこを目指すといい。',
+        '(🗺 マップは魂の広場の「スキル書庫」で作成できる。次の拠点が一つ記された)',
       ], null);
-    } else if (n === 2) {
-      // 2つ目の基地: 島の全容(他の基地と港)を知るストーリー
-      SaveSys.data.nextHint = null;
-      for (const b of DATA.BASES) if (b.cont === 'main') SaveSys.data.seen[b.id] = true;
+    } else if (best) {
+      Game.dialog(def.npcName, face, [
+        'よくやった。次に頼れる拠点の場所を教えよう。',
+        '(🗺 次の拠点がマップに一つ記された)',
+      ], null);
+    } else {
       for (const p of DATA.PORTS) SaveSys.data.seen[p.id] = true;
       Game.dialog(def.npcName, face, [
-        '…よくぞここまで来た。礼に、この島の全てを話そう。',
-        'この島にはワシらの他にも拠点を守る者たちがいる。皆、仲間を待っている。',
-        'そして沿岸には8つの港。どの船も嵐で壊れちまったが…',
-        '直せば海に出られる。海の向こうには、まだ見ぬ大陸があるという話じゃ。',
-        '(🗺 島の拠点と港の場所がマップに記された!)',
+        'この島の拠点は、これで全て解放された。見事じゃ。',
+        '沿岸の港を直せば、海の向こうの大陸へ行けるぞ。',
+        '(🗺 島の港の場所がマップに記された!)',
       ], null);
     }
   }

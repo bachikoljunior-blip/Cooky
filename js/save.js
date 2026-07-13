@@ -19,6 +19,7 @@ const SaveSys = (() => {
       ach: {},        // 解放済み実績 id -> true
       quests2: {},    // クリア済みの2段階目クエスト id -> true
       skillsRevealed: {},  // 一度リストに現れたスキル(素材が減っても・周回をまたいでも表示)
+      skillPins: [],       // 一番上に固定表示するスキル(先頭ほど上)
       explored: [],   // 行ったことのある場所(霧マップ用セル)
       settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
       seenHelp: false,

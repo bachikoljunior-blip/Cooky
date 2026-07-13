@@ -545,7 +545,7 @@ const Run = (() => {
       // aggroを大きく取り、遠くから湧いても諦めず突撃し続ける
       if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600 })) placed++;
     }
-    if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.boss(); }
+    if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
 
   function director(dt){
@@ -1004,13 +1004,14 @@ const Run = (() => {
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
-            if (d2 === 0) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; continue; }
+            if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
             const d = Math.sqrt(d2), tot = (rr - d) * 0.32;
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
-            // 質量の逆比で分配: 重い(強い)方はあまり動かない
-            u.x -= nx * tot * (mv / (mu + mv)); u.y -= ny * tot * (mv / (mu + mv));
-            v.x += nx * tot * (mu / (mu + mv)); v.y += ny * tot * (mu / (mu + mv));
+            // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
+            const uImm = u === pl, vImm = v === pl;
+            if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); u.x -= nx * tot * f; u.y -= ny * tot * f; }
+            if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); v.x += nx * tot * f; v.y += ny * tot * f; }
           }
         }
       }
@@ -1820,9 +1821,19 @@ const Run = (() => {
     // ピックアップ
     for (const pk of R.pickups) {
       const bob = Math.sin(pk.t * 5) * 3;
-      if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 16);
-      else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 18);
-      else Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 16);
+      if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 22);
+      else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 26);
+      else {
+        // 素材は大きく見やすく + 素材色の淡いグローで目立たせる
+        const md = DATA.MATERIALS[pk.mat];
+        if (md) {
+          g.globalAlpha = 0.35;
+          g.fillStyle = md.color;
+          g.beginPath(); g.arc(pk.x, pk.y + bob, 15, 0, 7); g.fill();
+          g.globalAlpha = 1;
+        }
+        Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);
+      }
     }
 
     // タレット
@@ -1880,7 +1891,8 @@ const Run = (() => {
         g.fillStyle = 'rgba(118,227,234,.4)';
         g.beginPath(); g.arc(e.x, e.y, e.def.r + 4, 0, 7); g.fill();
       }
-      if (e.hp < e.maxHp && !e.boss) drawBar(g, e.x, e.y - e.def.r - 10, e.def.r * 2, e.hp / e.maxHp, '#f85149');
+      // HPゲージは全モンスター共通仕様(大きさに依らず一定幅・一定の高さ位置)
+      if (e.hp < e.maxHp && !e.boss) drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 10, 28, e.hp / e.maxHp, '#f85149');
       if (e.def.heal) {
         g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
         g.fillText('✚', e.x, e.y - e.def.r - 12);

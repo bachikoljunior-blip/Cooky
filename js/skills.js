@@ -10,14 +10,32 @@ const Skills = (() => {
   let mats = {};       // mat -> count
   let revealed = {};   // 一度素材が揃って表示されたスキル(SaveSysに永続化: 周回をまたいでも表示され続ける)
   let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
+  let pinned = [];     // 一番上に固定表示するスキル(先頭ほど上。新しく固定するほど前のは下へ)
   let tab = 'new';     // 強化 up / 新規 new / 効果 info / ステータス st
   let cat = 'all';     // カテゴリフィルタ
+
+  function togglePin(id){
+    const i = pinned.indexOf(id);
+    if (i >= 0) pinned.splice(i, 1);
+    else pinned.unshift(id);   // 新しく固定したものが一番上、前のは1つずつ下へ
+    SaveSys.data.skillPins = pinned;
+    SaveSys.save();
+  }
+  // pinned順(先頭が上)を保ちつつ、固定を先頭に寄せる
+  function applyPins(ids){
+    const set = new Set(ids);
+    const top = pinned.filter(id => set.has(id));
+    const rest = ids.filter(id => !pinned.includes(id));
+    return top.concat(rest);
+  }
 
   function reset(){
     owned = {};   // 攻撃手段は武器庫(魂の広場)管理になり、スキルは補助・仲間・敵干渉・心得
     mats = {};
     SaveSys.data.skillsRevealed = SaveSys.data.skillsRevealed || {};
     revealed = SaveSys.data.skillsRevealed;
+    SaveSys.data.skillPins = SaveSys.data.skillPins || [];
+    pinned = SaveSys.data.skillPins;
     seenReady = {};
     tab = 'new'; cat = 'all';
     // 出撃支度+保存術: 基本素材を持って開始
@@ -126,14 +144,18 @@ const Skills = (() => {
     const can = cost && costMet(cost);
     const nextTxt = l === 0 ? def.desc : (cost ? 'Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化') : '最大レベル');
     const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
-    return `<div class="skill-card ${can ? 'ready' : ''}">
+    const isPin = pinned.includes(id);
+    return `<div class="skill-card ${can ? 'ready' : ''} ${isPin ? 'pinned' : ''}">
       <img class="icon" src="${iconUrl}" alt="">
       <div class="info">
         <div class="name">${def.name} ${l > 0 ? 'Lv' + l + (cost ? ' → Lv' + (l+1) : ' (MAX)') : '<span class="small">(新規)</span>'}</div>
         <div class="desc">${nextTxt}</div>
         ${cost ? costHtml(cost) : ''}
       </div>
-      ${cost ? `<button class="buy-btn" data-skill="${id}" ${can ? '' : 'disabled'}>${l > 0 ? 'レベルUP' : '取得'}</button>` : ''}
+      <div class="card-btns">
+        <button class="pin-btn ${isPin ? 'on' : ''}" data-pin="${id}" title="一番上に表示">${isPin ? '📌' : '📌'}</button>
+        ${cost ? `<button class="buy-btn" data-skill="${id}" ${can ? '' : 'disabled'}>${l > 0 ? 'レベルUP' : '取得'}</button>` : ''}
+      </div>
     </div>`;
   }
 
@@ -218,6 +240,7 @@ const Skills = (() => {
     sortReady(upIds); sortReady(newIds);
 
     const isReady = id => { const c = nextCost(id); return c && costMet(c); };
+    const pinnedTop = ids => applyPins(ids);   // 固定スキルを先頭に
     // バッジは「今、取得/強化できる数」を常に反映する(素材が揃っている限り表示)
     const upBadge = upIds.filter(isReady).length;
     const newBadge = newIds.filter(isReady).length;
@@ -253,13 +276,16 @@ const Skills = (() => {
       const ids = Object.keys(owned);
       h = ids.length ? ids.map(infoCard).join('') : '<p class="small" style="padding:20px">まだスキルがない。</p>';
     } else {
-      const ids = (tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat);
+      const ids = pinnedTop((tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat));
       if (ids.length) h = ids.map(id => skillCard(id)).join('');
       else h = tab === 'up'
         ? '<p class="small" style="padding:20px">このカテゴリの取得済みスキルはまだない。</p>'
         : '<p class="small" style="padding:20px">スキルは無数にある。素材を集めると、素材が揃ったスキルがここに現れる(一度現れたスキルは残り続ける)。</p>';
     }
     listEl.innerHTML = h;
+    listEl.querySelectorAll('.pin-btn').forEach(b => {
+      b.onclick = () => { togglePin(b.dataset.pin); render(); };
+    });
     listEl.querySelectorAll('.buy-btn').forEach(b => {
       b.onclick = () => { if (acquire(b.dataset.skill)) render(); };
     });

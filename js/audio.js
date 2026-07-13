@@ -9,14 +9,18 @@ const Sfx = (() => {
 
   function tone(freq, dur, type, vol, slide){
     const a = ac(); if (!a || muted) return;
-    if (a.state === 'suspended') a.resume();
+    if (a.state !== 'running') { a.resume(); return; }   // 復帰直後の一発目でノイズを鳴らさない
     const o = a.createOscillator(), g = a.createGain();
     o.type = type || 'square'; o.frequency.value = freq;
-    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide), a.currentTime + dur);
-    g.gain.value = vol || 0.06;
-    g.gain.exponentialRampToValueAtTime(0.0001, a.currentTime + dur);
+    const t0 = a.currentTime;
+    if (slide) o.frequency.exponentialRampToValueAtTime(Math.max(30,freq+slide), t0 + dur);
+    const v = vol || 0.06;
+    // 立ち上がりに短いフェードイン ― 音の頭の「プツッ」という爆音(クリック)を防ぐ
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.linearRampToValueAtTime(v, t0 + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
     o.connect(g).connect(a.destination);
-    o.start(); o.stop(a.currentTime + dur);
+    o.start(t0); o.stop(t0 + dur);
   }
   const lastPlay = {};
   function throttled(key, fn, ms){ const t = performance.now(); if (lastPlay[key] && t - lastPlay[key] < ms) return; lastPlay[key] = t; fn(); }
@@ -122,7 +126,9 @@ const Sfx = (() => {
     recruit(){ tone(523,.1,'sine',.07); setTimeout(()=>tone(784,.14,'sine',.07),90); },
     buy(){ tone(700,.08,'square',.05); setTimeout(()=>tone(1050,.1,'square',.05),70); },
     deny(){ tone(160,.14,'square',.05); },
-    boss(){ tone(80,.5,'sawtooth',.09, -30); setTimeout(()=>tone(70,.6,'sawtooth',.09,-20),300); },
+    boss(){ tone(90,.45,'triangle',.06, -20); setTimeout(()=>tone(70,.5,'triangle',.06,-14),280); },
+    // 大群の警告: 深すぎず耳障りでない、上がっていくアラート音
+    horde(){ tone(330,.12,'square',.05,80); setTimeout(()=>tone(440,.14,'square',.05,60),130); },
     die(){ tone(300,.5,'sawtooth',.08,-260); },
     boat(){ tone(200,.25,'triangle',.06, 120); },
     unlock(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.06), i*110)); },
