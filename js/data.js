@@ -85,8 +85,8 @@ DATA.SKILLS = {
     name:'カリスマの歌', cat:'ally', icon:'sk_charisma',
     desc:'【仲間】歌声で敵の心を掴む。敵が仲間になる確率が上がる(仲間数に上限なし)。',
     cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:4,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
-    lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
-    stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
+    lvText:['勧誘確率+1.5%','仲間の全能力+8%','勧誘確率+2%','仲間の全能力+8%','勧誘確率+2.5%','全能力+8%・確率+3%'],
+    stats:(lv)=>({ recruit:0.015+(lv>=2?0.015:0)+(lv>=4?0.02:0)+(lv>=6?0.025:0)+(lv>=7?0.03:0),
       allyMul:Math.pow(1.08,(lv>=3?1:0)+(lv>=5?1:0)+(lv>=7?1:0)) }),
   },
   bond: {
@@ -295,7 +295,7 @@ const PASSIVE_DEFS = [
   ['p_warcry',  '鬨の心得',       '仲間の攻撃間隔短縮',   'allyAtkSpdAdd',.03, '+3%',   'hide',7,'bone',6,  'ally'],
   ['p_mend',    '軍医の心得',     '仲間のHP自動回復',     'allyRegenAdd',.008, '+0.8%/秒','jelly',7,'hide',5,'ally'],
   ['p_stand',   '不倒の心得',     '仲間が倒れても踏みとどまる確率', 'allyReviveAdd', .05, '+5%', 'bone',7,'crystal',5, 'ally'],
-  ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .006, '+0.6%',  'hide',6,'jelly',6, 'ally'],
+  ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .003, '+0.3%',  'hide',6,'jelly',6, 'ally'],
   // 主人公・共通の心得
   ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
   ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
@@ -488,7 +488,7 @@ DATA.META = {
   lab_mat_star: { st:'lab', name:'【解放】星のかけら', desc:'新素材「星のかけら」が出現する', max:1, cost:gcost(15000,1) },
   lab_mat_abyss:{ st:'lab', name:'【解放】深淵の核', desc:'新素材「深淵の核」が出現する', max:1, cost:gcost(50000,1) },
   // --- 仲間の宿舎 ---
-  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +2%(基本8%・上限なし)', max:22, cost:gcost(40,1.38) },
+  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1%(基本80%)', max:20, cost:gcost(40,1.38) },
   camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +15%',           max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +12%',       max:30, cost:gcost(30,1.35) },
@@ -523,7 +523,7 @@ DATA.META = {
   g_dragon_craft:{ st:'b_dragon', fac:'lore', name:'竜骨細工',  desc:'素材ドロップ量 +4%', max:15, cost:gcost(1900,1.45), effMul:{dropMul:.04} },
   g_dusk_slay:   { st:'b_dusk', fac:'war',  name:'終焉狩り',   desc:'リーパーへのダメージ +15%', max:20, cost:gcost(2000,1.5) },
   g_dusk_veil:   { st:'b_dusk', fac:'life', name:'黄昏の帳',   desc:'回避率 +0.8%', max:10, cost:gcost(2200,1.5), effAdd:{dodge:.008} },
-  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.4%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.004} },
+  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.2%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.002} },
   g_star_meteor: { st:'b_star', fac:'war',  name:'流星の火',   desc:'会心率 +1.5%', max:10, cost:gcost(2800,1.5), effAdd:{crit:.015} },
   g_star_time:   { st:'b_star', fac:'life', name:'星読みの加護', desc:'敵の時間経過による強化を3%緩和(最大45%)', max:15, cost:gcost(3000,1.55) },
   g_star_chart:  { st:'b_star', fac:'lore', name:'星図の導き', desc:'移動速度 +1.5%', max:15, cost:gcost(2600,1.5), effMul:{speed:.015} },

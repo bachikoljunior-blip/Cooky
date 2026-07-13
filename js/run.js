@@ -44,8 +44,8 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.08 + 0.02*m('camp_recruit'),   // 仲間になりやすさ(合戦の軍勢はゲームの華)
-      allyCap: 150,   // 上限なし(処理負荷の保険値のみ)
+      recruit: 0.8 + 0.01*m('camp_recruit'),   // 仲間になりやすさ(基本80%: 倒した敵はだいたい仲間になる合戦ゲー)
+      allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
       allyAtk: (1 + 0.12*m('camp_atk')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_legion')),
