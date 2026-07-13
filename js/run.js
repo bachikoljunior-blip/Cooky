@@ -475,9 +475,9 @@ const Run = (() => {
     // 通常スポーン(序盤は少なく、時間と距離で徐々に増える)
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
-    const rate = (0.5 + min * 0.24 + ring0 * 0.18) * (isReaperTime ? 0.5 : 1);
+    const rate = (0.4 + min * 0.17 + ring0 * 0.13) * (isReaperTime ? 0.5 : 1);
     R.spawnAcc += dt * rate;
-    const cap = Math.min(280, 20 + R.time * 0.6 + ring0 * 8);
+    const cap = Math.min(160, 16 + R.time * 0.4 + ring0 * 6);
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (R.enemies.length >= cap) break;   // 見切れた敵は反対側から登場し直すので圧は途切れない
@@ -786,12 +786,27 @@ const Run = (() => {
           dest = null;
         }
       } else {
-        // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる(強い仲間ほど内側)
-        const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
-        dest = { x: p.x + sp2.x, y: p.y + sp2.y };
-        const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-        if (d < 6) dest = null;
-        spd = Math.max(spd, R.stats.speed * 1.3);   // 陣形追従は主人公に置いていかれない速度
+        // 敵がいなければ、陣形が触れているオブジェクトを壊す(素材集めを手伝う)
+        const ot = nearestObject(a.x, a.y, 52);
+        if (ot && Math.hypot(ot.x - p.x, ot.y - p.y) < formR + 64) {
+          a.atkCd -= dt;
+          const od = Math.hypot(ot.x - a.x, ot.y - a.y);
+          if (od < (ot.r || 18) + 16) {
+            if (a.atkCd <= 0) {
+              a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);
+              hitObject(ot, a.dmg * atkMul / R.stats.atk);   // hitObject内でatk倍されるため相殺
+            }
+            dest = null;   // その場で叩く
+          } else dest = ot;
+        }
+        if (dest === undefined) {
+          // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる(強い仲間ほど内側)
+          const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
+          dest = { x: p.x + sp2.x, y: p.y + sp2.y };
+          const d = Math.hypot(dest.x - a.x, dest.y - a.y);
+          if (d < 6) dest = null;
+          spd = Math.max(spd, R.stats.speed * 1.3);   // 陣形追従は主人公に置いていかれない速度
+        }
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;

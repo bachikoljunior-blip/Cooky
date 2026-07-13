@@ -285,13 +285,13 @@ const Hub = (() => {
       const seen = SaveSys.data.skillsSeen || {};
       const ids = Object.keys(seen).filter(id => DATA.SKILLS[id]);
       if (ids.length) {
-        h += '<div class="sec-head">周回中のスキル表示設定(解放済みスキルを新規リストに出さない)</div>';
+        h += '<div class="sec-head">周回中のスキル獲得設定(いらないスキルを獲得候補から外せる)</div>';
         for (const id of ids) {
           const hidden = SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
           h += `<div class="up-card"><div class="info">
             <div class="name">${DATA.SKILLS[id].name}</div>
-            <div class="desc">${hidden ? '周回中の新規リストに表示しない' : '周回中の新規リストに表示する'}</div></div>
-            <button class="buy-btn" data-hide="${id}" style="background:${hidden ? '#8b1e24' : '#1f6feb'}">${hidden ? '非表示中' : '表示中'}</button>
+            <div class="desc">${hidden ? '周回中は獲得できない(リストにも出ない)' : '周回中に獲得できる'}</div></div>
+            <button class="buy-btn" data-hide="${id}" style="background:${hidden ? '#8b1e24' : '#1f6feb'}">${hidden ? '獲得しない' : '獲得する'}</button>
           </div>`;
         }
       }

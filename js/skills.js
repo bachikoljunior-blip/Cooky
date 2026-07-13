@@ -88,7 +88,7 @@ const Skills = (() => {
   }
 
   function acquire(id){
-    if (!skillUnlocked(id) || !reqMet(id)) return false;
+    if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) return false;   // 書庫で「獲得しない」設定は取れない
     const cost = nextCost(id);
     if (!cost || !costMet(cost)) return false;
     for (const m in cost) mats[m] -= cost[m];
