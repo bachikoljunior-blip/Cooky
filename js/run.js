@@ -175,25 +175,11 @@ const Run = (() => {
         def, key:'skeleton',
         x: startPos.x + rnd(-70, 70), y: startPos.y + rnd(-70, 70),
         maxHp: 220 * R.stats.allyHp, hp: 220 * R.stats.allyHp,
-        dmg: 14, speed: def.speed * 1.8,
+        dmg: 14, speed: R.stats.speed,   // 主人公と同じくらいの速さ
         atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false,
       });
     }
-    seedInitialEnemies();   // 出撃直後から画面内に敵がいるように配置
-  }
-
-  // 開始直後: 画面内(視界の内側)に敵を数体置いて、すぐ戦えるようにする
-  function seedInitialEnemies(){
-    const p = R.player;
-    let placed = 0;
-    for (let i = 0; i < 50 && placed < 14; i++) {
-      const a = Math.random() * Math.PI * 2;
-      const d = rnd(55, 105);   // 狭くなった初期画面の内側(密着はしない)
-      const ex = p.x + Math.cos(a) * d, ey = p.y + Math.sin(a) * d;
-      const key = pickEnemyKey(); if (!key) break;
-      if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
-      if (spawnEnemy(key, { x: ex, y: ey, mad: Math.random() < 0.5 })) placed++;
-    }
+    // 出撃直後は主人公の周りに敵を置かない。敵は画面外から湧いて寄ってくる。
   }
 
   function walletTotal(){ return SaveSys.data.coins + R.coins; }
@@ -293,12 +279,12 @@ const Run = (() => {
     R.allies.push({
       def: e.def, key: e.defKey,
       x: e.x, y: e.y,
-      // 初期値は敵だった時とおんなじ(HP・攻撃・速度)。以降はパワーアップ/スキルの
-      // 仲間強化(hpMul/allyAtk/allySpeed)が乗る。
+      // 初期値は敵だった時と同じHP・攻撃。ただし速さは主人公と同じくらいにして
+      // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
       maxHp: e.maxHp * hpMul,
       hp: e.maxHp * hpMul,
       dmg: e.dmg,
-      speed: e.def.speed,
+      speed: st.speed,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false, slot: undefined,
       joining: true,   // 倒した位置から主人公のところへ駆けつける
@@ -491,7 +477,7 @@ const Run = (() => {
       orbitHit: 0, wander: Math.random() * 7,
       // うろつき/群れ/気づき(アグロ)。hordeやbossは最初から追跡状態
       wanderDir: Math.random() * Math.PI * 2, wanderT: rnd(0.6, 2.5),
-      mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(150, 220),
+      mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(75, 115),
       herd: opts.herd || null,
       fromHorde: !!opts.fromHorde,   // 時間ごとの大群: 置いていかれても近くの画面外へ回り込む
       rush: !!opts.rush,             // 大群の突撃: 移動速度アップですぐ押し寄せる
@@ -589,8 +575,8 @@ const Run = (() => {
   // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる(1波目の規模は従来の約20倍)
   function startHordeEvent(){
     const min = R.time / 60;
-    const total = Math.round(400 * (1 + min * 0.12));   // 総数(従来~20の約20倍〜。時間で増加)
-    const waves = Math.min(14, 5 + Math.floor(min / 2.5));   // 波数も時間で増える
+    const total = Math.round(40 * (1 + min * 0.25));   // 1波目は小さめ、時間経過で増える
+    const waves = Math.min(14, 1 + Math.floor(min / 4));   // 最初は一波のみ、時間経過で波数が増える
     const perWave = Math.ceil(total / waves);
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
     R.hordeWaves = R.hordeWaves || [];
@@ -621,7 +607,7 @@ const Run = (() => {
 
     // --- 環境人口: マップに点在してうろつく敵を、画面外から湧かせて維持 ---
     // 積極的なリフィルはしない(倒したエリアはしばらく静か)。画面内には湧かない
-    const ambient = Math.min(900, 350 + min * 20 + ring0 * 40) * (isReaperTime ? 0.4 : 1);
+    const ambient = Math.min(900, 90 + min * 26 + ring0 * 40) * (isReaperTime ? 0.4 : 1);
     R.spawnAcc += dt * (9 + min * 0.6 + ring0 * 0.4) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     while (R.spawnAcc >= 1) {
@@ -1755,10 +1741,10 @@ const Run = (() => {
 
     // カメラ: 仲間が全員映る最小の視界。初期画面はぐっと狭く(視界半径 INIT_R。
     // 従来の約1/2.24=面積で約1/5)、軍勢が育つほど広がる。視界半径=need(world px)。
-    const INIT_R = 112;
+    const INIT_R = 158;
     const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
-    const need = Math.max(90, formR + INIT_R);
-    const zTarget = Math.max(0.5, Math.min(4.0, (R.viewMin || 800) / (2 * need)));
+    const need = Math.max(120, formR + INIT_R);
+    const zTarget = Math.max(0.5, Math.min(3.0, (R.viewMin || 800) / (2 * need)));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
     // 射程は初期画面(視界半径 INIT_R)に収まる範囲まで。軍勢が育って視界が広がっても
     // 射程は初期画面より外へは伸ばさない(world px 固定)。
