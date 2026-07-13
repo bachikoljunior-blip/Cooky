@@ -1612,27 +1612,30 @@ const Run = (() => {
     let landSpd = st.speed;
     if (!p.onBoat) {
       const mdl = Math.hypot(ax.x, ax.y);
-      let enemyMass = 0;
+      let enemyMass = 0, allyMassFront = 0;
       if (mdl > 0.15) {
         const mdx = ax.x / mdl, mdy = ax.y / mdl;
         const nActive = R.allies.filter(a => !a.waitAt && !a.dead).length;
         const reach = formationRadius(nActive) + 80;   // 前線の仲間が押しうる範囲
-        // 前線の仲間がいる時だけ(=軍勢で押している時だけ)敵の負荷を感じる
-        let frontAlly = false;
+        const inFront = (x, y, r) => {   // 進行方向の前方・射程内か
+          const ux = x - p.x, uy = y - p.y, ud = Math.hypot(ux, uy) || 1;
+          return ud - r <= reach && (ux * mdx + uy * mdy) / ud >= 0.3;
+        };
+        // 前線で押している仲間の質量(押す力)
         for (const a of R.allies) {
           if (a.waitAt || a.dead) continue;
-          const ux = a.x - p.x, uy = a.y - p.y, ud = Math.hypot(ux, uy) || 1;
-          if (ud <= reach && (ux * mdx + uy * mdy) / ud >= 0.3) { frontAlly = true; break; }
+          if (inFront(a.x, a.y, a.def.r)) allyMassFront += 1 + (a.def.tier || 0) * 0.6;
         }
-        if (frontAlly) for (const e of R.enemies) {
+        // 前方の敵の質量(押される抵抗)。押す仲間がいる時だけ感じる
+        if (allyMassFront > 0) for (const e of R.enemies) {
           if (e.dead) continue;
-          const ux = e.x - p.x, uy = e.y - p.y, ud = Math.hypot(ux, uy) || 1;
-          if (ud - e.def.r * (e.sizeMul || 1) > reach) continue;
-          if ((ux * mdx + uy * mdy) / ud < 0.3) continue;   // 進行方向の前方にいる敵だけ
-          enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+          if (inFront(e.x, e.y, e.def.r * (e.sizeMul || 1)))
+            enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
         }
       }
-      landSpd = st.speed * Math.max(0.4, 1 / (1 + enemyMass * 0.06));
+      // 質量バランス: 押す仲間が厚いほど楽、敵が重いほど重い。前線の仲間ごしの抵抗
+      const load = enemyMass / (1 + allyMassFront * 0.4);
+      landSpd = st.speed * Math.max(0.4, 1 / (1 + load * 0.12));
     }
     const spd = p.onBoat ? st.boatSpeed : landSpd;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
