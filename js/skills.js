@@ -149,8 +149,7 @@ const Skills = (() => {
     const can = cost && costMet(cost);
     const nextTxt = l === 0 ? def.desc : (cost ? 'Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化') : '最大レベル');
     const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
-    const isPin = pinned.includes(id);
-    return `<div class="skill-card ${can ? 'ready' : ''} ${isPin ? 'pinned' : ''}">
+    return `<div class="skill-card ${can ? 'ready' : ''}">
       <img class="icon" src="${iconUrl}" alt="">
       <div class="info">
         <div class="name">${def.name} ${l > 0 ? 'Lv' + l + (cost ? ' → Lv' + (l+1) : ' (MAX)') : '<span class="small">(新規)</span>'}</div>
@@ -158,7 +157,7 @@ const Skills = (() => {
         ${cost ? costHtml(cost) : ''}
       </div>
       <div class="card-btns">
-        <button class="pin-btn ${isPin ? 'on' : ''}" data-pin="${id}" title="一番上に表示">${isPin ? '📌' : '📌'}</button>
+        <button class="pin-btn" data-pin="${id}" title="一番上に表示">📌</button>
         ${cost ? `<button class="buy-btn" data-skill="${id}" ${can ? '' : 'disabled'}>${l > 0 ? 'レベルUP' : '取得'}</button>` : ''}
       </div>
     </div>`;
