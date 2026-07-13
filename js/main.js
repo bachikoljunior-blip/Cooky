@@ -25,14 +25,14 @@ const Game = (() => {
   // ---------------- 状態遷移 ----------------
   function toTitle(){
     state = 'title'; overlay = null;
-    show('title-screen'); hide('hud');
+    show('title-screen'); hide('hud'); hide('btn-skill');
     document.body.classList.add('in-title');
     Sfx.setScene('title');
   }
   function toHub(){
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel');
+    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill');
     Hub.enter();
     Sfx.setScene('hub');
   }
@@ -40,7 +40,7 @@ const Game = (() => {
     state = 'run'; overlay = null;
     document.body.classList.remove('in-title');
     hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud');
+    show('hud'); show('btn-skill');   // スキルボタンは周回中のみ
     el('interact-hint').classList.add('hidden');
     Run.start(pos);
     Sfx.setScene('run');
@@ -48,7 +48,7 @@ const Game = (() => {
   // 周回中に基地へ着いた: 拠点マップへ転移(周回は裏で保持)
   function enterBaseFromRun(baseId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun(baseId);
     Sfx.setScene('hub');
@@ -57,7 +57,7 @@ const Game = (() => {
   function resumeRun(){
     state = 'run'; overlay = null;
     hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud');
+    show('hud'); show('btn-skill');
     el('interact-hint').classList.add('hidden');
     Run.state.noInteractT = 1.0;   // 復帰直後に再び転移しないよう猶予
     Sfx.setScene('run');
@@ -183,7 +183,7 @@ const Game = (() => {
 
   function endRun(retired){
     const res = Run.finishRun(retired);
-    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud');
+    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill');
     showResult(res);
   }
 
