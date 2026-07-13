@@ -44,7 +44,7 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.8 + 0.01*m('camp_recruit'),   // 仲間になりやすさ(基本80%: 倒した敵はだいたい仲間になる合戦ゲー)
+      recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
       allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
@@ -258,8 +258,9 @@ const Run = (() => {
     if (Math.random() < st.potion) dropPickup(e.x, e.y, { type:'potion' });
     // 吸血の刻印: 撃破時回復
     if (st.killHeal > 0) R.player.hp = Math.min(st.maxHp, R.player.hp + st.killHeal);
-    // 仲間勧誘(ボス/リーパー以外)
-    if (!e.boss && !e.def.isReaper && R.allies.length < st.allyCap && Math.random() < st.recruit) {
+    // 仲間勧誘(ボス/リーパー以外)。強い敵ほど仲間になりにくい
+    const tf = [1, 0.7, 0.5, 0.35, 0.25][Math.min(4, e.def.tier || 0)];
+    if (!e.boss && !e.def.isReaper && R.allies.length < st.allyCap && Math.random() < st.recruit * tf) {
       recruitAlly(e);
     }
     effect('burst', e.x, e.y, { color:e.def.isReaper ? '#f85149' : '#ffd766', r:e.def.r + 8 });
@@ -698,13 +699,13 @@ const Run = (() => {
     }
   }
 
-  // 同心円スロット: リング0=密着(34px)、以降+24pxずつ。定員はリングごとに増える
+  // 同心円スロット: リング0=密着(28px)、以降+17pxずつの密集陣形。定員はリングごとに増える
   function slotPos(i){
-    let ring = 0, cap = 6, start = 0;
-    while (i >= start + cap) { start += cap; ring++; cap = 6 + ring * 4; }
+    let ring = 0, cap = 7, start = 0;
+    while (i >= start + cap) { start += cap; ring++; cap = 7 + ring * 5; }
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
-    const rad = 34 + ring * 24;
+    const rad = 28 + ring * 17;
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -713,6 +714,12 @@ const Run = (() => {
 
   function updateAllies(dt){
     const p = R.player;
+    // 陣形スロット: 人数が変わったら「強い仲間ほど内側」に並べ直す
+    if (R._slotN !== R.allies.length) {
+      R._slotN = R.allies.length;
+      const order = R.allies.slice().sort((x, y) => ((y.def.tier || 0) - (x.def.tier || 0)) || (y.maxHp - x.maxHp));
+      order.forEach((a2, idx) => { a2.slot = idx; });
+    }
     const wb = Skills.stat('warbanner');
     const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
     const spdMul = (wb ? wb.spd : 1);
@@ -779,9 +786,8 @@ const Run = (() => {
           dest = null;
         }
       } else {
-        // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる
-        if (a.slot === undefined) a.slot = i;
-        const sp2 = slotPos(a.slot);
+        // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる(強い仲間ほど内側)
+        const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
         dest = { x: p.x + sp2.x, y: p.y + sp2.y };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
         if (d < 6) dest = null;
@@ -1668,7 +1674,7 @@ const Run = (() => {
     for (const a of R.allies) {
       if (a.waitAt) g.globalAlpha = 0.7;
       Sprites.draw(g, a.def.sprite, a.x, a.y, a.def.r * 2.6);
-      drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
+      if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
       if (a.waitAt) {
         g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
         g.fillText('待機中', a.x, a.y - a.def.r - 16);
