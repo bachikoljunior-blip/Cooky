@@ -406,7 +406,9 @@ const Run = (() => {
       pk.vx *= 0.9; pk.vy *= 0.9;
       const d = Math.hypot(pk.x - p.x, pk.y - p.y);
       if (d < magnet || pk.vacuumed) {
-        const sp = pk.vacuumed ? 700 : 380;
+        let sp = pk.vacuumed ? 700 : 380;
+        // 護符による全回収は締切(5秒以内)までに必ず届くよう、距離に応じて加速する
+        if (pk.vacDeadline) sp = Math.max(sp, d / Math.max(0.15, pk.vacDeadline - R.time));
         pk.x += (p.x - pk.x) / (d || 1) * sp * dt;
         pk.y += (p.y - pk.y) / (d || 1) * sp * dt;
       }
@@ -419,8 +421,8 @@ const Run = (() => {
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         else if (pk.type === 'collector') {
-          // 回収の護符: 落ちている未回収アイテムを全て引き寄せる
-          for (const q of R.pickups) if (q !== pk) q.vacuumed = true;
+          // 回収の護符: 落ちている未回収アイテムを全て、5秒以内に引き寄せる
+          for (const q of R.pickups) if (q !== pk) { q.vacuumed = true; q.vacDeadline = R.time + 5; }
           effect('ring', p.x, p.y, { color:'#7ee787', r:320 });
           popup(p.x, p.y-30, '全回収!', '#7ee787'); Sfx.coin();
         }
