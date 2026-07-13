@@ -610,20 +610,24 @@ const Run = (() => {
   }
 
   function director(dt){
+    const p = R.player;
     const min = R.time / 60;
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
 
-    // --- 環境人口: マップに点在してうろつく敵を、画面外から湧かせて維持 ---
-    // 積極的なリフィルはしない(倒したエリアはしばらく静か)。画面内には湧かない
-    const ambient = Math.min(900, 90 + min * 26 + ring0 * 40) * (isReaperTime ? 0.4 : 1);
-    R.spawnAcc += dt * (9 + min * 0.6 + ring0 * 0.4) * (isReaperTime ? 0.5 : 1);
+    // --- 環境人口: 画面のまわりに常に一定数の敵をうろつかせる(どこへ行っても同じ分布) ---
+    // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
+    const offR = R.offscreenR || 500;
+    const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
+    const nearTarget = Math.round((40 + min * 7 + ring0 * 7) * (isReaperTime ? 0.4 : 1));
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
+    let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (R.enemies.length >= ambient) break;
-      if (Math.random() < 0.22) spawnHerd(false);   // ときどき群れ
-      else { const k = pickEnemyKey(); if (k) spawnEnemy(k, { mad: k === questTgt }); }
+      if (nearN >= nearTarget || R.enemies.length >= 900) break;
+      // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
+      const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240) })) nearN++;
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 
@@ -679,9 +683,11 @@ const Run = (() => {
     for (let i = R.enemies.length - 1; i >= 0; i--) {
       const e = R.enemies[i];
       if (e.dead) { R.enemies.splice(i, 1); continue; }
-      // 遠く離れた敵は退場(追跡中の敵は粘る)。画面内には湧き直さない ― 世界に点在する敵
+      // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
+      // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
-      if (!e.boss && !e.def.isReaper && pd > (e.mad ? 3200 : 2400)) {
+      const despawnR = e.mad ? 3200 : ((R.offscreenR || 500) + 260);
+      if (!e.boss && !e.def.isReaper && pd > despawnR) {
         // 時間ごとの大群は消えず、プレイヤーの近くの画面外へ回り込んで襲い続ける
         if (e.fromHorde && relocateOffscreen(e)) continue;
         R.enemies.splice(i, 1); continue;
@@ -1755,9 +1761,10 @@ const Run = (() => {
     const need = Math.max(120, formR + INIT_R);
     const zTarget = Math.max(0.5, Math.min(3.0, (R.viewMin || 800) / (2 * need)));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
-    // 射程は初期画面(視界半径 INIT_R)に収まる範囲まで。軍勢が育って視界が広がっても
-    // 射程は初期画面より外へは伸ばさない(world px 固定)。
-    R.rangeCapPx = INIT_R - 12;
+    // 攻撃射程は「敵が追尾してくる距離(アグロ 75〜115)より少し短い」68pxを基準に、
+    // しに戻り後の射程強化(眼力=altar_range)で伸びる。初期は敵のアグロ圏内でしか
+    // 攻撃できない(近づかないと届かない)。
+    R.rangeCapPx = 68 * (R.stats.range || 1);
 
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
