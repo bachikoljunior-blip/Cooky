@@ -53,7 +53,7 @@ const Run = (() => {
       allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
-      dropMul: 1 + 0.1*m('lab_drop'),
+      dropMul: 0.2 + 0.1*m('lab_drop'),   // 初期のドロップ率は従来の1/5(採集の心得で上げる)
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
@@ -188,7 +188,7 @@ const Run = (() => {
     let placed = 0;
     for (let i = 0; i < 50 && placed < 14; i++) {
       const a = Math.random() * Math.PI * 2;
-      const d = rnd(150, 340);   // 画面内だが密着はしない距離
+      const d = rnd(55, 105);   // 狭くなった初期画面の内側(密着はしない)
       const ex = p.x + Math.cos(a) * d, ey = p.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
@@ -1688,53 +1688,8 @@ const Run = (() => {
 
     // 移動(botAxisは自動テストプレイ用フック)
     const ax = R.botAxis || Input.axis();
-    // 主人公は敵をすり抜けるので、敵を押す負荷は直接には受けない。仲間を押す負荷も無し。
-    // ただし進行方向の前方で「仲間が敵を押している」時は、その敵の質量ぶんだけ
-    // 仲間ごしに押している抵抗として足が重くなる。質量は分離処理と同じ式(前と同じ)
-    let landSpd = st.speed;
-    if (!p.onBoat) {
-      const mdl = Math.hypot(ax.x, ax.y);
-      let enemyMass = 0, allyMassFront = 0;
-      if (mdl > 0.15) {
-        const mdx = ax.x / mdl, mdy = ax.y / mdl;
-        const front = (x, y) => {   // 進行方向の前方か
-          const ux = x - p.x, uy = y - p.y, ud = Math.hypot(ux, uy) || 1;
-          return (ux * mdx + uy * mdy) / ud >= 0.2;
-        };
-        const nActive = R.allies.filter(a => !a.waitAt && !a.dead).length;
-        const near = formationRadius(nActive) + 120;
-        // 前線近くの敵だけを接触判定の候補に(重い全走査を避ける)
-        const cand = [];
-        for (const e of R.enemies) {
-          if (e.dead) continue;
-          if (Math.hypot(e.x - p.x, e.y - p.y) > near || !front(e.x, e.y)) continue;
-          cand.push(e);
-        }
-        // 実際に敵と当たっている(押し合っている)仲間と、その敵だけを数える
-        if (cand.length) {
-          const counted = new Set();
-          for (const a of R.allies) {
-            if (a.waitAt || a.dead || !front(a.x, a.y)) continue;
-            let pushing = false;
-            for (const e of cand) {
-              const er = e.def.r * (e.sizeMul || 1);
-              if (Math.hypot(e.x - a.x, e.y - a.y) < er + a.def.r + 2) {   // 接触
-                pushing = true;
-                if (!counted.has(e)) {
-                  counted.add(e);
-                  enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
-                }
-              }
-            }
-            if (pushing) allyMassFront += 1 + (a.def.tier || 0) * 0.6;
-          }
-        }
-      }
-      // 質量バランス: 当たっている仲間が厚いほど楽、当たっている敵が重いほど重い
-      const load = enemyMass / (1 + allyMassFront * 0.4);
-      landSpd = st.speed * Math.max(0.4, 1 / (1 + load * 0.12));
-    }
-    const spd = p.onBoat ? st.boatSpeed : landSpd;
+    // 主人公は敵をすり抜ける。対敵中でも速度は落とさない(常にステータス速度で動ける)
+    const spd = p.onBoat ? st.boatSpeed : st.speed;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
@@ -1798,14 +1753,16 @@ const Run = (() => {
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
-    // カメラ: 仲間が全員映る最小の視界。最初は狭く、軍勢が育つほど広がる
+    // カメラ: 仲間が全員映る最小の視界。初期画面はぐっと狭く(視界半径 INIT_R。
+    // 従来の約1/2.24=面積で約1/5)、軍勢が育つほど広がる。視界半径=need(world px)。
+    const INIT_R = 112;
     const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
-    const need = Math.max(250, formR + 190);
-    const zTarget = Math.max(0.5, Math.min(1.35, (R.viewMin || 800) / (2 * need)));
+    const need = Math.max(90, formR + INIT_R);
+    const zTarget = Math.max(0.5, Math.min(4.0, (R.viewMin || 800) / (2 * need)));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
-    // 射程は「初期の画面(最も寄った視界=ズーム1.35)」に収まる範囲まで。
-    // 軍勢が育って視界が広がっても、武器の射程は初期画面より外へは伸ばさない。
-    R.rangeCapPx = (R.viewMin || 800) / (2 * 1.35) - 40;
+    // 射程は初期画面(視界半径 INIT_R)に収まる範囲まで。軍勢が育って視界が広がっても
+    // 射程は初期画面より外へは伸ばさない(world px 固定)。
+    R.rangeCapPx = INIT_R - 12;
 
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
@@ -2205,12 +2162,14 @@ const Run = (() => {
       g.fillStyle = c;
       g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, (r || 2) * mk, 0, 7); g.fill();
     };
-    // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)
+    // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
+    // 基地を一つでも解放していれば、未解放の基地はすべてヒント(?)として表示する。
     const seen = SaveSys.data.seen || {};
-    let hint = null;
+    const allHints = SaveSys.data.allHints;
+    const hints = [];
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (SaveSys.data.nextHint === b.id) hint = b;   // ヒントは自分のマークの上に大きく描く
+      else if (allHints || SaveSys.data.nextHint === b.id) hints.push(b);   // ヒントは最後に大きく描く
       else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
     }
     for (const port of World.ports) {
@@ -2219,22 +2178,22 @@ const Run = (() => {
     }
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
-    // 次の拠点ヒント: 自分のマークに埋もれない大きさで、最後に(一番上に)描く
-    if (hint && view.inView(hint.x, hint.y)) {
-      const q = view.toMM(hint.x, hint.y);
-      if (q.x >= 0 && q.x <= World.MM_SIZE && q.y >= 0 && q.y <= World.MM_SIZE) {
-        const hx = x0 + q.x * mmScale, hy = y0 + q.y * mmScale, hr = 8 * mk;
-        g.globalAlpha = 0.65 + 0.35 * Math.sin(R.time * 5);
-        g.fillStyle = '#ffd766';
-        g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.fill();
-        g.globalAlpha = 1;
-        g.lineWidth = Math.max(1.5, 2 * mk); g.strokeStyle = '#3d2b00';
-        g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.stroke();
-        g.fillStyle = '#3d2b00'; g.font = 'bold ' + Math.round(11 * mk) + 'px sans-serif';
-        g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('?', hx, hy + 0.5);
-        g.textBaseline = 'alphabetic';
-      }
+    // 拠点ヒント: 自分のマークに埋もれない大きさで、最後に(一番上に)描く
+    const pulse = 0.65 + 0.35 * Math.sin(R.time * 5);
+    for (const b of hints) {
+      if (!view.inView(b.x, b.y)) continue;
+      const q = view.toMM(b.x, b.y);
+      if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) continue;
+      const hx = x0 + q.x * mmScale, hy = y0 + q.y * mmScale, hr = 8 * mk;
+      g.globalAlpha = pulse; g.fillStyle = '#ffd766';
+      g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.fill();
+      g.globalAlpha = 1;
+      g.lineWidth = Math.max(1.5, 2 * mk); g.strokeStyle = '#3d2b00';
+      g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.stroke();
+      g.fillStyle = '#3d2b00'; g.font = 'bold ' + Math.round(11 * mk) + 'px sans-serif';
+      g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.fillText('?', hx, hy + 0.5);
+      g.textBaseline = 'alphabetic';
     }
   }
   function drawMinimap(g, W){

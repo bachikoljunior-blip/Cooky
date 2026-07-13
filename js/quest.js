@@ -172,16 +172,22 @@ const Quest = (() => {
     return best;
   }
 
-  // マップに記すヒントは常に「一つだけ」= 未解放で最寄りの次の拠点。
-  // 有効なヒント(未解放の基地)が既にあればそのまま、無ければ最寄りを一つ記す。
+  // 基地を一つでも解放したら、全ての基地の場所をマップにヒント表示する。
   function refreshHint(fx, fy){
     SaveSys.data.seen = SaveSys.data.seen || {};
+    if (Object.keys(SaveSys.data.bases).length > 0) {
+      SaveSys.data.allHints = true;
+      // 全体図に収まるよう、主大陸の基地は既知(seen)にしておく
+      for (const b of DATA.BASES) if (b.cont === 'main') SaveSys.data.seen[b.id] = true;
+    }
+    // 互換: 単一ヒント(nextHint)も未解放の最寄りへ維持
     const cur = SaveSys.data.nextHint;
     const valid = cur && !SaveSys.data.bases[cur] && DATA.BASES.some(b => b.id === cur);
-    if (valid) return;
-    const best = nextLockedBase(fx || 0, fy || 0);
-    SaveSys.data.nextHint = best ? best.id : null;
-    if (best) SaveSys.data.seen[best.id] = true;
+    if (!valid) {
+      const best = nextLockedBase(fx || 0, fy || 0);
+      SaveSys.data.nextHint = best ? best.id : null;
+      if (best) SaveSys.data.seen[best.id] = true;
+    }
     SaveSys.save();
   }
 
