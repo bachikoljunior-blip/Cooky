@@ -143,6 +143,8 @@ const Run = (() => {
     Skills.reset();
     World.resetRun();
     Quest.reset();
+    // 拠点を一つでも解放済みなら、次の拠点ヒントを常に一つ表示(既存セーブ救済)
+    if (Object.keys(SaveSys.data.bases).length > 0) Quest.refreshHint();
     R.time = 0;
     R.player = { x:startPos.x, y:startPos.y, hp:1, dir:1, moveA:0,
                  onBoat:false, boatAnchor:null, invuln:0 };
@@ -1615,25 +1617,40 @@ const Run = (() => {
       let enemyMass = 0, allyMassFront = 0;
       if (mdl > 0.15) {
         const mdx = ax.x / mdl, mdy = ax.y / mdl;
-        const nActive = R.allies.filter(a => !a.waitAt && !a.dead).length;
-        const reach = formationRadius(nActive) + 80;   // 前線の仲間が押しうる範囲
-        const inFront = (x, y, r) => {   // 進行方向の前方・射程内か
+        const front = (x, y) => {   // 進行方向の前方か
           const ux = x - p.x, uy = y - p.y, ud = Math.hypot(ux, uy) || 1;
-          return ud - r <= reach && (ux * mdx + uy * mdy) / ud >= 0.3;
+          return (ux * mdx + uy * mdy) / ud >= 0.2;
         };
-        // 前線で押している仲間の質量(押す力)
-        for (const a of R.allies) {
-          if (a.waitAt || a.dead) continue;
-          if (inFront(a.x, a.y, a.def.r)) allyMassFront += 1 + (a.def.tier || 0) * 0.6;
-        }
-        // 前方の敵の質量(押される抵抗)。押す仲間がいる時だけ感じる
-        if (allyMassFront > 0) for (const e of R.enemies) {
+        const nActive = R.allies.filter(a => !a.waitAt && !a.dead).length;
+        const near = formationRadius(nActive) + 120;
+        // 前線近くの敵だけを接触判定の候補に(重い全走査を避ける)
+        const cand = [];
+        for (const e of R.enemies) {
           if (e.dead) continue;
-          if (inFront(e.x, e.y, e.def.r * (e.sizeMul || 1)))
-            enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+          if (Math.hypot(e.x - p.x, e.y - p.y) > near || !front(e.x, e.y)) continue;
+          cand.push(e);
+        }
+        // 実際に敵と当たっている(押し合っている)仲間と、その敵だけを数える
+        if (cand.length) {
+          const counted = new Set();
+          for (const a of R.allies) {
+            if (a.waitAt || a.dead || !front(a.x, a.y)) continue;
+            let pushing = false;
+            for (const e of cand) {
+              const er = e.def.r * (e.sizeMul || 1);
+              if (Math.hypot(e.x - a.x, e.y - a.y) < er + a.def.r + 2) {   // 接触
+                pushing = true;
+                if (!counted.has(e)) {
+                  counted.add(e);
+                  enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+                }
+              }
+            }
+            if (pushing) allyMassFront += 1 + (a.def.tier || 0) * 0.6;
+          }
         }
       }
-      // 質量バランス: 押す仲間が厚いほど楽、敵が重いほど重い。前線の仲間ごしの抵抗
+      // 質量バランス: 当たっている仲間が厚いほど楽、当たっている敵が重いほど重い
       const load = enemyMass / (1 + allyMassFront * 0.4);
       landSpd = st.speed * Math.max(0.4, 1 / (1 + load * 0.12));
     }

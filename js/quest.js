@@ -161,19 +161,31 @@ const Quest = (() => {
     return best;
   }
 
-  // 基地解放時のストーリー進行: マップに記すヒントは「最初の一つ」だけ
+  // マップに記すヒントは常に「一つだけ」= 未解放で最寄りの次の拠点。
+  // 有効なヒント(未解放の基地)が既にあればそのまま、無ければ最寄りを一つ記す。
+  function refreshHint(fx, fy){
+    SaveSys.data.seen = SaveSys.data.seen || {};
+    const cur = SaveSys.data.nextHint;
+    const valid = cur && !SaveSys.data.bases[cur] && DATA.BASES.some(b => b.id === cur);
+    if (valid) return;
+    const best = nextLockedBase(fx || 0, fy || 0);
+    SaveSys.data.nextHint = best ? best.id : null;
+    if (best) SaveSys.data.seen[best.id] = true;
+    SaveSys.save();
+  }
+
+  // 基地解放時のストーリー進行: 次の拠点ヒントを一つだけ更新する
   function onBaseUnlocked(id, def){
     const n = Object.keys(SaveSys.data.bases).length;
     const face = def.npc || 'npc_elder';
     SaveSys.data.seen = SaveSys.data.seen || {};
-    // ヒント先の基地を解放したらヒントを消す(以降は新しいヒントを出さない)
+    // 解放した基地がヒント先なら、次の未解放の拠点へヒントを進める
+    const b0 = DATA.BASES.find(b => b.id === id);
     if (SaveSys.data.nextHint === id) SaveSys.data.nextHint = null;
+    refreshHint(b0 ? b0.x : 0, b0 ? b0.y : 0);
 
     if (n === 1) {
-      // 最初の基地: マップの使い方 + 次の拠点を一つだけ記す(これが唯一のヒント)
-      const b0 = DATA.BASES.find(b => b.id === id);
-      const best = nextLockedBase(b0 ? b0.x : 0, b0 ? b0.y : 0);
-      if (best) { SaveSys.data.nextHint = best.id; SaveSys.data.seen[best.id] = true; }
+      // 最初の基地: マップの使い方 + 次の拠点を一つ記す
       Game.dialog(def.npcName, face, [
         'これを持っていけ。この辺り一帯の古い地図じゃ。',
         '…擦り切れておるが、次の拠点の場所だけは読み取れる。',
@@ -225,6 +237,6 @@ const Quest = (() => {
 
   function _forceReturn(){ if (active) active.phase = 'return'; }   // テスト用
 
-  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, _forceReturn,
+  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, _forceReturn, refreshHint,
            get active(){ return active; } };
 })();
