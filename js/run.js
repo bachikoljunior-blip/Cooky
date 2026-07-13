@@ -2059,6 +2059,8 @@ const Run = (() => {
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
     g.globalAlpha = 0.92;
     g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
+    // 霧: 行ったことのある場所だけ地形が見える(ヒントの「?」は霧の上に描くので見える)
+    g.drawImage(World.fogCanvas(), view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
     g.globalAlpha = 1;
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const mmScale = sz / World.MM_SIZE;
