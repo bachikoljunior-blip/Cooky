@@ -21,6 +21,7 @@ const SaveSys = (() => {
       questsActive: [],  // 進行中のクエスト(複数同時可・周回を跨いで保持)
       skillsRevealed: {},  // 一度リストに現れたスキル(素材が減っても・周回をまたいでも表示)
       skillPins: [],       // 一番上に固定表示するスキル(先頭ほど上)
+      skillsListSeen: {},  // 一度一覧で見たスキル(未見=ピン後の新登場は最上段に出す)
       skillCatByTab: { up:'all', new:'all' },   // スキル画面のカテゴリ選択(タブごと)
       explored: [],   // 行ったことのある場所(霧マップ用セル)
       settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto

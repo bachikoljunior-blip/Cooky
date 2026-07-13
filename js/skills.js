@@ -11,6 +11,8 @@ const Skills = (() => {
   let revealed = {};   // 一度素材が揃って表示されたスキル(SaveSysに永続化: 周回をまたいでも表示され続ける)
   let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
   let pinned = [];     // 一番上に固定表示するスキル(先頭ほど上。新しく固定するほど前のは下へ)
+  let listSeen = {};   // 一度リストで見たスキル。まだ見ていない(=ピン後に新登場)スキルは最上段に出す
+  let shownThisOpen = {};  // このパネル表示中に一覧へ出したスキル(閉じる時に既読化)
   let tab = 'new';     // 強化 up / 新規 new / 効果 info / ステータス st
   let catByTab = { up: 'all', new: 'all' };   // カテゴリフィルタはタブごとに保存
   function curCat(){ return catByTab[tab] || 'all'; }
@@ -38,6 +40,8 @@ const Skills = (() => {
     revealed = SaveSys.data.skillsRevealed;
     SaveSys.data.skillPins = SaveSys.data.skillPins || [];
     pinned = SaveSys.data.skillPins;
+    SaveSys.data.skillsListSeen = SaveSys.data.skillsListSeen || {};
+    listSeen = SaveSys.data.skillsListSeen;
     seenReady = {};
     tab = 'new';
     // カテゴリ選択はタブごとに保存し、周回をまたいでも維持する
@@ -244,7 +248,14 @@ const Skills = (() => {
     sortReady(upIds); sortReady(newIds);
 
     const isReady = id => { const c = nextCost(id); return c && costMet(c); };
-    const pinnedTop = ids => applyPins(ids);   // 固定スキルを先頭に
+    // 一度パネルを使った後に新登場したスキル(未見)を最上段に、その後に固定スキル。
+    // 初回閲覧(まだ何も見ていない)時は全部が未見なので、通常どおりピン順で並べる。
+    const engaged = Object.keys(listSeen).length > 0;
+    const pinnedTop = ids => {
+      const fresh = engaged ? ids.filter(id => !listSeen[id]) : [];
+      const rest = engaged ? ids.filter(id => listSeen[id]) : ids;
+      return fresh.concat(applyPins(rest));
+    };
     // バッジは「今、取得/強化できる数」を常に反映する(素材が揃っている限り表示)
     const upBadge = upIds.filter(isReady).length;
     const newBadge = newIds.filter(isReady).length;
@@ -285,6 +296,7 @@ const Skills = (() => {
     } else {
       const cat = curCat();
       const ids = pinnedTop((tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat));
+      for (const id of ids) shownThisOpen[id] = true;   // 表示したものは閉じる時に既読化
       if (ids.length) h = ids.map(id => skillCard(id)).join('');
       else h = tab === 'up'
         ? '<p class="small" style="padding:20px">このカテゴリの取得済みスキルはまだない。</p>'
@@ -310,7 +322,14 @@ const Skills = (() => {
     // 開いた時点の取得可能スキルを既読にする(バッジが消える)
     for (const id of readyIds()) seenReady[id] = true;
   }
-  function close(){ panel.classList.add('hidden'); }
+  function close(){
+    panel.classList.add('hidden');
+    // 今回表示したスキルを既読化(次に開く時は最上段ではなく通常/固定位置へ)
+    let changed = false;
+    for (const id in shownThisOpen) if (!listSeen[id]) { listSeen[id] = true; changed = true; }
+    shownThisOpen = {};
+    if (changed) SaveSys.save();
+  }
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
   return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
