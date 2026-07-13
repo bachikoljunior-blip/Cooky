@@ -218,10 +218,11 @@ const Skills = (() => {
     sortReady(upIds); sortReady(newIds);
 
     const isReady = id => { const c = nextCost(id); return c && costMet(c); };
-    const upBadge = upIds.filter(id => isReady(id) && !seenReady[id]).length;
-    const newBadge = newIds.filter(id => isReady(id) && !seenReady[id]).length;
+    // バッジは「今、取得/強化できる数」を常に反映する(素材が揃っている限り表示)
+    const upBadge = upIds.filter(isReady).length;
+    const newBadge = newIds.filter(isReady).length;
 
-    // タブバー(バッジは「まだ見ていない」取得可能数。一度開いたら消える)
+    // タブバー(バッジ=今その場で取得/強化できる数)
     tabsEl.innerHTML = `
       <button class="stab ${tab==='up'?'on':''}" data-tab="up">強化 <span class="stab-n">${upIds.length}</span>${upBadge ? '<span class="stab-badge">'+upBadge+'</span>' : ''}</button>
       <button class="stab ${tab==='new'?'on':''}" data-tab="new">新規 <span class="stab-n">${newIds.length}</span>${newBadge ? '<span class="stab-badge">'+newBadge+'</span>' : ''}</button>

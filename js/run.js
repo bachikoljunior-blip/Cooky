@@ -155,7 +155,7 @@ const Run = (() => {
     R.enemies = []; R.allies = []; R.projs = []; R.eprojs = []; R.pickups = [];
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
-    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0;
+    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90);
     R.interact = null;
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
@@ -438,16 +438,20 @@ const Run = (() => {
   function spawnEnemy(defKey, opts = {}){
     const def = DATA.ENEMIES[defKey];
     const p = R.player;
-    const a = Math.random() * Math.PI * 2;
-    const dist = opts.dist || rnd(560, 760);
-    let x = p.x + Math.cos(a) * dist, y = p.y + Math.sin(a) * dist;
-    // 環境の合う場所へ補正(数回試行)
-    for (let i = 0; i < 6; i++) {
-      const land = World.isLand(x, y);
-      if ((def.env === 'land' && land) || (def.env === 'sea' && !land) || def.env === 'both') break;
-      const a2 = Math.random() * Math.PI * 2;
-      x = p.x + Math.cos(a2) * dist; y = p.y + Math.sin(a2) * dist;
-      if (i === 5) return null;
+    let x, y;
+    if (opts.x !== undefined) { x = opts.x; y = opts.y; }
+    else {
+      const a = Math.random() * Math.PI * 2;
+      const dist = opts.dist || rnd(560, 760);
+      x = p.x + Math.cos(a) * dist; y = p.y + Math.sin(a) * dist;
+      // 環境の合う場所へ補正(数回試行)
+      for (let i = 0; i < 6; i++) {
+        const land = World.isLand(x, y);
+        if ((def.env === 'land' && land) || (def.env === 'sea' && !land) || def.env === 'both') break;
+        const a2 = Math.random() * Math.PI * 2;
+        x = p.x + Math.cos(a2) * dist; y = p.y + Math.sin(a2) * dist;
+        if (i === 5) return null;
+      }
     }
     const tm = opts.tm || timeMults();
     const e = {
@@ -460,6 +464,10 @@ const Run = (() => {
       hp: 0, flash: 0, slowUntil: 0, slowMul: 1, frozenUntil: 0,
       burn: 0, burnT: 0, shred: 0, contactCd: 0, shootCd: rnd(0.5, 2), healCd: 1,
       orbitHit: 0, wander: Math.random() * 7,
+      // うろつき/群れ/気づき(アグロ)。hordeやbossは最初から追跡状態
+      wanderDir: Math.random() * Math.PI * 2, wanderT: rnd(0.6, 2.5),
+      mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(300, 460),
+      herd: opts.herd || null,
     };
     e.hp = e.maxHp;
     // 強化ランク: 時間・距離で強くなった敵は見た目が変わる(大きさ+オーラ)
@@ -471,50 +479,96 @@ const Run = (() => {
     return e;
   }
 
+  // その時・その場所に湧く敵の種類を1体ぶん抽選する
+  function pickEnemyKey(){
+    const tier = allowedTier();
+    const onSea = !World.isLand(R.player.x, R.player.y);
+    const pool = [];
+    const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
+    let baseW = 0;
+    for (const k in DATA.ENEMIES) {
+      const d = DATA.ENEMIES[k];
+      if (d.isReaper || d.rare) continue;   // レアは別途0.006で抽選
+      if (d.tier > tier || d.tier < tier - 2) continue;
+      if (onSea && d.env === 'land') continue;
+      if (!onSea && d.env === 'sea') continue;
+      const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
+      if (d.move === 'kite') kites.push({ k, w });
+      else { pool.push({ k, w }); baseW += w; }
+    }
+    // 逃げる敵は全体の約1/50だけ(通常敵の合計重みの1/49を分け合う)
+    if (kites.length && baseW > 0) {
+      let kw = 0; for (const q of kites) kw += q.w;
+      for (const q of kites) pool.push({ k: q.k, w: baseW / 49 * q.w / kw });
+    } else if (kites.length) for (const q of kites) pool.push(q);
+    if (!pool.length) return null;
+    let tw = 0; for (const q of pool) tw += q.w;
+    let r = Math.random() * tw, pick = pool[0].k;
+    for (const q of pool) { r -= q.w; if (r <= 0) { pick = q.k; break; } }
+    if (Math.random() < 0.006) return 'rainbow';   // レアモンスター
+    const qe = Quest.wantSpawn();   // 討伐クエスト中は対象が湧きやすい
+    if (qe && Math.random() < 0.35 && R.enemies.filter(e => e.defKey === qe).length < 6) return qe;
+    return pick;
+  }
+  // 画面の外(確実に見えない位置)を返す
+  function offscreenPoint(){
+    const a = Math.random() * Math.PI * 2;
+    const d = (R.offscreenR || 950) + rnd(120, 520);
+    return { x: R.player.x + Math.cos(a) * d, y: R.player.y + Math.sin(a) * d };
+  }
+  // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく
+  function spawnHerd(mad){
+    const key = pickEnemyKey(); if (!key) return;
+    const def = DATA.ENEMIES[key];
+    const c = offscreenPoint();
+    const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5) };
+    const n = 4 + Math.floor(Math.random() * 5);
+    for (let i = 0; i < n; i++) {
+      const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
+      if (!canStand(def, ex, ey)) continue;
+      spawnEnemy(key, { x: ex, y: ey, herd, mad });
+    }
+  }
+  // 大群イベント: 一斉に片側から押し寄せ、最初から追跡状態
+  function spawnHorde(){
+    const base = (R.offscreenR || 950) + rnd(60, 260);
+    const dir = Math.random() * Math.PI * 2;
+    const n = 14 + Math.floor(Math.random() * 12);
+    let placed = 0;
+    for (let i = 0; i < n * 2 && placed < n; i++) {
+      const a = dir + rnd(-0.9, 0.9);
+      const d = base + rnd(0, 360);
+      const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
+      const key = pickEnemyKey(); if (!key) break;
+      if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true })) placed++;
+    }
+    if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.boss(); }
+  }
+
   function director(dt){
     const min = R.time / 60;
-    // 通常スポーン(序盤は少なく、時間と距離で徐々に増える)
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
-    const rate = (0.4 + min * 0.17 + ring0 * 0.13) * (isReaperTime ? 0.5 : 1);
-    R.spawnAcc += dt * rate;
-    const cap = Math.min(160, 16 + R.time * 0.4 + ring0 * 6);
+
+    // --- 環境人口: マップに点在してうろつく敵を、画面外から少しずつ湧かせて維持 ---
+    // 積極的なリフィルはしない(倒したエリアはしばらく静か)。画面内には湧かない
+    const ambient = Math.min(120, 14 + min * 2.0 + ring0 * 5) * (isReaperTime ? 0.4 : 1);
+    R.spawnAcc += dt * (0.5 + min * 0.1 + ring0 * 0.08) * (isReaperTime ? 0.5 : 1);
+    const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (R.enemies.length >= cap) break;   // 見切れた敵は反対側から登場し直すので圧は途切れない
-      const tier = allowedTier();
-      const onSea = !World.isLand(R.player.x, R.player.y);
-      const pool = [];
-      const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
-      let baseW = 0;
-      for (const k in DATA.ENEMIES) {
-        const d = DATA.ENEMIES[k];
-        if (d.isReaper || d.rare) continue;   // レアは別途0.006で抽選
-        if (d.tier > tier || d.tier < tier - 2) continue;
-        if (onSea && d.env === 'land') continue;
-        if (!onSea && d.env === 'sea') continue;
-        // 高tierほど出やすく
-        const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
-        if (d.move === 'kite') kites.push({ k, w });
-        else { pool.push({ k, w }); baseW += w; }
-      }
-      // 逃げる敵は全体の約1/50だけ湧く(通常敵の合計重みの1/49を分け合う)
-      if (kites.length && baseW > 0) {
-        let kw = 0; for (const q of kites) kw += q.w;
-        for (const q of kites) pool.push({ k: q.k, w: baseW / 49 * q.w / kw });
-      } else if (kites.length) {
-        for (const q of kites) pool.push(q);
-      }
-      if (!pool.length) continue;
-      let tw = 0; for (const q of pool) tw += q.w;
-      let r = Math.random() * tw;
-      let pick = pool[0].k;
-      for (const q of pool) { r -= q.w; if (r <= 0) { pick = q.k; break; } }
-      if (Math.random() < 0.006) pick = 'rainbow';   // レアモンスター
-      // 討伐クエスト中は対象の敵が湧きやすい
-      const qe = Quest.wantSpawn();
-      if (qe && Math.random() < 0.35 && R.enemies.filter(e => e.defKey === qe).length < 6) pick = qe;
-      spawnEnemy(pick);
+      if (R.enemies.length >= ambient) break;
+      if (Math.random() < 0.22) spawnHerd(false);   // ときどき群れ
+      else { const k = pickEnemyKey(); if (k) spawnEnemy(k, { mad: k === questTgt }); }
+    }
+    if (R.spawnAcc > 4) R.spawnAcc = 4;
+
+    // --- 時間ごとの大群 ---
+    if (R.hordeT === undefined) R.hordeT = rnd(60, 90);
+    if (!isReaperTime) {
+      R.hordeT -= dt;
+      if (R.hordeT <= 0) { spawnHorde(); R.hordeT = rnd(75, 120); }
     }
     // ボス
     for (const b of DATA.BOSSES) {
@@ -555,18 +609,9 @@ const Run = (() => {
     for (let i = R.enemies.length - 1; i >= 0; i--) {
       const e = R.enemies[i];
       if (e.dead) { R.enemies.splice(i, 1); continue; }
-      // 画面から見切れた敵は消えず、プレイヤーの反対側から登場し直す
-      // (下限820: 出現直後の敵(560-760)が即座に巻き直されるのを防ぐ)
-      let pd = Math.hypot(e.x - p.x, e.y - p.y);
-      if (pd > Math.max(R.offscreenR || 950, 820) && !e.boss && !e.def.isReaper && !e.def.rare) {
-        const nd = rnd(560, 760);
-        for (let t = 0; t < 3; t++) {
-          // 反対側(プレイヤーの向こう)へ。地形が合わなければ数回だけ別角度を試す
-          const ang = t === 0 ? Math.atan2(p.y - e.y, p.x - e.x) : Math.random() * 7;
-          const nx = p.x + Math.cos(ang) * nd, ny = p.y + Math.sin(ang) * nd;
-          if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; pd = nd; break; }
-        }
-      }
+      // 遠く離れた敵は退場(追跡中の敵は粘る)。画面内には湧き直さない ― 世界に点在する敵
+      const pd = Math.hypot(e.x - p.x, e.y - p.y);
+      if (!e.boss && !e.def.isReaper && pd > (e.mad ? 3200 : 2400)) { R.enemies.splice(i, 1); continue; }
       e.flash = Math.max(0, e.flash - dt);
       e.contactCd = Math.max(0, e.contactCd - dt);
       // 燃焼・時間系
@@ -607,35 +652,62 @@ const Run = (() => {
                  e.hp < e.maxHp * 0.25 && pd < fe.radius * 1.5) {
         // 威圧のオーラ: 瀕死の敵が逃げ出す
         vx = (e.x - p.x) / (pd || 1); vy = (e.y - p.y) / (pd || 1);
-      } else if (e.def.move === 'kite') {
-        // ヒーラー: 距離を保って逃げる + 回復
-        const keep = 230;
-        if (pd < keep) { vx = (e.x - p.x) / (pd||1); vy = (e.y - p.y) / (pd||1); }
-        else if (pd > keep + 140) { vx = (p.x - e.x) / (pd||1); vy = (p.y - e.y) / (pd||1); spd *= 0.6; }
-        else { e.wander += dt; vx = Math.cos(e.wander); vy = Math.sin(e.wander); spd *= 0.5; }
-        e.healCd -= dt;
-        if (e.healCd <= 0 && e.def.heal) {
-          e.healCd = 1;
-          const tm = timeMults();
-          for (const o of R.enemies) {
-            if (o !== e && !o.dead && o.hp < o.maxHp && Math.hypot(o.x-e.x, o.y-e.y) < e.def.heal.radius) {
-              o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * tm.hp);
-              effect('healline', e.x, e.y, { x2:o.x, y2:o.y });
+      } else {
+        // 気づき(アグロ): 近づくと追ってくる。一度気づけば追い続け、離れすぎると諦める
+        if (pd < e.aggro) e.mad = true;
+        else if (e.mad && pd > e.aggro + 520) e.mad = false;
+        if (!e.mad) for (const a of R.allies) {   // 仲間が至近にいれば気づく
+          if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; break; }
+        }
+        if (!e.mad) {
+          // うろつき: ゆっくり徘徊。群れは共有アンカーの周りに留まって一緒に移動する
+          if (e.herd && e.herd.lastT !== R.time) {
+            e.herd.lastT = R.time;
+            e.herd.t -= dt;
+            if (e.herd.t <= 0) { e.herd.dir = Math.random() * Math.PI * 2; e.herd.t = rnd(2, 5); }
+            e.herd.x += Math.cos(e.herd.dir) * 12 * dt;
+            e.herd.y += Math.sin(e.herd.dir) * 12 * dt;
+          }
+          e.wanderT -= dt;
+          if (e.wanderT <= 0) { e.wanderDir = Math.random() * Math.PI * 2; e.wanderT = rnd(1.2, 3.5); }
+          let wx = Math.cos(e.wanderDir), wy = Math.sin(e.wanderDir);
+          if (e.herd) {
+            const hx = e.herd.x - e.x, hy = e.herd.y - e.y, hd = Math.hypot(hx, hy);
+            if (hd > 90) { wx += hx / hd * 1.6; wy += hy / hd * 1.6; }   // 群れの中心へ緩く戻る
+          }
+          const wl = Math.hypot(wx, wy) || 1;
+          vx = wx / wl; vy = wy / wl; spd *= 0.4;
+        } else if (e.def.move === 'kite') {
+          // ヒーラー: 距離を保って逃げる + 回復
+          const keep = 230;
+          if (pd < keep) { vx = (e.x - p.x) / (pd||1); vy = (e.y - p.y) / (pd||1); }
+          else if (pd > keep + 140) { vx = (p.x - e.x) / (pd||1); vy = (p.y - e.y) / (pd||1); spd *= 0.6; }
+          else { e.wander += dt; vx = Math.cos(e.wander); vy = Math.sin(e.wander); spd *= 0.5; }
+          e.healCd -= dt;
+          if (e.healCd <= 0 && e.def.heal) {
+            e.healCd = 1;
+            const tm = timeMults();
+            for (const o of R.enemies) {
+              if (o !== e && !o.dead && o.hp < o.maxHp && Math.hypot(o.x-e.x, o.y-e.y) < e.def.heal.radius) {
+                o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * tm.hp);
+                effect('healline', e.x, e.y, { x2:o.x, y2:o.y });
+              }
             }
           }
+        } else {
+          // 追跡: 仲間が近ければそちらを狙うこともある
+          let tgt = null, td = pd;
+          for (const a of R.allies) {
+            if (a.waitAt) continue;
+            const d = Math.hypot(a.x - e.x, a.y - e.y);
+            if (d < td * 0.7) { tgt = a; td = d; }
+          }
+          if (tgt) { tx = tgt.x; ty = tgt.y; }
+          const d = Math.hypot(tx - e.x, ty - e.y) || 1;
+          vx = (tx - e.x) / d; vy = (ty - e.y) / d;
+          // 射撃タイプは距離を取る
+          if (e.def.ranged && d < e.def.ranged.range * 0.6) { vx = -vx * 0.5; vy = -vy * 0.5; }
         }
-      } else {
-        // 仲間が近ければそちらを狙うこともある
-        let tgt = null, td = pd;
-        for (const a of R.allies) {
-          const d = Math.hypot(a.x - e.x, a.y - e.y);
-          if (d < td * 0.7) { tgt = a; td = d; }
-        }
-        if (tgt) { tx = tgt.x; ty = tgt.y; }
-        const d = Math.hypot(tx - e.x, ty - e.y) || 1;
-        vx = (tx - e.x) / d; vy = (ty - e.y) / d;
-        // 射撃タイプは距離を取る
-        if (e.def.ranged && d < e.def.ranged.range * 0.6) { vx = -vx * 0.5; vy = -vy * 0.5; }
       }
       const nx = e.x + vx * spd * dt, ny = e.y + vy * spd * dt;
       if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; }
@@ -655,8 +727,8 @@ const Run = (() => {
           break;
         }
       }
-      // 射撃
-      if (e.def.ranged && !confused) {
+      // 射撃(気づいている敵のみ)
+      if (e.def.ranged && !confused && e.mad) {
         e.shootCd -= dt;
         if (e.shootCd <= 0 && pd < e.def.ranged.range) {
           e.shootCd = e.def.ranged.cd;
@@ -668,20 +740,23 @@ const Run = (() => {
         }
       }
     }
-    // 敵弾(プレイヤーにも仲間にも当たる)
+    // 敵弾: 仲間の壁で必ず止まる(貫通しない)。仲間を先に判定 → その後プレイヤー
     for (let i = R.eprojs.length - 1; i >= 0; i--) {
       const b = R.eprojs[i];
+      const px0 = b.x, py0 = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.life <= 0) { R.eprojs.splice(i, 1); continue; }
-      if (Math.hypot(b.x - p.x, b.y - p.y) < 16) { damagePlayer(b.dmg); R.eprojs.splice(i, 1); continue; }
+      // 仲間の壁: この1フレームの弾道が仲間に触れたら消滅(高速でもすり抜けない)
+      let blocked = false;
       for (const a of R.allies) {
         if (a.waitAt || a.dead) continue;
-        if (Math.hypot(b.x - a.x, b.y - a.y) < a.def.r + 5) {
-          damageAlly(a, b.dmg * 0.35, b);   // 接触と同じく仲間への弾ダメージは控えめ
-          R.eprojs.splice(i, 1);
-          break;
+        if (segCircleHit(px0, py0, b.x, b.y, a.x, a.y, a.def.r + 5)) {
+          damageAlly(a, b.dmg * 0.35, b);   // 仲間への弾ダメージは控えめ
+          R.eprojs.splice(i, 1); blocked = true; break;
         }
       }
+      if (blocked) continue;
+      if (segCircleHit(px0, py0, b.x, b.y, p.x, p.y, 16)) { damagePlayer(b.dmg); R.eprojs.splice(i, 1); }
     }
   }
 
@@ -771,13 +846,15 @@ const Run = (() => {
         } else continue;
       }
       // ターゲット探索: 陣形に触れるほど近づいた敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
+      // 敵の体の大きさ(ゴーレム等)を差し引いて判定 ― 大きい敵が撃てなかった不具合を修正
       const formR = formationRadius(n);
       const leash = formR + 12;
-      let tgt = null, td = leash;
+      let tgt = null, td = 1e9;
       for (const e of R.enemies) {
         if (e.dead) continue;
-        if (Math.hypot(e.x - p.x, e.y - p.y) > leash) continue;
-        const d = Math.hypot(e.x - a.x, e.y - a.y);
+        const er = e.def.r * (e.sizeMul || 1);
+        if (Math.hypot(e.x - p.x, e.y - p.y) - er > leash) continue;
+        const d = Math.hypot(e.x - a.x, e.y - a.y) - er;
         if (d < td) { tgt = e; td = d; }
       }
       // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる
@@ -806,9 +883,9 @@ const Run = (() => {
             dest = null; // 距離維持
           }
         }
-        // 接触攻撃
+        // 接触攻撃(tdは敵の体の縁までの距離)
         a.atkCd -= dt;
-        if (dest && td < tgt.def.r + 16) {
+        if (dest && td < a.def.r + 16) {
           if (a.atkCd <= 0) {
             a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
             dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
@@ -1247,6 +1324,16 @@ const Run = (() => {
   }
 
   // ビーム(直線)判定: 敵とオブジェクトの両方に命中
+  // 線分(x0,y0)-(x1,y1) が半径rの円(cx,cy)に触れるか(弾のすり抜け防止)
+  function segCircleHit(x0, y0, x1, y1, cx, cy, r){
+    const dx = x1 - x0, dy = y1 - y0;
+    const len2 = dx * dx + dy * dy;
+    let t = len2 ? ((cx - x0) * dx + (cy - y0) * dy) / len2 : 0;
+    t = Math.max(0, Math.min(1, t));
+    const px = x0 + dx * t, py = y0 + dy * t;
+    return (px - cx) * (px - cx) + (py - cy) * (py - cy) < r * r;
+  }
+
   function beamHit(x, y, angle, len, width, dmg){
     const ca = Math.cos(angle), sa = Math.sin(angle);
     for (const e of R.enemies) {
@@ -2050,8 +2137,8 @@ const Run = (() => {
     document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
     const waiting = R.allies.filter(a => a.waitAt).length;
     allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
-    // スキルボタン: 「まだ見ていない」取得可能スキルがあれば光る(開けば消える)
-    const rc = Skills.unseenReadyCount();
+    // スキルボタン: 今その場で取得/強化できるスキルがある限り光り、数を表示する
+    const rc = Skills.readyCount();
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
