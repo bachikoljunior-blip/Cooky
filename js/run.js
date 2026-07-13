@@ -551,12 +551,15 @@ const Run = (() => {
     }
     return false;
   }
-  // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく
+  // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく。
+  // alerted: 1体でも気づくと群れ全体が襲ってくる(updateEnemiesで連鎖)。
   function spawnHerd(mad){
     const key = pickEnemyKey(); if (!key) return;
     const def = DATA.ENEMIES[key];
-    const c = offscreenPoint();
-    const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5) };
+    const offR = R.offscreenR || 500;
+    const a = Math.random() * Math.PI * 2, hd = offR + rnd(30, 200);   // 画面外だが近く(退場圏内)
+    const c = { x: R.player.x + Math.cos(a) * hd, y: R.player.y + Math.sin(a) * hd };
+    const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5), alerted: !!mad };
     const n = 4 + Math.floor(Math.random() * 5);
     for (let i = 0; i < n; i++) {
       const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
@@ -619,15 +622,16 @@ const Run = (() => {
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    const nearTarget = Math.round((40 + min * 7 + ring0 * 7) * (isReaperTime ? 0.4 : 1));
+    const nearTarget = Math.round((48 + min * 8 + ring0 * 8) * (isReaperTime ? 0.4 : 1));
     R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (nearN >= nearTarget || R.enemies.length >= 900) break;
+      if (Math.random() < 0.12) { spawnHerd(false); nearN += 5; }   // 時々、群れ(まとまってうろつく)
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
-      const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240) })) nearN++;
+      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240) })) nearN++; }
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 
@@ -739,6 +743,8 @@ const Run = (() => {
         if (!e.mad) for (const a of R.allies) {   // 仲間が至近にいれば気づく
           if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; break; }
         }
+        // 群れの連鎖: 1体が気づいたら群れ全体が襲ってくる
+        if (e.herd) { if (e.mad) e.herd.alerted = true; else if (e.herd.alerted) e.mad = true; }
         if (!e.mad) {
           // うろつき: ゆっくり徘徊。群れは共有アンカーの周りに留まって一緒に移動する
           if (e.herd && e.herd.lastT !== R.time) {
@@ -953,8 +959,9 @@ const Run = (() => {
         if (d > engageR) continue;
         if (d < td) { tgt = e; td = d; }
       }
-      // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる
-      if (tgt) {
+      // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる。
+      // ただし射撃タイプ(弓など)は逃げながらでも撃ち続ける。
+      if (tgt && !a.def.ranged) {
         const ax2 = R.botAxis || Input.axis();
         if (ax2.x || ax2.y) {
           const dx = tgt.x - p.x, dy = tgt.y - p.y;
