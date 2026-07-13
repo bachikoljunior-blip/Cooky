@@ -314,15 +314,25 @@ const PASSIVE_DEFS = [
   ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',6,'wood',10],
   ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',6,'shell',8],
 ];
-for (const [id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat] of PASSIVE_DEFS) {
+// レベルが上がると必要素材の種類も変化する。序盤は解放不要の素材だけを使う(陸で採れるものを優先)
+const FLUX = ['scrap', 'crystal', 'hide', 'wood', 'bone', 'jelly', 'shell'];
+PASSIVE_DEFS.forEach(([id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat], idx) => {
+  const avail = FLUX.filter(m => m !== ma && m !== mb);   // 基本素材と重複しないもの
+  const flux1 = avail[idx % avail.length];               // lv4から加わる新素材
+  const flux2 = avail[(idx + 3) % avail.length];         // lv7からさらに別の素材
   DATA.SKILLS[id] = {
     name, icon: 'sk_' + id, cat: cat || 'kokoroe',
-    desc: `【心得】${effDesc} ${unit}/Lv。素材を集め直すたびに積み重なる。`,
-    cost: (lv) => matCost(lv, { [ma]: qa, [mb]: qb }),
+    desc: `【心得】${effDesc} ${unit}/Lv。レベルが上がると必要な素材の種類も少しずつ変わる。`,
+    cost: (lv) => {
+      const c = matCost(lv, { [ma]: qa, [mb]: qb });
+      if (lv >= 4) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 4) * 0.5);
+      if (lv >= 7 && flux2 !== flux1) c[flux2] = (c[flux2] || 0) + Math.ceil(1 + (lv - 7) * 0.5);
+      return c;
+    },
     lvText: Array.from({ length: 9 }, (_, i) => `${effDesc} ${unit}(累計${i + 2}段)`),
     stats: (lv) => ({ passive: { key, value: per * lv } }),
   };
-}
+});
 
 DATA.SKILL_CATS = { sup:'補助', ally:'仲間', foe:'敵干渉', kokoroe:'心得' };
 DATA.SKILL_BASE_CAP = 5; // 書庫の上限解放で +1 ずつ(最大10)
@@ -332,30 +342,30 @@ DATA.SKILL_CAP_MAX = 10;
 // env: land / sea / both, move: chase / kite / wander
 // heal: {radius, hps} を持つ敵はヒーラー(kite挙動で距離を保つ)
 DATA.ENEMIES = {
-  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:5.4,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
-  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:9,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
-  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:6,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
-  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:11.4,  r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
-  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:6.8,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:30}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
-  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:18, r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
-  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:5,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
-  orc:      { name:'オーク',          hp:60,  dmg:16, speed:7.2,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
-  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:4,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
-  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:13.8,  r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
-  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:6.4,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
-  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:12.8,  r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
-  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:18.8, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
-  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:9,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
-  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:6.4,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
-  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:8,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
-  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:19.2, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
-  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:10.4,  r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
-  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:10, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:36}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
-  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:8.8, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:42}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
-  demon:    { name:'デーモン',        hp:700, dmg:60, speed:10.4,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
-  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:9,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
-  rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:23.2, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
-  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:14.2, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
+  slime:    { name:'スライム',        hp:12,  dmg:6,  speed:10.8,  r:12, tier:0, env:'land', move:'chase', coin:1, sprite:'en_slime',  drops:[{m:'jelly',c:.4}] },
+  bat:      { name:'コウモリ',        hp:8,   dmg:5,  speed:18,  r:10, tier:0, env:'both', move:'chase', coin:1, sprite:'en_bat',    drops:[{m:'hide',c:.3}] },
+  skeleton: { name:'スケルトン',      hp:20,  dmg:9,  speed:12,  r:13, tier:0, env:'land', move:'chase', coin:2, sprite:'en_skel',   drops:[{m:'bone',c:.45}] },
+  wolf:     { name:'ウルフ',          hp:26,  dmg:11, speed:22.8,  r:13, tier:1, env:'land', move:'chase', coin:3, sprite:'en_wolf',   drops:[{m:'hide',c:.45}] },
+  goblin:   { name:'ゴブリン弓兵',    hp:22,  dmg:8,  speed:13.6,  r:12, tier:1, env:'land', move:'chase', ranged:{range:260,cd:2.2,pspeed:60}, coin:3, sprite:'en_goblin', drops:[{m:'wood',c:.35},{m:'scrap',c:.2}] },
+  shaman:   { name:'回復シャーマン',  hp:34,  dmg:5,  speed:36, r:13, tier:1, env:'land', move:'kite',  heal:{radius:220,hps:6}, coin:8, sprite:'en_shaman', drops:[{m:'crystal',c:.5},{m:'magic',c:.25}] },
+  crab:     { name:'アイアンクラブ',  hp:40,  dmg:10, speed:10,  r:14, tier:1, env:'both', move:'chase', armor:.3, coin:4, sprite:'en_crab',  drops:[{m:'shell',c:.5}] },
+  orc:      { name:'オーク',          hp:60,  dmg:16, speed:14.4,  r:16, tier:2, env:'land', move:'chase', coin:5, sprite:'en_orc',    drops:[{m:'hide',c:.4},{m:'scrap',c:.3}] },
+  golem:    { name:'ストーンゴーレム',hp:150, dmg:24, speed:8,  r:20, tier:2, env:'land', move:'chase', armor:.4, coin:9, sprite:'en_golem', drops:[{m:'scrap',c:.5},{m:'crystal',c:.3}] },
+  wisp:     { name:'ウィスプ',        hp:30,  dmg:13, speed:27.6,  r:10, tier:2, env:'both', move:'chase', coin:5, sprite:'en_wisp',   drops:[{m:'crystal',c:.4},{m:'magic',c:.2}] },
+  jellyfish:{ name:'クラゲ',          hp:30,  dmg:12, speed:12.8,  r:13, tier:1, env:'sea',  move:'chase', coin:4, sprite:'en_jelly',  drops:[{m:'shell',c:.4},{m:'jelly',c:.3}] },
+  shark:    { name:'シャーク',        hp:80,  dmg:20, speed:25.6,  r:16, tier:2, env:'sea',  move:'chase', coin:7, sprite:'en_shark',  drops:[{m:'hide',c:.4},{m:'coral',c:.3}] },
+  siren:    { name:'セイレーン',      hp:60,  dmg:8,  speed:37.6, r:13, tier:2, env:'sea',  move:'kite',  heal:{radius:240,hps:12}, coin:14, sprite:'en_siren', drops:[{m:'coral',c:.5},{m:'star',c:.15}] },
+  lizard:   { name:'リザードマン',    hp:90,  dmg:20, speed:18,  r:15, tier:2, env:'both', move:'chase', coin:7, sprite:'en_lizard', drops:[{m:'scale',c:.3},{m:'hide',c:.3}] },
+  ogre:     { name:'オーガ',          hp:220, dmg:32, speed:12.8,  r:20, tier:3, env:'land', move:'chase', coin:12, sprite:'en_ogre',  drops:[{m:'hide',c:.5},{m:'magic',c:.3}] },
+  knight:   { name:'ダークナイト',    hp:280, dmg:36, speed:16,  r:16, tier:3, env:'land', move:'chase', armor:.35, coin:15, sprite:'en_knight', drops:[{m:'scrap',c:.6},{m:'magic',c:.35}] },
+  necro:    { name:'ネクロマンサー',  hp:180, dmg:12, speed:38.4, r:14, tier:3, env:'land', move:'kite', heal:{radius:260,hps:25}, coin:25, sprite:'en_necro', drops:[{m:'magic',c:.6},{m:'star',c:.2}] },
+  serpent:  { name:'シーサーペント',  hp:320, dmg:38, speed:20.8,  r:20, tier:3, env:'sea',  move:'chase', coin:16, sprite:'en_serpent', drops:[{m:'coral',c:.5},{m:'scale',c:.35}] },
+  whelp:    { name:'ドラゴンチャイルド', hp:260, dmg:30, speed:20, r:15, tier:3, env:'both', move:'chase', ranged:{range:240,cd:2.5,pspeed:72}, coin:18, sprite:'en_whelp', drops:[{m:'scale',c:.5},{m:'star',c:.2}] },
+  dragon:   { name:'エンシェントドラゴン', hp:900, dmg:55, speed:17.6, r:24, tier:4, env:'both', move:'chase', ranged:{range:300,cd:2.2,pspeed:84}, coin:45, sprite:'en_dragon', drops:[{m:'scale',c:.7},{m:'abyss',c:.25}] },
+  demon:    { name:'デーモン',        hp:700, dmg:60, speed:20.8,  r:20, tier:4, env:'land', move:'chase', coin:40, sprite:'en_demon', drops:[{m:'magic',c:.6},{m:'abyss',c:.25}] },
+  abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:18,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
+  rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:46.4, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
+  reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:28.4, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
 };
 
 // ボス: minute = 出現時刻(分)

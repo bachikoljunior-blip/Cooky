@@ -28,7 +28,7 @@ const Run = (() => {
       atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
-      speed: 21 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
+      speed: 42 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
       boatSpeed: 560 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
@@ -280,6 +280,7 @@ const Run = (() => {
       speed: e.def.speed * 1.4,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false, slot: undefined,
+      joining: true,   // 倒した位置から主人公のところへ駆けつける
     });
     assignSlot(R.allies[R.allies.length - 1]);
     R.recruits++;
@@ -541,7 +542,8 @@ const Run = (() => {
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
-      if (spawnEnemy(key, { x: ex, y: ey, mad: true })) placed++;
+      // aggroを大きく取り、遠くから湧いても諦めず突撃し続ける
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600 })) placed++;
     }
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.boss(); }
   }
@@ -668,6 +670,7 @@ const Run = (() => {
             e.herd.x += Math.cos(e.herd.dir) * 12 * dt;
             e.herd.y += Math.sin(e.herd.dir) * 12 * dt;
           }
+          if (e.wanderT === undefined) { e.wanderDir = Math.random() * Math.PI * 2; e.wanderT = rnd(1.2, 3.5); }
           e.wanderT -= dt;
           if (e.wanderT <= 0) { e.wanderDir = Math.random() * Math.PI * 2; e.wanderT = rnd(1.2, 3.5); }
           let wx = Math.cos(e.wanderDir), wy = Math.sin(e.wanderDir);
@@ -845,9 +848,20 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
+      const formR = formationRadius(n);
+      // 勧誘直後: 倒した位置から主人公のところへ駆けつける(陣形に入るまではリーシュ免除)
+      if (a.joining) {
+        const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
+        const dx = p.x + sp2.x - a.x, dy = p.y + sp2.y - a.y;
+        const d = Math.hypot(dx, dy) || 1;
+        const jspd = Math.max(a.speed * spdMul, R.stats.speed * 2.2);
+        const step = Math.min(d, jspd * dt);
+        a.x += dx / d * step; a.y += dy / d * step;
+        if (Math.hypot(a.x - p.x, a.y - p.y) < formR + 20) a.joining = false;
+        continue;
+      }
       // ターゲット探索: 陣形に触れるほど近づいた敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
       // 敵の体の大きさ(ゴーレム等)を差し引いて判定 ― 大きい敵が撃てなかった不具合を修正
-      const formR = formationRadius(n);
       const leash = formR + 12;
       let tgt = null, td = 1e9;
       for (const e of R.enemies) {
@@ -967,9 +981,10 @@ const Run = (() => {
       a._m = 1 + (a.def.tier || 0) * 0.6;
       units.push(a);
     }
-    // 主人公にも当たり判定(船上は除く)。質量は高めで押されにくい
+    // 主人公にも当たり判定(船上は除く)。質量は極大 ― 仲間や敵に押されず、
+    // 逆に周りをどかす(止まっていても仲間に押されない)
     const pl = R.player;
-    if (!pl.onBoat) { pl._r = 12; pl._m = 2.5; units.push(pl); }
+    if (!pl.onBoat) { pl._r = 12; pl._m = 1e7; units.push(pl); }
     if (units.length < 2) return;
     const cell = 64, grid = new Map();
     for (const u of units) {
@@ -1819,6 +1834,15 @@ const Run = (() => {
     // 仲間
     for (const a of R.allies) {
       if (a.waitAt) g.globalAlpha = 0.7;
+      // 味方の目印: 足元の緑グロー + 縁取り(敵と一目で見分けられる)
+      const ar = a.def.r;
+      const gg = g.createRadialGradient(a.x, a.y + ar * 0.7, 1, a.x, a.y + ar * 0.7, ar + 6);
+      gg.addColorStop(0, 'rgba(126,231,135,0.28)');
+      gg.addColorStop(1, 'rgba(126,231,135,0)');
+      g.fillStyle = gg;
+      g.beginPath(); g.arc(a.x, a.y + ar * 0.7, ar + 6, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(140,240,150,0.9)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(a.x, a.y + 3, ar + 2.5, 0, 7); g.stroke();
       Sprites.draw(g, a.def.sprite, a.x, a.y, a.def.r * 2.6);
       if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
       if (a.waitAt) {
