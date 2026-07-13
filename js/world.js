@@ -223,8 +223,13 @@ const World = (() => {
         inView(x, y){ return Math.abs(x) < ext && Math.abs(y) < ext; },
       };
     }
+    // 周辺図: プレイヤー中心。次の拠点ヒントがあれば、それが必ず収まるまで範囲を広げる
+    let ext = LOCAL_EXTENT;
+    const lh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
+    if (lh) ext = Math.max(ext, Math.hypot(lh.x - cx, lh.y - cy) * 1.15);
+    ext = Math.min(ext, MM_EXTENT);
     const scale = WM_RES / (MM_EXTENT * 2);           // world→画像px
-    const sw = LOCAL_EXTENT * 2 * scale;
+    const sw = ext * 2 * scale;
     const sx = Math.max(0, Math.min(WM_RES - sw, (cx + MM_EXTENT) * scale - sw / 2));
     const sy = Math.max(0, Math.min(WM_RES - sw, (cy + MM_EXTENT) * scale - sw / 2));
     return {
@@ -234,7 +239,7 @@ const World = (() => {
                  y: ((y + MM_EXTENT) * scale - sy) / sw * MM_SIZE };
       },
       inView(x, y){
-        return Math.abs(x - cx) < LOCAL_EXTENT * 1.05 && Math.abs(y - cy) < LOCAL_EXTENT * 1.05;
+        return Math.abs(x - cx) < ext * 1.2 && Math.abs(y - cy) < ext * 1.2;
       },
     };
   }
