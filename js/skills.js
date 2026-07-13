@@ -12,12 +12,14 @@ const Skills = (() => {
   let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
   let pinned = [];     // 一番上に固定表示するスキル(先頭ほど上。新しく固定するほど前のは下へ)
   let tab = 'new';     // 強化 up / 新規 new / 効果 info / ステータス st
-  let cat = 'all';     // カテゴリフィルタ
+  let catByTab = { up: 'all', new: 'all' };   // カテゴリフィルタはタブごとに保存
+  function curCat(){ return catByTab[tab] || 'all'; }
 
+  // ピンは押すたびに必ず一番上へ。他をピンすると相対的に下がるが、もう一度押せばまた最上位に
   function togglePin(id){
     const i = pinned.indexOf(id);
-    if (i >= 0) pinned.splice(i, 1);
-    else pinned.unshift(id);   // 新しく固定したものが一番上、前のは1つずつ下へ
+    if (i >= 0) pinned.splice(i, 1);   // 今の位置から外して…
+    pinned.unshift(id);                // …必ず先頭(一番上)へ
     SaveSys.data.skillPins = pinned;
     SaveSys.save();
   }
@@ -37,7 +39,10 @@ const Skills = (() => {
     SaveSys.data.skillPins = SaveSys.data.skillPins || [];
     pinned = SaveSys.data.skillPins;
     seenReady = {};
-    tab = 'new'; cat = 'all';
+    tab = 'new';
+    // カテゴリ選択はタブごとに保存し、周回をまたいでも維持する
+    SaveSys.data.skillCatByTab = SaveSys.data.skillCatByTab || { up: 'all', new: 'all' };
+    catByTab = SaveSys.data.skillCatByTab;
     // 出撃支度+保存術: 基本素材を持って開始
     const s = SaveSys.metaLv('lab_starter') * 2 + SaveSys.metaLv('m_preserve');
     if (s > 0) for (const m of ['jelly','bone','hide','wood']) mats[m] = s;
@@ -257,13 +262,16 @@ const Skills = (() => {
     // カテゴリタブ(取得/強化できるものがあるカテゴリには●)
     if (tab === 'info' || tab === 'st' || tab === 'mat') { catsEl.innerHTML = ''; }
     else {
+      const cat = curCat();
       const ids = tab === 'up' ? upIds : newIds;
       let ch = `<button class="scat ${cat==='all'?'on':''}" data-cat="all">全て${catCount('all', ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
       for (const ck in DATA.SKILL_CATS) {
         ch += `<button class="scat ${cat===ck?'on':''}" data-cat="${ck}">${DATA.SKILL_CATS[ck]}${catCount(ck, ids) ? '<span class="scat-dot"></span>' : ''}</button>`;
       }
       catsEl.innerHTML = ch;
-      catsEl.querySelectorAll('.scat').forEach(b => b.onclick = () => { cat = b.dataset.cat; render(); });
+      catsEl.querySelectorAll('.scat').forEach(b => b.onclick = () => {
+        catByTab[tab] = b.dataset.cat; SaveSys.save(); render();   // タブごとに保存
+      });
     }
 
     // 本文
@@ -276,6 +284,7 @@ const Skills = (() => {
       const ids = Object.keys(owned);
       h = ids.length ? ids.map(infoCard).join('') : '<p class="small" style="padding:20px">まだスキルがない。</p>';
     } else {
+      const cat = curCat();
       const ids = pinnedTop((tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat));
       if (ids.length) h = ids.map(id => skillCard(id)).join('');
       else h = tab === 'up'

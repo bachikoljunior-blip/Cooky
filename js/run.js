@@ -717,14 +717,16 @@ const Run = (() => {
       else if (canStand(e.def, nx, e.y)) { e.x = nx; }
       else if (canStand(e.def, e.x, ny)) { e.y = ny; }
 
+      // 体の大きさ(ゴーレム・ボス等はsizeMulで大きい)を考慮した接触半径
+      const er = e.def.r * (e.sizeMul || 1);
       // 接触ダメージ(プレイヤー) ※混乱中は敵を狙うので当たらない
-      if (!confused && pd < e.def.r + 16 && e.contactCd <= 0) {
+      if (!confused && pd < er + 16 && e.contactCd <= 0) {
         e.contactCd = 0.6;
         damagePlayer(e.dmg, e);
       }
       // 接触ダメージ(仲間)
       if (!confused) for (const a of R.allies) {
-        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < e.def.r + 14) {
+        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
@@ -835,6 +837,7 @@ const Run = (() => {
       const a = R.allies[i];
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
       if (a.slot === undefined) assignSlot(a);   // 開始時の軍勢・合流など
+      a.inForm = false;   // このフレームで陣形整列中かどうか(振動防止の分離除外に使う)
       // 自動回復
       if (R.stats.allyRegen > 0) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * R.stats.allyRegen * dt);
       // 待機中(乗船で置いていかれた等)
@@ -925,8 +928,9 @@ const Run = (() => {
           const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
           dest = { x: p.x + sp2.x, y: p.y + sp2.y };
           const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-          if (d < 6) dest = null;
+          if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
           spd = Math.max(spd, R.stats.speed * 1.3);   // 陣形追従は主人公に置いていかれない速度
+          a.inForm = true;   // 整列中は仲間同士で押し合わない(振動しない)
         }
       }
       if (dest) {
@@ -979,6 +983,7 @@ const Run = (() => {
     for (const a of R.allies) if (!a.waitAt && !a.dead) {
       a._r = a.def.r;
       a._m = 1 + (a.def.tier || 0) * 0.6;
+      a._ally = true;
       units.push(a);
     }
     // 主人公にも当たり判定(船上は除く)。質量は極大 ― 仲間や敵に押されず、
@@ -1000,6 +1005,8 @@ const Run = (() => {
           if (!arr) continue;
           for (const v of arr) {
             if (v === u) continue;
+            // 陣形に整列中の仲間同士は押し合わない(定位置と押し合いの綱引き=振動を防ぐ)
+            if (u._ally && v._ally && u.inForm && v.inForm) continue;
             const dx = v.x - u.x, dy = v.y - u.y;
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
@@ -1873,8 +1880,16 @@ const Run = (() => {
         g.fillStyle = 'rgba(118,227,234,.4)';
         g.beginPath(); g.arc(e.x, e.y, e.def.r + 4, 0, 7); g.fill();
       }
-      // HPゲージは全モンスター共通仕様(大きさに依らず一定幅・一定の高さ位置)
-      if (e.hp < e.maxHp && !e.boss) drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 10, 28, e.hp / e.maxHp, '#f85149');
+      // HPゲージはボスも含め全モンスター共通仕様(頭上に表示。通常敵は一定幅、ボスは体の大きさぶん)
+      if (e.hp < e.maxHp) {
+        const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
+        drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12, bw, e.hp / e.maxHp, '#f85149');
+      }
+      // ボスは名前を頭上に表示
+      if (e.boss) {
+        g.fillStyle = '#ffd766'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
+        g.fillText(e.bossName || 'BOSS', e.x, e.y - e.def.r * (e.sizeMul || 1) - 18);
+      }
       if (e.def.heal) {
         g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
         g.fillText('✚', e.x, e.y - e.def.r - 12);
@@ -1961,18 +1976,7 @@ const Run = (() => {
       g.fillRect(0, 0, W, H);
     }
 
-    // ボスHPバー(小画面ではHUDと重ならない位置に)
-    if (R.bossAlive && !R.bossAlive.dead) {
-      const e = R.bossAlive;
-      const bw = Math.min(440, W - 40);
-      const by = W < 700 ? 108 : 54;
-      g.fillStyle = 'rgba(0,0,0,.6)';
-      g.fillRect(W/2 - bw/2, by, bw, 26);
-      g.fillStyle = '#8b1e24';
-      g.fillRect(W/2 - bw/2 + 4, by + 4, (bw - 8) * Math.max(0, e.hp / e.maxHp), 18);
-      g.fillStyle = '#fff'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
-      g.fillText(e.bossName || 'BOSS', W/2, by + 18);
-    }
+    // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
 
     drawMinimap(g, W);
   }
