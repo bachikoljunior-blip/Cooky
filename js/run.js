@@ -28,7 +28,7 @@ const Run = (() => {
       atk: (1 + 0.08*m('altar_atk')) * (1 + 0.05*m('g_west_fire')) * (1 + 0.10*m('g_black_dark'))
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
-      speed: 105 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
+      speed: 21 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
       boatSpeed: 560 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
@@ -485,15 +485,25 @@ const Run = (() => {
       const tier = allowedTier();
       const onSea = !World.isLand(R.player.x, R.player.y);
       const pool = [];
+      const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
+      let baseW = 0;
       for (const k in DATA.ENEMIES) {
         const d = DATA.ENEMIES[k];
-        if (d.isReaper) continue;
+        if (d.isReaper || d.rare) continue;   // レアは別途0.006で抽選
         if (d.tier > tier || d.tier < tier - 2) continue;
         if (onSea && d.env === 'land') continue;
         if (!onSea && d.env === 'sea') continue;
         // 高tierほど出やすく
         const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
-        pool.push({ k, w: d.heal ? w * 0.25 : w });
+        if (d.move === 'kite') kites.push({ k, w });
+        else { pool.push({ k, w }); baseW += w; }
+      }
+      // 逃げる敵は全体の約1/50だけ湧く(通常敵の合計重みの1/49を分け合う)
+      if (kites.length && baseW > 0) {
+        let kw = 0; for (const q of kites) kw += q.w;
+        for (const q of kites) pool.push({ k: q.k, w: baseW / 49 * q.w / kw });
+      } else if (kites.length) {
+        for (const q of kites) pool.push(q);
       }
       if (!pool.length) continue;
       let tw = 0; for (const q of pool) tw += q.w;
