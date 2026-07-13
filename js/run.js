@@ -833,13 +833,6 @@ const Run = (() => {
     const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
     const spdMul = (wb ? wb.spd : 1);
     const n = R.allies.length;
-    // 移動中は陣形を進行方向へ前に出す(仲間が先行して敵を押しのける)
-    const ax = R.botAxis || Input.axis();
-    const aml = Math.hypot(ax.x, ax.y);
-    const formRn = formationRadius(n);
-    const leadMag = aml > 0.15 ? Math.min(formRn * 0.7 + 30, 120) : 0;
-    const cx = p.x + (aml > 0.15 ? ax.x / aml * leadMag : 0);
-    const cy = p.y + (aml > 0.15 ? ax.y / aml * leadMag : 0);
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
@@ -931,13 +924,12 @@ const Run = (() => {
           } else dest = ot;
         }
         if (dest === undefined) {
-          // 同心円陣形: 最初は密着、仲間が増えるとリングが外へ広がる(強い仲間ほど内側)。
-          // 移動中は陣形の中心が進行方向へ前に出る(cx,cy)
+          // 同心円陣形: 主人公の周りに定位置。主人公が動けば陣形もついていく
           const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
-          dest = { x: cx + sp2.x, y: cy + sp2.y };
+          dest = { x: p.x + sp2.x, y: p.y + sp2.y };
           const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-          if (d < 3) { dest = null; a.x = cx + sp2.x; a.y = cy + sp2.y; }   // 定位置にスナップ(揺れ防止)
-          spd = Math.max(spd, R.stats.speed * 1.6);   // 陣形追従は主人公に置いていかれない速度(前進ぶん速め)
+          if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
+          spd = Math.max(spd, R.stats.speed * 1.6);   // 主人公に置いていかれない速度
           a.inForm = true;   // 整列中は仲間同士で押し合わない(振動しない)
         }
       }
@@ -950,9 +942,9 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ: 陣形のほんの少し外まで(前進中の前出しぶんは許容)
+      // ハードリーシュ: 陣形のほんの少し外まで。敵を追って主人公から離れることはない
       {
-        const maxD = formR + leadMag + 16;
+        const maxD = formR + 16;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
@@ -1612,7 +1604,14 @@ const Run = (() => {
 
     // 移動(botAxisは自動テストプレイ用フック)
     const ax = R.botAxis || Input.axis();
-    const spd = p.onBoat ? st.boatSpeed : st.speed;
+    // 軍勢を率いるほど足が重い(仲間の合計質量ぶん遅い)。質量は分離処理と同じ式(前と同じ)
+    let landSpd = st.speed;
+    if (!p.onBoat) {
+      let allyMass = 0;
+      for (const a of R.allies) { if (a.waitAt || a.dead) continue; allyMass += 1 + (a.def.tier || 0) * 0.6; }
+      landSpd = st.speed * Math.max(0.35, 1 / (1 + allyMass * 0.01));
+    }
+    const spd = p.onBoat ? st.boatSpeed : landSpd;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
