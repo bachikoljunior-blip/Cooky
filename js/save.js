@@ -18,6 +18,7 @@ const SaveSys = (() => {
                matsCollected:0, objectsDestroyed:0, skillsAcquired:0, rareKills:0, maxAlliesEver:0, deaths:0 },
       ach: {},        // 解放済み実績 id -> true
       quests2: {},    // クリア済みの2段階目クエスト id -> true
+      questsActive: [],  // 進行中のクエスト(複数同時可・周回を跨いで保持)
       skillsRevealed: {},  // 一度リストに現れたスキル(素材が減っても・周回をまたいでも表示)
       skillPins: [],       // 一番上に固定表示するスキル(先頭ほど上)
       skillCatByTab: { up:'all', new:'all' },   // スキル画面のカテゴリ選択(タブごと)

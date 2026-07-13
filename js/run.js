@@ -1538,14 +1538,15 @@ const Run = (() => {
       const d = Math.hypot(p.x - b.x, p.y - b.y);
       if (d < 90 && !SaveSys.data.bases[b.id]) {
         const qa = Quest.activeFor('base', b.id);
-        const lbl = qa && Quest.active.phase === 'return' ? 'E: 報告する ❗'
+        const lbl = qa && qa.phase === 'return' ? 'E: 報告する ❗'
                   : qa ? 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す(依頼進行中)'
                   : 'E: 「' + b.name + '」を調べる';
         R.interact = { type:'basequest', base:b, label:lbl };
       } else if (d < 90 && SaveSys.data.bases[b.id]) {
         // 解放済みの基地: 拠点マップへ転移する(NPC・施設のあるマップ、周回中は強化不可)
-        const q2ret = Quest.activeFor('base2', b.id) && Quest.active.phase === 'return';
-        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !Quest.active;
+        const q2a = Quest.activeFor('base2', b.id);
+        const q2ret = q2a && q2a.phase === 'return';
+        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !q2a;
         R.interact = { type:'enterbase', base:b,
           label: 'E: 「' + b.name + '」に入る' + (q2ret ? ' ❗報告' : (q2left ? ' ❗依頼あり' : '')) };
       }
@@ -2272,7 +2273,7 @@ const Run = (() => {
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
     // マップ内クエストの目標表示
     const qObj = document.getElementById('quest-obj');
-    if (Quest.active) {
+    if (Quest.hasActive()) {
       qObj.textContent = Quest.objText();
       qObj.classList.remove('hidden');
     } else qObj.classList.add('hidden');

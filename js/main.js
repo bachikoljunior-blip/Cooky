@@ -124,14 +124,14 @@ const Game = (() => {
     const q = DATA.QUESTS[baseId];
     if (!q) return;
     // 2段階目クエスト進行中ならクエスト側の会話(報告・途中経過)
-    if (Quest.activeFor('base2', baseId)) { Quest.atNpc(); return; }
+    if (Quest.activeFor('base2', baseId)) { Quest.atNpc('base2', baseId); return; }
     const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
     const lines = (q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。'])
       .concat(['「' + tip + '」']);
     const q2 = DATA.QUESTS2[baseId];
     const done2 = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
     dialog(q.npcName, q.npc, lines, () => {
-      if (!q2 || done2 || Quest.active) return;
+      if (!q2 || done2 || Quest.activeFor('base2', baseId)) return;
       dialogChoice(q.npcName, q.npc, q2.offer, [
         { label:'話を聞く', cb(){ Quest.offer('base2', baseId); } },
         { label:'また今度', sub:true },

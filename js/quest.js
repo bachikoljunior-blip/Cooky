@@ -7,10 +7,25 @@
 'use strict';
 
 const Quest = (() => {
-  let active = null;   // { kind:'base'|'base2', id, def, loc, phase:'go'|'return', killed, timer }
+  // 複数のクエストを同時に抱えられる。進行状況はセーブに保存し、周回を跨いで保持する。
+  let actives = [];   // [{ kind, id, def, loc, phase:'go'|'return', killed, timer, near }]
 
-  function reset(){ active = null; }
-  function activeFor(kind, id){ return active && active.kind === kind && active.id === id; }
+  function persist(){
+    SaveSys.data.questsActive = actives.map(a => ({ kind:a.kind, id:a.id, phase:a.phase, killed:a.killed, timer:a.timer }));
+    SaveSys.save();
+  }
+  function rebuild(s){
+    const def = defOf(s.kind, s.id);
+    if (!def) return null;
+    return { kind:s.kind, id:s.id, def, loc: locOf(s.kind === 'port' ? 'port' : 'base', s.id),
+             phase: s.phase || 'go', killed: s.killed || 0,
+             timer: (s.timer != null ? s.timer : (def.time || 0)), near:false };
+  }
+  // 周回開始時: 進行中クエストをセーブから復元(達成度は周回を跨いで保持)
+  function reset(){ actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean); }
+  function activeFor(kind, id){ return actives.find(a => a.kind === kind && a.id === id) || null; }
+  function hasActive(){ return actives.length > 0; }
+  function removeActive(kind, id){ actives = actives.filter(a => !(a.kind === kind && a.id === id)); persist(); }
 
   function locOf(kind, id){
     return kind === 'port' ? World.ports.find(p => p.id === id)
@@ -29,30 +44,25 @@ const Quest = (() => {
     if (def.type === 'delivery') return '素材とコインを届ける';
     return '依頼をこなす';
   }
-  function objText(){
-    if (!active) return '';
-    const d = active.def;
-    if (active.phase === 'return') return '📜 ' + d.npcName + 'に報告しよう';
-    if (d.type === 'hunt') return '📜 討伐: ' + active.killed + ' / ' + d.count + '(' + DATA.ENEMIES[d.enemy].name + ')';
+  function oneObjText(a){
+    const d = a.def;
+    if (a.phase === 'return') return '📜 ' + d.npcName + 'に報告';
+    if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + DATA.ENEMIES[d.enemy].name + ')';
     if (d.type === 'survive') {
-      const near = active.near ? '' : '(場所に近づけ!)';
-      return '📜 防衛: あと ' + Math.ceil(active.timer) + '秒 ' + near;
+      const near = a.near ? '' : '(場所に近づけ!)';
+      return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
     }
     return '📜 ' + objSummary(d);
   }
+  function objText(){ return actives.map(oneObjText).join('\n'); }
 
   // ---------------- NPCに話しかけた ----------------
   function offer(kind, id){
     const def = defOf(kind, id);
     if (!def) return;
     const face = faceOf(kind, id, def);
-    // 進行中の依頼がある
-    if (active) {
-      if (activeFor(kind, id)) { atNpc(); return; }
-      Game.dialog(def.npcName, face, ['別の依頼を抱えているようだな。', 'まずはそちらを片付けてきてくれ。'], null);
-      return;
-    }
-    // 新規: イントロ → 納品 or 受諾
+    // このNPCの依頼が進行中なら報告/経過。他の依頼を抱えていても新規は受けられる(同時進行OK)
+    if (activeFor(kind, id)) { atNpc(kind, id); return; }
     Game.dialog(def.npcName, face, def.intro.slice(), () => {
       if (def.type === 'delivery') deliveryChoice(kind, id, def);
       else {
@@ -65,8 +75,9 @@ const Quest = (() => {
   }
 
   function startActive(kind, id, def){
-    active = { kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
-               phase:'go', killed:0, timer: def.time || 0, near:false };
+    actives.push({ kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
+                   phase:'go', killed:0, timer: def.time || 0, near:false });
+    persist();
     const R = Run.state;
     R.warnMsg = '📜 依頼開始: ' + objSummary(def);
     R.warnColor = '#ffd766'; R.warnT = 4;
@@ -98,18 +109,18 @@ const Quest = (() => {
     ]);
   }
 
-  // 進行中にNPCへ(報告 or 途中経過)
-  function atNpc(){
-    if (!active) return;
-    const d = active.def;
-    const face = faceOf(active.kind, active.id, d);
-    if (active.phase === 'return') {
-      const kind = active.kind, id = active.id;
-      active = null;
+  // 進行中にNPCへ(報告 or 途中経過)。どのNPCの依頼かは kind/id で特定する
+  function atNpc(kind, id){
+    const a = activeFor(kind, id);
+    if (!a) return;
+    const d = a.def;
+    const face = faceOf(kind, id, d);
+    if (a.phase === 'return') {
+      removeActive(kind, id);
       complete(kind, id, d);
     } else {
       const hint = d.type === 'hunt'
-        ? 'まだ敵が残っているぞ。あと' + (d.count - active.killed) + '体だ。'
+        ? 'まだ敵が残っているぞ。あと' + (d.count - a.killed) + '体だ。'
         : '今は持ちこたえてくれ!';
       Game.dialog(d.npcName, face, [hint], null);
     }
@@ -123,7 +134,7 @@ const Quest = (() => {
 
   function finalize(kind, id, def){
     const R = Run.state;
-    active = null;
+    removeActive(kind, id);
     if (kind === 'port') {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
@@ -202,41 +213,51 @@ const Quest = (() => {
 
   // ---------------- 周回からのフック ----------------
   function notifyKill(defKey){
-    if (!active || active.phase !== 'go' || active.def.type !== 'hunt') return;
-    if (defKey !== active.def.enemy) return;
-    active.killed++;
-    if (active.killed >= active.def.count) {
-      active.phase = 'return';
-      const R = Run.state;
-      R.warnMsg = '📜 討伐完了!' + active.def.npcName + 'に報告しよう';
-      R.warnColor = '#ffd766'; R.warnT = 4;
-      Sfx.skill();
-    }
-  }
-
-  function tick(dt){
-    if (!active || active.phase !== 'go' || active.def.type !== 'survive') return;
-    const R = Run.state;
-    active.near = Math.hypot(R.player.x - active.loc.x, R.player.y - active.loc.y) < 800;
-    if (active.near) {
-      active.timer -= dt;
-      if (active.timer <= 0) {
-        active.phase = 'return';
-        R.warnMsg = '📜 守り抜いた!' + active.def.npcName + 'に報告しよう';
+    let changed = false;
+    for (const a of actives) {
+      if (a.phase !== 'go' || a.def.type !== 'hunt' || a.def.enemy !== defKey) continue;
+      a.killed++; changed = true;
+      if (a.killed >= a.def.count) {
+        a.phase = 'return';
+        const R = Run.state;
+        R.warnMsg = '📜 討伐完了!' + a.def.npcName + 'に報告しよう';
         R.warnColor = '#ffd766'; R.warnT = 4;
         Sfx.skill();
       }
     }
+    if (changed) persist();   // 討伐数は周回を跨いで保持
   }
 
-  // 討伐依頼中は対象の敵が近くに湧きやすくなる
+  function tick(dt){
+    const R = Run.state;
+    let persistNeeded = false;
+    for (const a of actives) {
+      if (a.phase !== 'go' || a.def.type !== 'survive') continue;
+      const secBefore = Math.ceil(a.timer);
+      a.near = Math.hypot(R.player.x - a.loc.x, R.player.y - a.loc.y) < 800;
+      if (a.near) {
+        a.timer -= dt;
+        if (Math.ceil(a.timer) !== secBefore) persistNeeded = true;   // 1秒ごとに進捗保存
+        if (a.timer <= 0) {
+          a.phase = 'return';
+          R.warnMsg = '📜 守り抜いた!' + a.def.npcName + 'に報告しよう';
+          R.warnColor = '#ffd766'; R.warnT = 4;
+          Sfx.skill();
+          persistNeeded = true;
+        }
+      }
+    }
+    if (persistNeeded) persist();
+  }
+
+  // 討伐依頼中は対象の敵が近くに湧きやすくなる(進行中の討伐依頼の対象)
   function wantSpawn(){
-    if (!active || active.phase !== 'go' || active.def.type !== 'hunt') return null;
-    return active.def.enemy;
+    const a = actives.find(a => a.phase === 'go' && a.def.type === 'hunt');
+    return a ? a.def.enemy : null;
   }
 
-  function _forceReturn(){ if (active) active.phase = 'return'; }   // テスト用
+  function _forceReturn(kind, id){ const a = kind ? activeFor(kind, id) : actives[0]; if (a) { a.phase = 'return'; persist(); } }
 
-  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, _forceReturn, refreshHint,
-           get active(){ return active; } };
+  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint,
+           get active(){ return actives[0] || null; } };
 })();
