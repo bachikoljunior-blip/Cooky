@@ -467,7 +467,7 @@ const Run = (() => {
       orbitHit: 0, wander: Math.random() * 7,
       // うろつき/群れ/気づき(アグロ)。hordeやbossは最初から追跡状態
       wanderDir: Math.random() * Math.PI * 2, wanderT: rnd(0.6, 2.5),
-      mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(300, 460),
+      mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(150, 220),
       herd: opts.herd || null,
     };
     e.hp = e.maxHp;
@@ -555,8 +555,8 @@ const Run = (() => {
 
     // --- 環境人口: マップに点在してうろつく敵を、画面外から湧かせて維持 ---
     // 積極的なリフィルはしない(倒したエリアはしばらく静か)。画面内には湧かない
-    const ambient = Math.min(320, 70 + min * 6 + ring0 * 14) * (isReaperTime ? 0.4 : 1);
-    R.spawnAcc += dt * (2.5 + min * 0.3 + ring0 * 0.2) * (isReaperTime ? 0.5 : 1);
+    const ambient = Math.min(900, 350 + min * 20 + ring0 * 40) * (isReaperTime ? 0.4 : 1);
+    R.spawnAcc += dt * (9 + min * 0.6 + ring0 * 0.4) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
