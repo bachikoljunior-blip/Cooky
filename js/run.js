@@ -1545,12 +1545,12 @@ const Run = (() => {
                   : qa ? 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す(依頼進行中)'
                   : 'E: 「' + b.name + '」を調べる';
         R.interact = { type:'basequest', base:b, label:lbl };
-      } else if (d < 90 && SaveSys.data.bases[b.id] && DATA.QUESTS[b.id]) {
+      } else if (d < 90 && SaveSys.data.bases[b.id]) {
+        // 解放済みの基地: 拠点マップへ転移する(NPC・施設のあるマップ、周回中は強化不可)
         const q2ret = Quest.activeFor('base2', b.id) && Quest.active.phase === 'return';
-        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]);
-        R.interact = { type:'npctalk', base:b,
-          label: q2ret ? 'E: 報告する ❗'
-               : 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す' + (q2left && !Quest.active ? ' ❗依頼あり' : '') };
+        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !Quest.active;
+        R.interact = { type:'enterbase', base:b,
+          label: 'E: 「' + b.name + '」に入る' + (q2ret ? ' ❗報告' : (q2left ? ' ❗依頼あり' : '')) };
       }
       if (d < 150 && SaveSys.data.bases[b.id]) {
         p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
@@ -1586,7 +1586,7 @@ const Run = (() => {
     if (!it) return;
     if (it.type === 'portquest') Quest.offer('port', it.port.id);
     else if (it.type === 'basequest') Quest.offer('base', it.base.id);
-    else if (it.type === 'npctalk') Game.npcTalk(it.base.id);
+    else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
   }

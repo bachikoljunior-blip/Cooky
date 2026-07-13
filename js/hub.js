@@ -29,7 +29,7 @@ const Hub = (() => {
         { kind:'stats',  x:-620, y:240 },
       ];
     }
-    // 基地エリア: 3種類の特別強化施設(武練場/生命の祠/秘宝の蔵)+ ゲート
+    // 基地エリア: 特別強化施設 + NPC + ゲート(周回中に転移してきた時も同じマップ)
     const list = [];
     const facs = Object.keys(DATA.BASE_FACS);
     const present = facs.filter(f => Object.values(DATA.META).some(d => d.st === H.area && d.fac === f));
@@ -37,6 +37,7 @@ const Hub = (() => {
       const x = (i - (present.length - 1) / 2) * 260;
       list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
     });
+    if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-250 });
     list.push({ kind:'gate', x:0, y:260 });
     return list;
   }
@@ -48,6 +49,7 @@ const Hub = (() => {
   }
 
   function enter(){
+    H.fromRun = false;
     H.area = 'main';
     H.player.x = 0; H.player.y = 80;
     SaveSys.checkAchievements();
@@ -55,9 +57,20 @@ const Hub = (() => {
   }
 
   function travel(areaId){
+    H.fromRun = false;
     H.area = areaId;
     H.list = stations();
     H.player.x = 0; H.player.y = 90;
+    Sfx.skill();
+  }
+
+  // 周回中に基地へ着いた時の転移: 拠点マップ(ゲートから行けるマップと同じ)に入る。
+  // 周回は裏で保持され、ゲートの「周回に戻る」で続きから再開する。
+  function enterFromRun(areaId){
+    H.fromRun = true;
+    H.area = areaId;
+    H.list = stations();
+    H.player.x = 0; H.player.y = 200;
     Sfx.skill();
   }
 
@@ -87,13 +100,15 @@ const Hub = (() => {
   function interactLabel(s){
     if (s.kind === 'meta') {
       const st = DATA.STATIONS[s.st];
-      if (st) return st.name;
       const fac = s.fac && DATA.BASE_FACS[s.fac];
       const b = DATA.BASES.find(b => b.id === s.st);
-      return (b ? b.name + 'の' : '') + (fac ? fac.name + '(' + fac.desc + ')' : '特別強化');
+      const name = st ? st.name : (b ? b.name + 'の' : '') + (fac ? fac.name : '特別強化');
+      if (H.fromRun) return name + '(周回中は強化できない)';
+      return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
+    if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
     if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
-    if (s.kind === 'gate') return '転送ゲート(出撃 / 基地へ移動)';
+    if (s.kind === 'gate') return H.fromRun ? '転送ゲート(周回に戻る)' : '転送ゲート(出撃 / 基地へ移動)';
     if (s.kind === 'stats') return '記録の石碑を見る';
     return '調べる';
   }
@@ -101,7 +116,11 @@ const Hub = (() => {
   function doInteract(){
     const s = H.interact;
     if (!s) return;
-    if (s.kind === 'meta') openMetaPanel(s.st, s.fac);
+    if (s.kind === 'meta') {
+      if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は しに戻ってから 落ち着いて行おう。'], null); return; }
+      openMetaPanel(s.st, s.fac);
+    }
+    else if (s.kind === 'npc') Game.npcTalk(s.base);
     else if (s.kind === 'armory') openArmoryPanel();
     else if (s.kind === 'gate') openGatePanel();
     else if (s.kind === 'stats') openStatsPanel();
@@ -112,6 +131,16 @@ const Hub = (() => {
     Game.pauseFor('station');
     document.getElementById('station-title').textContent = '⛩ 転送ゲート';
     const body = document.getElementById('station-body');
+    // 周回中に転移してきた時は「周回に戻る」だけ
+    if (H.fromRun) {
+      const b = DATA.BASES.find(b => b.id === H.area);
+      body.innerHTML = `<p class="small">ここは周回中の拠点「${b ? b.name : ''}」。強化はしに戻ってから。</p>
+        <div class="up-card"><div class="info">
+          <div class="name">周回に戻る</div><div class="desc">この拠点の場所から探索を続ける</div></div>
+          <button class="buy-btn" data-resume="1">戻る</button></div>`;
+      body.querySelector('[data-resume]').onclick = () => { Sfx.buy(); Game.closeStation(); Game.resumeRun(); };
+      return;
+    }
     const unlocked = DATA.BASES.filter(b => SaveSys.data.bases[b.id]);
     let h = '<div class="sec-head">出撃する(出撃場所を選ぶ)</div>';
     h += `<div class="up-card"><div class="info">
@@ -354,6 +383,7 @@ const Hub = (() => {
       if (fac) return { spr: fac.sprite, label: fac.name, short: fac.short };
       return { spr:'st_altar', label:'特別強化', short:'強化' };
     }
+    if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
     if (s.kind === 'stats') return { spr:'ob_rock', label:'記録の石碑', short:'石碑' };
@@ -460,5 +490,5 @@ const Hub = (() => {
     g.fillText('施設マップ', x0 + mw / 2, y0 + mh + 12);
   }
 
-  return { enter, update, draw, doInteract, travel, get state(){ return H; } };
+  return { enter, update, draw, doInteract, travel, enterFromRun, get state(){ return H; } };
 })();

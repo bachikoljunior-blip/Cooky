@@ -45,6 +45,23 @@ const Game = (() => {
     Run.start(pos);
     Sfx.setScene('run');
   }
+  // 周回中に基地へ着いた: 拠点マップへ転移(周回は裏で保持)
+  function enterBaseFromRun(baseId){
+    state = 'hub'; overlay = null;
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
+    el('interact-hint').classList.add('hidden');
+    Hub.enterFromRun(baseId);
+    Sfx.setScene('hub');
+  }
+  // 拠点マップのゲートから周回へ復帰(Run.startは呼ばず状態を維持)
+  function resumeRun(){
+    state = 'run'; overlay = null;
+    hide('station-panel'); hide('skill-panel'); hide('pause-panel');
+    show('hud');
+    el('interact-hint').classList.add('hidden');
+    Run.state.noInteractT = 1.0;   // 復帰直後に再び転移しないよう猶予
+    Sfx.setScene('run');
+  }
 
   // ---------------- 周回中のNPC会話 ----------------
   let runDlg = null;
@@ -318,6 +335,6 @@ const Game = (() => {
   setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成
   requestAnimationFrame(loop);
 
-  return { startRun, pauseFor, closeStation, toHub, npcTalk, dialog, dialogChoice,
+  return { startRun, enterBaseFromRun, resumeRun, pauseFor, closeStation, toHub, npcTalk, dialog, dialogChoice,
            advanceDialog: advanceRunDialog, get state(){ return state; } };
 })();
