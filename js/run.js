@@ -279,8 +279,9 @@ const Run = (() => {
       dmg: e.dmg * 0.9,
       speed: e.def.speed * 1.4,
       atkCd: 0, healCd: 0, shootCd: 0,
-      waitAt: null, saved: false,
+      waitAt: null, saved: false, slot: undefined,
     });
+    assignSlot(R.allies[R.allies.length - 1]);
     R.recruits++;
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
     Sfx.recruit();
@@ -712,21 +713,40 @@ const Run = (() => {
     return n <= 0 ? 0 : slotPos(n - 1).rad;
   }
 
+  // スロット割当: 既存の仲間の配置は動かさない(陣形が回転しない)。
+  // 新入りは一番外の空きスロットに入り、内側の自分より弱い仲間とだけ場所を交換する
+  // (動くのは新入りと交換相手の2体だけ)
+  function allyStrength(a){ return (a.def.tier || 0) * 1e6 + a.maxHp; }
+  function assignSlot(a){
+    let maxSlot = -1;
+    for (const o of R.allies) if (o !== a && o.slot !== undefined) maxSlot = Math.max(maxSlot, o.slot);
+    a.slot = maxSlot + 1;
+    // 自分より弱い仲間のうち最も内側の1体とだけ場所を交換(連鎖させない=陣形が回転しない)
+    let inner = null;
+    for (const o of R.allies) {
+      if (o === a || o.slot === undefined || o.slot >= a.slot) continue;
+      if (allyStrength(o) < allyStrength(a) && (!inner || o.slot < inner.slot)) inner = o;
+    }
+    if (inner) { const t = a.slot; a.slot = inner.slot; inner.slot = t; }
+  }
+  // 仲間が倒れた時: 空いたスロットに一番外の仲間だけを移す(全体は動かない)
+  function freeSlot(s){
+    if (s === undefined) return;
+    let outer = null;
+    for (const o of R.allies) if (o.slot !== undefined && (!outer || o.slot > outer.slot)) outer = o;
+    if (outer && outer.slot > s) outer.slot = s;
+  }
+
   function updateAllies(dt){
     const p = R.player;
-    // 陣形スロット: 人数が変わったら「強い仲間ほど内側」に並べ直す
-    if (R._slotN !== R.allies.length) {
-      R._slotN = R.allies.length;
-      const order = R.allies.slice().sort((x, y) => ((y.def.tier || 0) - (x.def.tier || 0)) || (y.maxHp - x.maxHp));
-      order.forEach((a2, idx) => { a2.slot = idx; });
-    }
     const wb = Skills.stat('warbanner');
     const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
     const spdMul = (wb ? wb.spd : 1);
     const n = R.allies.length;
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
-      if (a.dead) { R.allies.splice(i, 1); continue; }
+      if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
+      if (a.slot === undefined) assignSlot(a);   // 開始時の軍勢・合流など
       // 自動回復
       if (R.stats.allyRegen > 0) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * R.stats.allyRegen * dt);
       // 待機中(乗船で置いていかれた等)

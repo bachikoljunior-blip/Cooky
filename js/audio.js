@@ -70,16 +70,39 @@ const Sfx = (() => {
     }, 60000 / BGM_DEFS[name].tempo / 2);
   }
 
-  // ゲームを閉じて再開した後に音が消える対策:
-  //  - suspended → resume / closed → コンテキスト作り直し(次のtone/BGMで再生成)
-  //  - タブ復帰(visibilitychange/pageshow/focus)と各種操作(touch含む)で再開を試みる
-  function tryResume(){
-    if (!ctx) return;
-    if (ctx.state === 'closed') { ctx = null; return; }
-    if (ctx.state !== 'running') { try { ctx.resume(); } catch(e){} }
+  // ゲームを閉じて再開した後に音が消える対策(特にiOS Safari):
+  //  - suspended / interrupted → resume。300ms待っても running に戻らなければ作り直す
+  //  - closed → コンテキスト作り直し(次のtone/BGMで再生成)
+  //  - タブ復帰時は「running のフリをして無音」の死んだコンテキストも検知して作り直す
+  //    (currentTime が進んでいなければ死んでいる)
+  //  - 作り直した直後のコンテキストは suspended のことがあるので、
+  //    タッチ・キー操作のたびに resume を試みる
+  function hardReset(){
+    try { if (ctx) ctx.close(); } catch(e){}
+    ctx = null;
+    ac();   // すぐ作り直す(ユーザー操作中なら即 running になる)
   }
-  document.addEventListener('visibilitychange', () => { if (!document.hidden) tryResume(); });
-  window.addEventListener('pageshow', tryResume);
+  function tryResume(){
+    if (!ctx) { ac(); return; }
+    if (ctx.state === 'closed') { ctx = null; ac(); return; }
+    if (ctx.state !== 'running') {
+      try {
+        const pr = ctx.resume();
+        if (pr && pr.catch) pr.catch(() => {});
+      } catch(e){}
+      setTimeout(() => { if (ctx && ctx.state !== 'running') hardReset(); }, 300);
+    }
+  }
+  function wakeCheck(){
+    tryResume();
+    if (!ctx) return;
+    const t0 = ctx.currentTime;
+    setTimeout(() => {
+      if (ctx && ctx.state === 'running' && ctx.currentTime === t0) hardReset();
+    }, 350);
+  }
+  document.addEventListener('visibilitychange', () => { if (!document.hidden) wakeCheck(); });
+  window.addEventListener('pageshow', wakeCheck);
   window.addEventListener('focus', tryResume);
   window.addEventListener('pointerdown', tryResume, { passive:true });
   window.addEventListener('touchstart', tryResume, { passive:true });

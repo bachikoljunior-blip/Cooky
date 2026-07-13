@@ -495,7 +495,7 @@ DATA.META = {
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
   // --- スキル書庫 ---
-  lib_map:      { st:'lib', name:'古い地図の修復', desc:'周回中にマップ(周辺図/全体図)が使えるようになる', max:1, cost:gcost(120,1), unlockBases:1 },
+  lib_map:      { st:'lib', name:'地図の作成',    desc:'周回中にマップ(周辺図/全体図)が使えるようになる', max:1, cost:gcost(120,1) },
   lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」が出現候補になる', max:1, cost:gcost(20000,1) },
   lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
   lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },
