@@ -163,12 +163,29 @@ const Sprites = (() => {
         if(o.tail){ g.strokeStyle=c; g.lineWidth=5; g.beginPath(); g.moveTo(-8,12); g.quadraticCurveTo(-20,14,-18,4); g.stroke(); }
         break;
       case 'beast':
-        g.fillStyle=c; g.beginPath(); g.ellipse(0,2,17,10,0,0,7); g.fill();
-        g.beginPath(); g.arc(12,-6,8,0,7); g.fill();
-        g.beginPath(); g.moveTo(8,-12); g.lineTo(11,-19); g.lineTo(14,-12); g.closePath(); g.fill();
-        g.beginPath(); g.moveTo(13,-12); g.lineTo(16,-19); g.lineTo(19,-12); g.closePath(); g.fill();
-        g.fillStyle=a; g.beginPath(); g.ellipse(-4,3,9,5,0,0,7); g.fill();
-        eye(13,-7,2.2); break;
+        // 横向きのオオカミ(右向き)。脚・尻尾・突き出た口吻・尖った耳で犬科に見せる
+        g.strokeStyle=a; g.lineWidth=3.4; g.lineCap='round';
+        g.beginPath();
+        g.moveTo(-8,5); g.lineTo(-9,14); g.moveTo(-2,6); g.lineTo(-2,15);
+        g.moveTo(6,6); g.lineTo(6,15); g.moveTo(11,5); g.lineTo(12,14);
+        g.stroke();
+        // ふさふさの尻尾(後方)
+        g.fillStyle=c; g.beginPath(); g.moveTo(-11,-1);
+        g.quadraticCurveTo(-23,-4,-21,-15); g.quadraticCurveTo(-14,-9,-10,-4); g.closePath(); g.fill();
+        // 胴体
+        g.beginPath(); g.ellipse(-1,1,15,8,0,0,7); g.fill();
+        // 首〜頭
+        g.beginPath(); g.moveTo(5,-2); g.lineTo(11,-11); g.lineTo(17,-8); g.lineTo(15,0); g.closePath(); g.fill();
+        g.beginPath(); g.arc(14,-6,7,0,7); g.fill();
+        // 突き出た口吻(マズル)
+        g.beginPath(); g.moveTo(18,-8); g.lineTo(26,-3); g.lineTo(18,-0.5); g.closePath(); g.fill();
+        // 尖った耳×2
+        g.beginPath(); g.moveTo(8,-10); g.lineTo(10,-20); g.lineTo(15,-12); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(14,-12); g.lineTo(19,-20); g.lineTo(20,-10); g.closePath(); g.fill();
+        // 差し色: 腹の陰影・鼻先・耳の内側
+        g.fillStyle=a; g.beginPath(); g.ellipse(-2,4,9,4,0,0,7); g.fill();
+        g.beginPath(); g.arc(25.5,-3,1.8,0,7); g.fill();   // 鼻
+        eye(15,-6,2.2); break;
       case 'crab':
         g.fillStyle=c; g.beginPath(); g.ellipse(0,2,15,10,0,0,7); g.fill();
         g.strokeStyle=c; g.lineWidth=3;
