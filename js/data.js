@@ -89,14 +89,6 @@ DATA.SKILLS = {
     stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
       allyMul:Math.pow(1.08,(lv>=3?1:0)+(lv>=5?1:0)+(lv>=7?1:0)) }),
   },
-  bond: {
-    name:'魂の共鳴', cat:'ally', icon:'sk_bond',
-    desc:'【仲間】絆が力になる。仲間1体につき自分の攻撃力が上がる。',
-    cost:(lv)=>matCost(lv,{bone:4,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'star',qty:1}]),
-    lvText:['攻撃+4%/体に強化','仲間1体につき被ダメ-1%','攻撃+5%/体に強化','仲間になった敵のHP+20%','攻撃+7%/体に強化'],
-    stats:(lv)=>({ atkPerAlly:0.03+(lv>=2?0.01:0)+(lv>=4?0.01:0)+(lv>=6?0.02:0),
-      defPerAlly:(lv>=3?0.01:0), allyHp:1+(lv>=5?0.2:0) }),
-  },
   fear: {
     name:'威圧のオーラ', cat:'foe', icon:'sk_fear',
     desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
@@ -105,22 +97,6 @@ DATA.SKILLS = {
     stats:(lv)=>({ radius:150+(lv>=3?45:0)+(lv>=6?65:0),
       reduce:Math.min(0.6, 0.15+(lv>=2?0.10:0)+(lv>=4?0.05:0)+(lv>=5?0.10:0)), flee:(lv>=7) }),
   },
-  sharpen: {
-    name:'武器研磨', cat:'sup', icon:'sk_sharpen',
-    desc:'【武器】装備中の攻撃手段の威力が大きく上がる。周回内の火力成長の柱。',
-    cost:(lv)=>matCost(lv,{scrap:4,wood:3},[{from:4,mat:'crystal',qty:3},{from:7,mat:'scale',qty:1}]),
-    lvText:['威力+14%','威力+14%','会心率+5%・威力+14%','威力+14%','会心率+7%・威力+14%','威力+14%','威力+14%','威力+14%','威力+14%'],
-    stats:(lv)=>({ mult:Math.pow(1.14, lv),
-      crit:(lv>=4?0.05:0)+(lv>=6?0.07:0) }),
-  },
-  focus: {
-    name:'速撃の構え', cat:'sup', icon:'sk_focus',
-    desc:'【武器】攻撃の間隔が短くなり、手数が増える。',
-    cost:(lv)=>matCost(lv,{crystal:3,bone:4},[{from:4,mat:'magic',qty:3},{from:6,mat:'star',qty:1}]),
-    lvText:['攻撃間隔-5%','効果範囲+10%','攻撃間隔-5%','効果範囲+10%','攻撃間隔-6%','攻撃間隔-4%','攻撃間隔-4%'],
-    stats:(lv)=>({ cdr:0.06+(lv>=2?0.05:0)+(lv>=4?0.05:0)+(lv>=6?0.06:0)+(lv>=7?0.04:0)+(lv>=8?0.04:0),
-      area:(lv>=3?1.1:1)*(lv>=5?1.1:1) }),
-  },
   vampire: {
     name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
     desc:'【主人公】敵を倒すとHPを吸収する。',
@@ -128,14 +104,6 @@ DATA.SKILLS = {
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
     stats:(lv)=>({ killHeal:3+(lv>=2?2:0)+(lv>=4?3:0)+(lv>=6?5:0),
       lifesteal:(lv>=3?0.01:0)+(lv>=5?0.01:0)+(lv>=7?0.01:0) }),
-  },
-  treasure: {
-    name:'トレジャーハント', cat:'sup', icon:'sk_treasure',
-    desc:'【経済】コインと素材のドロップが増える。',
-    cost:(lv)=>matCost(lv,{wood:4,scrap:4},[{from:4,mat:'shell',qty:4},{from:6,mat:'star',qty:1}]),
-    lvText:['素材ドロップ+15%','コイン+15%','素材が2個落ちる確率+5%','素材ドロップ+20%','素材2個の確率+8%'],
-    stats:(lv)=>({ coin:1.15*(lv>=3?1.15:1), drop:1.15*(lv>=2?1.15:1)*(lv>=5?1.2:1),
-      luck:(lv>=4?0.05:0)+(lv>=6?0.08:0) }),
   },
   confuse: {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
@@ -168,13 +136,6 @@ DATA.SKILLS = {
     cost:(lv)=>matCost(lv,{bone:6,hide:4}),
     lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+5%(累計${(i+2)*5}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.05*lv } }),
-  },
-  relic: {
-    name:'遺跡の加護', icon:'sk_relic', cat:'kokoroe', unlockQuest:'b_east',
-    desc:'【クエスト報酬】古代の術式が全能力(攻撃/HP/速度)を高める。',
-    cost:(lv)=>matCost(lv,{crystal:6,magic:2}),
-    lvText:Array.from({length:9},(_,i)=>`全能力+1.5%(累計${((i+2)*1.5).toFixed(1)}%)`),
-    stats:(lv)=>({ passive:{ key:'allMul', value:0.015*lv } }),
   },
 };
 function crystalKey(){ return 'crystal'; }
@@ -297,23 +258,8 @@ const PASSIVE_DEFS = [
   ['p_stand',   '不倒の心得',     '仲間が倒れても踏みとどまる確率', 'allyReviveAdd', .05, '+5%', 'bone',7,'crystal',5, 'ally'],
   ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .006, '+0.6%',  'hide',6,'jelly',6, 'ally'],
   ['p_swift',   '俊足の心得',     '仲間の移動速度',       'allySpeedMul',.04, '+4%',    'hide',6,'wood',6,  'ally'],
-  // 主人公・共通の心得
-  ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
-  ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
-  ['p_hunter',  '狩人の心得',     'ボスへのダメージ',     'bossMul',    .05,  '+5%',    'hide',10,'scale',4],
-  ['p_slayer',  '死神狩りの心得', 'リーパーへのダメージ', 'reaperMul',  .06,  '+6%',    'star',6,'abyss',4],
-  ['p_warder',  '終焉守りの心得', 'リーパー被ダメ軽減',   'reaperResAdd',.02, '+2%',    'scale',6,'abyss',4],
-  ['p_thorn',   '棘の心得',       '接触反撃ダメージ',     'thornsAdd',  4,    '+4',     'wood',8,'scrap',7],
-  ['p_sea',     '海神の心得',     '船の速度',             'boatMul',    .06,  '+6%',    'shell',8,'coral',4],
-  ['p_scholar', '学者の心得',     '素材2個ドロップ確率',  'luckAdd',    .03,  '+3%',    'crystal',7,'shell',5],
-  ['p_flame',   '火門の心得',     '攻撃の炎上付与確率',   'burnAdd',    .03,  '+3%',    'magic',6,'scale',4],
-  ['p_ice',     '氷門の心得',     '攻撃の氷結付与確率',   'slowAdd',    .025, '+2.5%',  'crystal',8,'coral',4],
-  ['p_storm',   '雷門の心得',     '自動落雷の威力',       'stormAdd',   12,   '+12',    'magic',7,'star',4],
-  ['p_veil',    '霞の心得',       '回避率',               'dodgeAdd',   .01,  '+1%',    'coral',6,'star',4],
-  ['p_epoch',   '刻の心得',       '敵の時間強化を緩和',   'mitigAdd',   .015, '+1.5%',  'star',6,'abyss',4],
-  ['p_phantom', '幻影の心得',     '被弾後の無敵時間',     'invulnAdd',  .04,  '+0.04秒','magic',7,'coral',4],
-  ['p_amber',   '琥珀の心得',     '全能力(攻撃/HP/速度)', 'allMul',     .01,  '+1%',    'amber',6,'wood',10],
-  ['p_pearl',   '真珠の心得',     '最大HP',               'hpPctMul',   .03,  '+3%',    'pearl',6,'shell',8],
+  // 主人公のステータスを上げる心得は廃止(強化はしに戻り後のパワーアップのみ)。
+  // 仲間強化の心得だけが残る。
 ];
 // レベルが上がると必要素材の種類も変化する。序盤は解放不要の素材だけを使う(陸で採れるものを優先)
 const FLUX = ['scrap', 'crystal', 'hide', 'wood', 'bone', 'jelly', 'shell'];

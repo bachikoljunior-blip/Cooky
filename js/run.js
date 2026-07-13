@@ -86,16 +86,11 @@ const Run = (() => {
   // (靴・磁力・武器研磨・共鳴・カリスマ・トレハン・吸血・集中詠唱など)
   function applyMods(b){
     const s = Object.assign({}, b);
+    // 主人公のステータスを上げるスキル(武器研磨・速撃・共鳴・トレハン等)は廃止。
+    // 残るのは移動速度(靴)・マグネット・特殊能力・仲間強化のみ。
     const bo = Skills.stat('boots');    if (bo) s.speed *= bo.mult;
     const mg = Skills.stat('magnetSk'); if (mg) s.magnet *= mg.mult;
-    const sh = Skills.stat('sharpen');  if (sh) { s.atk *= sh.mult; s.crit += sh.crit; }
-    const fo = Skills.stat('focus');    if (fo) { s.cdr = Math.min(0.6, s.cdr + fo.cdr); s.area *= fo.area; }
-    const bd = Skills.stat('bond');     if (bd) {
-      s.atk *= 1 + bd.atkPerAlly * R.allies.length;
-      s.armor = Math.min(0.75, s.armor + bd.defPerAlly * R.allies.length);
-    }
     const ch = Skills.stat('charisma'); if (ch) { s.recruit += ch.recruit; s.allyHp *= ch.allyMul; s.allyAtk *= ch.allyMul; }
-    const tr = Skills.stat('treasure'); if (tr) { s.coinMul *= tr.coin; s.dropMul *= tr.drop; s.luck2 += tr.luck; }
     const va = Skills.stat('vampire');  if (va) { s.killHeal = va.killHeal; s.lifesteal = va.lifesteal; }
     // 「心得」パッシブスキル群
     for (const id in Skills.owned) {
@@ -179,7 +174,22 @@ const Run = (() => {
         atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false,
       });
     }
-    // 出撃直後は主人公の周りに敵を置かない。敵は画面外から湧いて寄ってくる。
+    seedInitialEnemies();   // 画面の縁に数体(周りには置かない)
+  }
+
+  // 開始直後: 画面の外周(縁)に敵を5体ほど置く。主人公の周り(至近)には置かず、
+  // アグロ圏外の距離なので、近づくまで襲ってこない。
+  function seedInitialEnemies(){
+    const p = R.player;
+    let placed = 0;
+    for (let i = 0; i < 40 && placed < 5; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = rnd(105, 152);   // 初期画面(半径~158)の外周。至近には置かない
+      const ex = p.x + Math.cos(a) * d, ey = p.y + Math.sin(a) * d;
+      const key = pickEnemyKey(); if (!key) break;
+      if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
+      if (spawnEnemy(key, { x: ex, y: ey })) placed++;   // madにしない(近づくまで襲わない)
+    }
   }
 
   function walletTotal(){ return SaveSys.data.coins + R.coins; }
@@ -273,9 +283,8 @@ const Run = (() => {
 
   function recruitAlly(e){
     const wb = Skills.stat('warbanner');
-    const bd = Skills.stat('bond');
     const st = R.stats;
-    const hpMul = st.allyHp * (wb ? wb.hp : 1) * (bd ? bd.allyHp : 1);
+    const hpMul = st.allyHp * (wb ? wb.hp : 1);
     R.allies.push({
       def: e.def, key: e.defKey,
       x: e.x, y: e.y,
@@ -1006,10 +1015,9 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ(安全網): 遅い仲間はステータス速度で後ろへ流れて良いが、
-      // 見失わないよう画面内(カメラの写る範囲 formR+190 の内側)には留める。
+      // ハードリーシュ(安全網): 主人公から離れられる範囲。狭め(戻ってくるまでが早い)。
       {
-        const maxD = formR + 150;
+        const maxD = formR + 75;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
@@ -1460,6 +1468,7 @@ const Run = (() => {
       const opool = areaMats(o.x, o.y).filter(m => Skills.matUnlocked(m));
       if (opool.length && Math.random() < 0.3) drops.push(opool[Math.floor(Math.random() * opool.length)]);
       for (const m of drops) {
+        if (Math.random() >= R.stats.dropMul) continue;   // オブジェクトのドロップ率も dropMul(初期1/5)を反映
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
       }

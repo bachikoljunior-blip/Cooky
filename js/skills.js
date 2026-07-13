@@ -63,6 +63,7 @@ const Skills = (() => {
   }
   function skillUnlocked(id){
     const def = DATA.SKILLS[id];
+    if (!def) return false;   // 廃止済みのスキルid(古いセーブのピン等)は無視
     if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) return false;   // 実績で解放
     if (def.unlockQuest && !(SaveSys.data.quests2 && SaveSys.data.quests2[def.unlockQuest])) return false; // クエスト報酬
     return def.innate || !def.unlock || SaveSys.metaLv(def.unlock) > 0;
