@@ -159,7 +159,7 @@ const Run = (() => {
     R.enemies = []; R.allies = []; R.projs = []; R.eprojs = []; R.pickups = [];
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
-    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90);
+    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
     R.interact = null;
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
@@ -293,10 +293,12 @@ const Run = (() => {
     R.allies.push({
       def: e.def, key: e.defKey,
       x: e.x, y: e.y,
-      maxHp: e.maxHp * 2.4 * hpMul,   // 仲間は元の敵よりずっと頑丈
-      hp: e.maxHp * 2.4 * hpMul,
-      dmg: e.dmg * 0.9,
-      speed: e.def.speed * 1.4,
+      // 初期値は敵だった時とおんなじ(HP・攻撃・速度)。以降はパワーアップ/スキルの
+      // 仲間強化(hpMul/allyAtk/allySpeed)が乗る。
+      maxHp: e.maxHp * hpMul,
+      hp: e.maxHp * hpMul,
+      dmg: e.dmg,
+      speed: e.def.speed,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false, slot: undefined,
       joining: true,   // 倒した位置から主人公のところへ駆けつける
@@ -584,6 +586,33 @@ const Run = (() => {
     }
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
+  // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる(1波目の規模は従来の約20倍)
+  function startHordeEvent(){
+    const min = R.time / 60;
+    const total = Math.round(400 * (1 + min * 0.12));   // 総数(従来~20の約20倍〜。時間で増加)
+    const waves = Math.min(14, 5 + Math.floor(min / 2.5));   // 波数も時間で増える
+    const perWave = Math.ceil(total / waves);
+    const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
+    R.hordeWaves = R.hordeWaves || [];
+    for (let w = 0; w < waves; w++) {
+      R.hordeWaves.push({ t: w * rnd(0.7, 1.4), count: perWave, dir: dir0 + rnd(-0.7, 0.7) });
+    }
+    R.warnMsg = '⚔ 敵の大群が押し寄せてくる!(' + waves + '波)'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde();
+  }
+  // 1波ぶんを、すぐ画面外から一斉に(rushで猛スピード突撃)
+  function spawnHordeWave(wave){
+    if (R.enemies.length > 1400) return;   // 安全: 過多なら間引く
+    const base = (R.offscreenR || 950) + rnd(10, 90);
+    let placed = 0;
+    for (let i = 0; i < wave.count * 2 && placed < wave.count; i++) {
+      const a = wave.dir + rnd(-0.7, 0.7);
+      const d = base + rnd(0, 140);
+      const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
+      const key = pickEnemyKey(); if (!key) break;
+      if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true, rush: true })) placed++;
+    }
+  }
 
   function director(dt){
     const min = R.time / 60;
@@ -603,11 +632,18 @@ const Run = (() => {
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 
-    // --- 時間ごとの大群 ---
+    // --- 時間ごとの大群(何波にも分けて押し寄せる) ---
     if (R.hordeT === undefined) R.hordeT = rnd(60, 90);
     if (!isReaperTime) {
       R.hordeT -= dt;
-      if (R.hordeT <= 0) { spawnHorde(); R.hordeT = rnd(75, 120); }
+      if (R.hordeT <= 0) { startHordeEvent(); R.hordeT = rnd(75, 120); }
+    }
+    // 予約された波を順次発生
+    if (R.hordeWaves && R.hordeWaves.length) {
+      for (let i = R.hordeWaves.length - 1; i >= 0; i--) {
+        R.hordeWaves[i].t -= dt;
+        if (R.hordeWaves[i].t <= 0) { spawnHordeWave(R.hordeWaves[i]); R.hordeWaves.splice(i, 1); }
+      }
     }
     // ボス
     for (const b of DATA.BOSSES) {
@@ -899,21 +935,21 @@ const Run = (() => {
         const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
         const dx = p.x + sp2.x - a.x, dy = p.y + sp2.y - a.y;
         const d = Math.hypot(dx, dy) || 1;
-        const jspd = Math.max(a.speed * spdMul, R.stats.speed * 2.2);
+        const jspd = a.speed * spdMul;   // 合流もステータス速度どおり(早送りしない)
         const step = Math.min(d, jspd * dt);
         a.x += dx / d * step; a.y += dy / d * step;
         if (Math.hypot(a.x - p.x, a.y - p.y) < formR + 20) a.joining = false;
         continue;
       }
-      // ターゲット探索: 陣形に触れるほど近づいた敵だけ迎撃(追いかけ回さず、常に主人公の周りにいる)
-      // 敵の体の大きさ(ゴーレム等)を差し引いて判定 ― 大きい敵が撃てなかった不具合を修正
-      const leash = formR + 12;
+      // ターゲット探索: 「その仲間に近づいた敵」だけを追尾する。判定は仲間ごとの距離で、
+      // 種類ごとに迎撃範囲が微妙に違う(射撃タイプは射程ぶん広い)。
+      const engageR = a.def.ranged ? a.def.ranged.range : (a.def.r + 46 + (a.def.tier || 0) * 8);
       let tgt = null, td = 1e9;
       for (const e of R.enemies) {
         if (e.dead) continue;
         const er = e.def.r * (e.sizeMul || 1);
-        if (Math.hypot(e.x - p.x, e.y - p.y) - er > leash) continue;
-        const d = Math.hypot(e.x - a.x, e.y - a.y) - er;
+        const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
+        if (d > engageR) continue;
         if (d < td) { tgt = e; td = d; }
       }
       // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる
@@ -971,8 +1007,8 @@ const Run = (() => {
           dest = { x: p.x + sp2.x, y: p.y + sp2.y };
           const d = Math.hypot(dest.x - a.x, dest.y - a.y);
           if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
-          spd = Math.max(spd, R.stats.speed * 1.6);   // 主人公に置いていかれない速度
-          a.inForm = true;   // 整列中は仲間同士で押し合わない(振動しない)
+          // 陣形追従もステータス速度どおり(早送りしない)。遅い仲間は自然に後ろへ流れる
+          a.inForm = true;
         }
       }
       if (dest) {
@@ -984,9 +1020,10 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ: 陣形のほんの少し外まで。敵を追って主人公から離れることはない
+      // ハードリーシュ(安全網): 遅い仲間はステータス速度で後ろへ流れて良いが、
+      // 見失わないよう画面内(カメラの写る範囲 formR+190 の内側)には留める。
       {
-        const maxD = formR + 16;
+        const maxD = formR + 150;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
