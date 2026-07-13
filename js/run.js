@@ -1604,12 +1604,25 @@ const Run = (() => {
 
     // 移動(botAxisは自動テストプレイ用フック)
     const ax = R.botAxis || Input.axis();
-    // 軍勢を率いるほど足が重い(仲間の合計質量ぶん遅い)。質量は分離処理と同じ式(前と同じ)
+    // 押し除ける負荷: 止まっている時は無負荷(=不動)。移動すると、進行方向にいる
+    // 仲間と敵を押し退けるぶんだけ足が重くなる(その質量ぶん遅い)。質量は分離処理と同じ式
     let landSpd = st.speed;
     if (!p.onBoat) {
-      let allyMass = 0;
-      for (const a of R.allies) { if (a.waitAt || a.dead) continue; allyMass += 1 + (a.def.tier || 0) * 0.6; }
-      landSpd = st.speed * Math.max(0.35, 1 / (1 + allyMass * 0.01));
+      const mdl = Math.hypot(ax.x, ax.y);
+      let pushMass = 0;
+      if (mdl > 0.15) {
+        const mdx = ax.x / mdl, mdy = ax.y / mdl;
+        const reach = 90;   // 目の前で押し退ける範囲
+        const add = (u, m, r) => {
+          const ux = u.x - p.x, uy = u.y - p.y, ud = Math.hypot(ux, uy) || 1;
+          if (ud - r > reach) return;                 // 目の前にいるものだけ
+          if ((ux * mdx + uy * mdy) / ud < 0.3) return; // 進行方向の前方にいるものだけ
+          pushMass += m;
+        };
+        for (const a of R.allies) { if (a.waitAt || a.dead) continue; add(a, 1 + (a.def.tier || 0) * 0.6, a.def.r); }
+        for (const e of R.enemies) { if (e.dead) continue; add(e, 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0), e.def.r * (e.sizeMul || 1)); }
+      }
+      landSpd = st.speed * Math.max(0.35, 1 / (1 + pushMass * 0.05));
     }
     const spd = p.onBoat ? st.boatSpeed : landSpd;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
