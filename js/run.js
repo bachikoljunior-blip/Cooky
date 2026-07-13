@@ -395,7 +395,8 @@ const Run = (() => {
       R.vacuumT -= dt;
       if (R.vacuumT <= 0) {
         R.vacuumT = mg.vacuumCd;
-        for (const pk of R.pickups) pk.vacuumed = true;
+        // 全画面吸引: 落ちているドロップを全て、5秒以内に手元へ引き寄せる
+        for (const pk of R.pickups) { pk.vacuumed = true; pk.vacDeadline = R.time + 5; }
         effect('ring', p.x, p.y, { color:'#f778ba', r:260 });
       }
     }
@@ -420,12 +421,6 @@ const Run = (() => {
           lootAdd(pk.mat);   // 画面左上の入手フィードに表示(戦闘の混雑に埋もれない)
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
-        else if (pk.type === 'collector') {
-          // 回収の護符: 落ちている未回収アイテムを全て、5秒以内に引き寄せる
-          for (const q of R.pickups) if (q !== pk) { q.vacuumed = true; q.vacDeadline = R.time + 5; }
-          effect('ring', p.x, p.y, { color:'#7ee787', r:320 });
-          popup(p.x, p.y-30, '全回収!', '#7ee787'); Sfx.coin();
-        }
         R.pickups.splice(i, 1);
       }
     }
@@ -1430,8 +1425,6 @@ const Run = (() => {
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
       }
       if (Math.random() < 0.25) dropPickup(o.x, o.y, { type:'coin', value:Math.ceil(1 * R.stats.coinMul) });
-      // 時たま「回収の護符」を落とす: 拾うと未回収のドロップを全て引き寄せる
-      if (Math.random() < 0.03) dropPickup(o.x, o.y, { type:'collector' });
       effect('burst', o.x, o.y, { color:'#b08968', r:18 });
     }
   }
@@ -1914,18 +1907,6 @@ const Run = (() => {
       const bob = Math.sin(pk.t * 5) * 3;
       if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 22);
       else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 26);
-      else if (pk.type === 'collector') {
-        // 回収の護符: 目立つ緑の輝く護符(特別なアイテムなので光らせて良い)
-        const py = pk.y + bob, pulse = 0.6 + 0.4 * Math.sin(pk.t * 6);
-        g.save();
-        g.globalAlpha = pulse; g.fillStyle = '#7ee787';
-        g.beginPath(); g.arc(pk.x, py, 16, 0, 7); g.fill();
-        g.globalAlpha = 1; g.fillStyle = '#0d1117';
-        g.beginPath(); g.arc(pk.x, py, 10, 0, 7); g.fill();
-        g.fillStyle = '#7ee787'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
-        g.fillText('✦', pk.x, py + 1);
-        g.restore();
-      }
       else Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);   // 素材は大きく(光らせない)
     }
 
