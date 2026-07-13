@@ -240,11 +240,10 @@ const Game = (() => {
     }
   }
 
-  // ミニマップをタップ/クリックで周辺図⇔全体図
+  // ミニマップをタップ/クリックで全画面の全体図を開く/閉じる
   canvas.addEventListener('pointerdown', e => {
     if (state !== 'run' || overlay) return;
-    const sz = Math.min(World.MM_SIZE, Math.floor(canvas.width * 0.34));
-    if (e.clientX > canvas.width - sz - 10 && e.clientY < sz + 24) Run.toggleMap();
+    Run.tapMap(e.clientX, e.clientY, canvas.width);
   });
 
   // 移動パネル設定 (表示/非表示/自動)

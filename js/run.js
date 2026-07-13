@@ -162,7 +162,7 @@ const Run = (() => {
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
     R.bossAlive = null;
-    R.mmWorld = false;   // ミニマップ: false=周辺 / true=全体
+    R.mapFull = false;   // 全画面の全体図を開いているか(ミニマップは常に周辺図)
     R.over = false;
     lootFeed = []; if (lootEl) lootEl.innerHTML = '';
     // 骸骨の軍勢: 開始時から仲間を連れて出撃
@@ -416,6 +416,12 @@ const Run = (() => {
           lootAdd(pk.mat);   // 画面左上の入手フィードに表示(戦闘の混雑に埋もれない)
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
+        else if (pk.type === 'collector') {
+          // 回収の護符: 落ちている未回収アイテムを全て引き寄せる
+          for (const q of R.pickups) if (q !== pk) q.vacuumed = true;
+          effect('ring', p.x, p.y, { color:'#7ee787', r:320 });
+          popup(p.x, p.y-30, '全回収!', '#7ee787'); Sfx.coin();
+        }
         R.pickups.splice(i, 1);
       }
     }
@@ -471,6 +477,7 @@ const Run = (() => {
       wanderDir: Math.random() * Math.PI * 2, wanderT: rnd(0.6, 2.5),
       mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(150, 220),
       herd: opts.herd || null,
+      fromHorde: !!opts.fromHorde,   // 時間ごとの大群: 置いていかれても近くの画面外へ回り込む
     };
     e.hp = e.maxHp;
     // 強化ランク: 時間・距離で強くなった敵は見た目が変わる(大きさ+オーラ)
@@ -519,6 +526,19 @@ const Run = (() => {
     const d = (R.offscreenR || 950) + rnd(120, 520);
     return { x: R.player.x + Math.cos(a) * d, y: R.player.y + Math.sin(a) * d };
   }
+  // 大群の敵を「プレイヤーのすぐ画面外」へ回り込ませる。進行方向のやや前方に寄せる。
+  function relocateOffscreen(e){
+    const p = R.player;
+    const base = (R.offscreenR || 950) + rnd(30, 160);
+    // 移動方向があればその前方寄り、なければ全方位から
+    const moveA = (Math.abs(p.vx) + Math.abs(p.vy) > 1) ? Math.atan2(p.vy, p.vx) : Math.random() * Math.PI * 2;
+    for (let k = 0; k < 6; k++) {
+      const a = moveA + rnd(-1.4, 1.4);
+      const nx = p.x + Math.cos(a) * base, ny = p.y + Math.sin(a) * base;
+      if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; e.mad = true; return true; }
+    }
+    return false;
+  }
   // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく
   function spawnHerd(mad){
     const key = pickEnemyKey(); if (!key) return;
@@ -545,7 +565,7 @@ const Run = (() => {
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       // aggroを大きく取り、遠くから湧いても諦めず突撃し続ける
-      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600 })) placed++;
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) placed++;
     }
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
@@ -615,7 +635,11 @@ const Run = (() => {
       if (e.dead) { R.enemies.splice(i, 1); continue; }
       // 遠く離れた敵は退場(追跡中の敵は粘る)。画面内には湧き直さない ― 世界に点在する敵
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
-      if (!e.boss && !e.def.isReaper && pd > (e.mad ? 3200 : 2400)) { R.enemies.splice(i, 1); continue; }
+      if (!e.boss && !e.def.isReaper && pd > (e.mad ? 3200 : 2400)) {
+        // 時間ごとの大群は消えず、プレイヤーの近くの画面外へ回り込んで襲い続ける
+        if (e.fromHorde && relocateOffscreen(e)) continue;
+        R.enemies.splice(i, 1); continue;
+      }
       e.flash = Math.max(0, e.flash - dt);
       e.contactCd = Math.max(0, e.contactCd - dt);
       // 燃焼・時間系
@@ -1091,18 +1115,19 @@ const Run = (() => {
     // --- ブーメランアクス ---
     const axe = wstat('axe');
     if (axe && cdReady('axe', axe.cd)) {
+      const arange = effRange(axe.range);   // 飛距離も初期画面内に収める
       for (let i = 0; i < axe.count; i++) {
-        const tgt = nearestEnemy(p.x, p.y, effRange(420));
+        const tgt = nearestEnemy(p.x, p.y, effRange(420)) || nearestObject(p.x, p.y, effRange(420));
         const a = tgt ? Math.atan2(tgt.y-p.y, tgt.x-p.x) + (i-(axe.count-1)/2)*0.4 : Math.random()*7;
         R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*330, vy:Math.sin(a)*330,
-                       dmg:axe.dmg, life:axe.range/330*2, size:axe.size, pierce:99, boomerang:true,
-                       phase:0, maxT:axe.range/330, color:'#9aa5b1' });
+                       dmg:axe.dmg, life:arange/330*2, size:axe.size, pierce:99, boomerang:true,
+                       phase:0, maxT:arange/330, color:'#9aa5b1' });
       }
     }
     // --- チェインライトニング ---
     const ch = wstat('chain');
     if (ch && cdReady('chain', ch.cd)) {
-      let cur = nearestEnemy(p.x, p.y, ch.range * area) || nearestObject(p.x, p.y, ch.range * area * 0.6);
+      let cur = nearestEnemy(p.x, p.y, effRange(ch.range * area)) || nearestObject(p.x, p.y, effRange(ch.range * area * 0.6));
       const hit = new Set();
       let px = p.x, py = p.y;
       for (let j = 0; j <= ch.jumps && cur; j++) {
@@ -1187,7 +1212,7 @@ const Run = (() => {
         if (R.time > t.until) { R.turrets.splice(i, 1); continue; }
         t.fireCd -= dt;
         if (t.fireCd <= 0) {
-          const tgt = nearestEnemy(t.x, t.y, tu.range * area * st.range) || nearestObject(t.x, t.y, 260);
+          const tgt = nearestEnemy(t.x, t.y, effRange(tu.range * area * st.range)) || nearestObject(t.x, t.y, effRange(260));
           if (tgt) {
             t.fireCd = tu.fireCd * (1 - st.cdr);
             const d = Math.hypot(tgt.x-t.x, tgt.y-t.y) || 1;
@@ -1233,8 +1258,9 @@ const Run = (() => {
     // --- メテオストーム ---
     const me = wstat('meteor');
     if (me && cdReady('meteor', me.cd)) {
+      const mr = effRange(380);   // 落下範囲も初期画面内に
       for (let i = 0; i < me.count; i++) {
-        const x = p.x + rnd(-380, 380), y = p.y + rnd(-280, 280);
+        const x = p.x + rnd(-mr, mr), y = p.y + rnd(-mr*0.74, mr*0.74);
         effect('meteor', x, y, { delay:0.7 + i*0.1, blast:me.blast * area, dmg:me.dmg });
       }
     }
@@ -1252,18 +1278,19 @@ const Run = (() => {
       if (cdReady('breath', br.cd)) { R.breathUntil = R.time + br.dur; }
       if (R.breathUntil && R.time < R.breathUntil) {
         const a = p.moveA;
-        effect('breath', p.x, p.y, { angle:a, range:br.range * area, arc:br.arc });
+        const brange = effRange(br.range * area);   // 吐息の到達も初期画面内に
+        effect('breath', p.x, p.y, { angle:a, range:brange, arc:br.arc });
         for (const e of R.enemies) {
           if (e.dead) continue;
           const d = Math.hypot(e.x-p.x, e.y-p.y);
-          if (d > br.range * area) continue;
+          if (d > brange) continue;
           const ea = Math.atan2(e.y-p.y, e.x-p.x);
           let diff = Math.abs(ea - a); if (diff > Math.PI) diff = Math.PI*2 - diff;
           if (diff < br.arc) { e.hp -= br.dps * st.atk * dt; e.flash = 0.05; if (e.hp <= 0) killEnemy(e); }
         }
         for (const o of R.objects || []) {
           const d = Math.hypot(o.x-p.x, o.y-p.y);
-          if (d > br.range * area) continue;
+          if (d > brange) continue;
           const oa = Math.atan2(o.y-p.y, o.x-p.x);
           let diff = Math.abs(oa - a); if (diff > Math.PI) diff = Math.PI*2 - diff;
           if (diff < br.arc) hitObject(o, br.dps * dt);
@@ -1282,7 +1309,7 @@ const Run = (() => {
     }
     // --- 嵐の加護(基地強化: 自動落雷) ---
     if (st.stormDmg > 0 && (R.cd['gstorm'] || 0) <= R.time) {
-      const tgt = nearestEnemy(p.x, p.y, 420) || nearestObject(p.x, p.y, 300);
+      const tgt = nearestEnemy(p.x, p.y, effRange(420)) || nearestObject(p.x, p.y, effRange(300));
       if (tgt) {
         R.cd['gstorm'] = R.time + 9;
         effect('thunder', tgt.x, tgt.y, {});
@@ -1399,6 +1426,8 @@ const Run = (() => {
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
       }
       if (Math.random() < 0.25) dropPickup(o.x, o.y, { type:'coin', value:Math.ceil(1 * R.stats.coinMul) });
+      // 時たま「回収の護符」を落とす: 拾うと未回収のドロップを全て引き寄せる
+      if (Math.random() < 0.03) dropPickup(o.x, o.y, { type:'collector' });
       effect('burst', o.x, o.y, { color:'#b08968', r:18 });
     }
   }
@@ -1433,9 +1462,9 @@ const Run = (() => {
       const b = R.projs[i];
       b.life -= dt;
       if (b.life <= 0) { R.projs.splice(i, 1); continue; }
-      // 追尾
+      // 追尾(敵がいなければオブジェクトも狙う)
       if (b.homing) {
-        const tgt = nearestEnemy(b.x, b.y, 400);
+        const tgt = nearestEnemy(b.x, b.y, effRange(400)) || nearestObject(b.x, b.y, effRange(400));
         if (tgt) {
           const want = Math.atan2(tgt.y-b.y, tgt.x-b.x);
           let cur = Math.atan2(b.vy, b.vx);
@@ -1723,8 +1752,9 @@ const Run = (() => {
     const need = Math.max(250, formR + 190);
     const zTarget = Math.max(0.5, Math.min(1.35, (R.viewMin || 800) / (2 * need)));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
-    // 射程は見えている範囲まで(視界が広がると射程も活きる)
-    R.rangeCapPx = (R.viewMin || 800) / (2 * (R.zoom || 1)) - 40;
+    // 射程は「初期の画面(最も寄った視界=ズーム1.35)」に収まる範囲まで。
+    // 軍勢が育って視界が広がっても、武器の射程は初期画面より外へは伸ばさない。
+    R.rangeCapPx = (R.viewMin || 800) / (2 * 1.35) - 40;
 
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
@@ -1880,6 +1910,18 @@ const Run = (() => {
       const bob = Math.sin(pk.t * 5) * 3;
       if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 22);
       else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 26);
+      else if (pk.type === 'collector') {
+        // 回収の護符: 目立つ緑の輝く護符(特別なアイテムなので光らせて良い)
+        const py = pk.y + bob, pulse = 0.6 + 0.4 * Math.sin(pk.t * 6);
+        g.save();
+        g.globalAlpha = pulse; g.fillStyle = '#7ee787';
+        g.beginPath(); g.arc(pk.x, py, 16, 0, 7); g.fill();
+        g.globalAlpha = 1; g.fillStyle = '#0d1117';
+        g.beginPath(); g.arc(pk.x, py, 10, 0, 7); g.fill();
+        g.fillStyle = '#7ee787'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('✦', pk.x, py + 1);
+        g.restore();
+      }
       else Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);   // 素材は大きく(光らせない)
     }
 
@@ -2029,6 +2071,7 @@ const Run = (() => {
     // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
 
     drawMinimap(g, W);
+    drawFullMap(g, W, H);   // 全画面の全体図(開いている時のみ)
   }
 
   function drawBar(g, x, y, w, ratio, color){
@@ -2105,12 +2148,9 @@ const Run = (() => {
     }
   }
 
-  function drawMinimap(g, W){
-    // マップは書庫の「古い地図の修復」を買うまで存在しない(地図は最初の基地の解放で入手)
-    if (!SaveSys.metaLv('lib_map')) return;
-    const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
-    const x0 = W - sz - 10, y0 = 10;
-    const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
+  // 地図の描画本体(小さな周辺図・全画面の全体図で共用)。mk=マーカー拡大率
+  function drawMapInto(g, x0, y0, sz, mode){
+    const view = World.minimapView(R.player.x, R.player.y, mode);
     g.globalAlpha = 0.92;
     g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
     // 霧: 行ったことのある場所だけ地形が見える(ヒントの「?」は霧の上に描くので見える)
@@ -2118,31 +2158,20 @@ const Run = (() => {
     g.globalAlpha = 1;
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const mmScale = sz / World.MM_SIZE;
+    const mk = Math.max(1, sz / 180);   // 全画面ではマーカーも大きく
     const dot = (wx, wy, c, r) => {
       if (!view.inView(wx, wy)) return;
       const q = view.toMM(wx, wy);
       if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) return;
       g.fillStyle = c;
-      g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, r || 2, 0, 7); g.fill();
+      g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, (r || 2) * mk, 0, 7); g.fill();
     };
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)
     const seen = SaveSys.data.seen || {};
+    let hint = null;
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (SaveSys.data.nextHint === b.id) {
-        // 地図に記された「次の拠点」: 点滅する目印
-        if (view.inView(b.x, b.y)) {
-          const q = view.toMM(b.x, b.y);
-          if (q.x >= 0 && q.x <= World.MM_SIZE && q.y >= 0 && q.y <= World.MM_SIZE) {
-            g.fillStyle = '#ffd766';
-            g.globalAlpha = 0.6 + 0.4 * Math.sin(R.time * 5);
-            g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, 4, 0, 7); g.fill();
-            g.globalAlpha = 1;
-            g.font = 'bold 9px sans-serif'; g.textAlign = 'center'; g.fillStyle = '#ffd766';
-            g.fillText('?', x0 + q.x * mmScale, y0 + q.y * mmScale + 3);
-          }
-        }
-      }
+      else if (SaveSys.data.nextHint === b.id) hint = b;   // ヒントは自分のマークの上に大きく描く
       else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
     }
     for (const port of World.ports) {
@@ -2151,10 +2180,52 @@ const Run = (() => {
     }
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     dot(R.player.x, R.player.y, '#fff', 3.5);
-    g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
-    g.fillText(R.mmWorld ? '全体図 [タップで切替]' : '周辺図 [タップで切替]', x0 + sz / 2, y0 + sz + 12);
+    // 次の拠点ヒント: 自分のマークに埋もれない大きさで、最後に(一番上に)描く
+    if (hint && view.inView(hint.x, hint.y)) {
+      const q = view.toMM(hint.x, hint.y);
+      if (q.x >= 0 && q.x <= World.MM_SIZE && q.y >= 0 && q.y <= World.MM_SIZE) {
+        const hx = x0 + q.x * mmScale, hy = y0 + q.y * mmScale, hr = 8 * mk;
+        g.globalAlpha = 0.65 + 0.35 * Math.sin(R.time * 5);
+        g.fillStyle = '#ffd766';
+        g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.fill();
+        g.globalAlpha = 1;
+        g.lineWidth = Math.max(1.5, 2 * mk); g.strokeStyle = '#3d2b00';
+        g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.stroke();
+        g.fillStyle = '#3d2b00'; g.font = 'bold ' + Math.round(11 * mk) + 'px sans-serif';
+        g.textAlign = 'center'; g.textBaseline = 'middle';
+        g.fillText('?', hx, hy + 0.5);
+        g.textBaseline = 'alphabetic';
+      }
+    }
   }
-  function toggleMap(){ R.mmWorld = !R.mmWorld; }
+  function drawMinimap(g, W){
+    // マップは書庫の「古い地図の修復」を買うまで存在しない(地図は最初の基地の解放で入手)
+    if (!SaveSys.metaLv('lib_map')) return;
+    const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
+    const x0 = W - sz - 10, y0 = 10;
+    drawMapInto(g, x0, y0, sz, 'local');   // ミニマップは周辺図のみ
+    g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
+    g.fillText('周辺図 [タップで全体図]', x0 + sz / 2, y0 + sz + 12);
+  }
+  // タップで開く全画面の全体図
+  function drawFullMap(g, W, H){
+    if (!SaveSys.metaLv('lib_map') || !R.mapFull) return;
+    g.fillStyle = 'rgba(5,8,14,0.85)'; g.fillRect(0, 0, W, H);
+    const sz = Math.min(W, H) - 56;
+    const x0 = (W - sz) / 2, y0 = (H - sz) / 2;
+    drawMapInto(g, x0, y0, sz, 'world');
+    g.fillStyle = '#c9d1d9'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center';
+    g.fillText('全体図 [タップで閉じる]', W / 2, y0 + sz + 28);
+  }
+  function toggleMap(){ R.mapFull = !R.mapFull; }
+  // ミニマップ/全体図のタップ処理(処理したらtrue)
+  function tapMap(cx, cy, W){
+    if (!SaveSys.metaLv('lib_map')) return false;
+    if (R.mapFull) { R.mapFull = false; return true; }   // 全画面はどこをタップしても閉じる
+    const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
+    if (cx > W - sz - 10 && cy < sz + 24) { R.mapFull = true; return true; }
+    return false;
+  }
 
   // ---------------- HUD (DOM) ----------------
   const hpBar = document.getElementById('hp-bar');
@@ -2269,6 +2340,6 @@ const Run = (() => {
              recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs };
   }
 
-  return { start, update, draw, updateHud, doInteract, finishRun, toggleMap,
+  return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap,
            get state(){ return R; } };
 })();
