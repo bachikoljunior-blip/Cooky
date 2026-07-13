@@ -846,11 +846,23 @@ const Run = (() => {
     }
   }
 
-  // ---------------- ユニット分離(敵・仲間が重ならない = 合戦の戦線) ----------------
+  // ---------------- ユニット分離(敵・仲間・自分が重ならない = 合戦の戦線) ----------------
+  // 押し合いは質量ベース: 同格同士は均等に押し合い、強い(tierが高い/ボス)ほど押されにくい
   function separateUnits(){
     const units = [];
-    for (const e of R.enemies) if (!e.dead) { e._r = e.def.r * (e.sizeMul || 1); units.push(e); }
-    for (const a of R.allies) if (!a.waitAt && !a.dead) { a._r = a.def.r; units.push(a); }
+    for (const e of R.enemies) if (!e.dead) {
+      e._r = e.def.r * (e.sizeMul || 1);
+      e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+      units.push(e);
+    }
+    for (const a of R.allies) if (!a.waitAt && !a.dead) {
+      a._r = a.def.r;
+      a._m = 1 + (a.def.tier || 0) * 0.6;
+      units.push(a);
+    }
+    // 主人公にも当たり判定(船上は除く)。質量は高めで押されにくい
+    const pl = R.player;
+    if (!pl.onBoat) { pl._r = 12; pl._m = 2.5; units.push(pl); }
     if (units.length < 2) return;
     const cell = 64, grid = new Map();
     for (const u of units) {
@@ -871,10 +883,12 @@ const Run = (() => {
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; continue; }
-            const d = Math.sqrt(d2), push = (rr - d) * 0.16;
+            const d = Math.sqrt(d2), tot = (rr - d) * 0.32;
+            const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
-            u.x -= nx * push; u.y -= ny * push;
-            v.x += nx * push; v.y += ny * push;
+            // 質量の逆比で分配: 重い(強い)方はあまり動かない
+            u.x -= nx * tot * (mv / (mu + mv)); u.y -= ny * tot * (mv / (mu + mv));
+            v.x += nx * tot * (mu / (mu + mv)); v.y += ny * tot * (mu / (mu + mv));
           }
         }
       }
