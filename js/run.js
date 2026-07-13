@@ -553,10 +553,10 @@ const Run = (() => {
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
 
-    // --- 環境人口: マップに点在してうろつく敵を、画面外から少しずつ湧かせて維持 ---
+    // --- 環境人口: マップに点在してうろつく敵を、画面外から湧かせて維持 ---
     // 積極的なリフィルはしない(倒したエリアはしばらく静か)。画面内には湧かない
-    const ambient = Math.min(120, 14 + min * 2.0 + ring0 * 5) * (isReaperTime ? 0.4 : 1);
-    R.spawnAcc += dt * (0.5 + min * 0.1 + ring0 * 0.08) * (isReaperTime ? 0.5 : 1);
+    const ambient = Math.min(320, 70 + min * 6 + ring0 * 14) * (isReaperTime ? 0.4 : 1);
+    R.spawnAcc += dt * (2.5 + min * 0.3 + ring0 * 0.2) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
@@ -564,7 +564,7 @@ const Run = (() => {
       if (Math.random() < 0.22) spawnHerd(false);   // ときどき群れ
       else { const k = pickEnemyKey(); if (k) spawnEnemy(k, { mad: k === questTgt }); }
     }
-    if (R.spawnAcc > 4) R.spawnAcc = 4;
+    if (R.spawnAcc > 12) R.spawnAcc = 12;
 
     // --- 時間ごとの大群 ---
     if (R.hordeT === undefined) R.hordeT = rnd(60, 90);
@@ -1823,17 +1823,7 @@ const Run = (() => {
       const bob = Math.sin(pk.t * 5) * 3;
       if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 22);
       else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 26);
-      else {
-        // 素材は大きく見やすく + 素材色の淡いグローで目立たせる
-        const md = DATA.MATERIALS[pk.mat];
-        if (md) {
-          g.globalAlpha = 0.35;
-          g.fillStyle = md.color;
-          g.beginPath(); g.arc(pk.x, pk.y + bob, 15, 0, 7); g.fill();
-          g.globalAlpha = 1;
-        }
-        Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);
-      }
+      else Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);   // 素材は大きく(光らせない)
     }
 
     // タレット
@@ -1845,16 +1835,8 @@ const Run = (() => {
     // 仲間
     for (const a of R.allies) {
       if (a.waitAt) g.globalAlpha = 0.7;
-      // 味方の目印: 足元の緑グロー + 縁取り(敵と一目で見分けられる)
-      const ar = a.def.r;
-      const gg = g.createRadialGradient(a.x, a.y + ar * 0.7, 1, a.x, a.y + ar * 0.7, ar + 6);
-      gg.addColorStop(0, 'rgba(126,231,135,0.28)');
-      gg.addColorStop(1, 'rgba(126,231,135,0)');
-      g.fillStyle = gg;
-      g.beginPath(); g.arc(a.x, a.y + ar * 0.7, ar + 6, 0, 7); g.fill();
-      g.strokeStyle = 'rgba(140,240,150,0.9)'; g.lineWidth = 2;
-      g.beginPath(); g.arc(a.x, a.y + 3, ar + 2.5, 0, 7); g.stroke();
-      Sprites.draw(g, a.def.sprite, a.x, a.y, a.def.r * 2.6);
+      // 味方は元の色を残しつつ、うっすら青みを乗せて敵と少しだけ違って見えるように(リングなし)
+      Sprites.drawTinted(g, a.def.sprite, a.x, a.y, a.def.r * 2.6, false, '#3d7bff', 0.3);
       if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
       if (a.waitAt) {
         g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
@@ -2077,8 +2059,6 @@ const Run = (() => {
     const view = World.minimapView(R.player.x, R.player.y, R.mmWorld ? 'world' : 'local');
     g.globalAlpha = 0.92;
     g.drawImage(view.img, view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
-    // 霧: 行ったことのある場所だけ地形が見える
-    g.drawImage(World.fogCanvas(), view.sx, view.sy, view.sw, view.sw, x0, y0, sz, sz);
     g.globalAlpha = 1;
     g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, sz, sz);
     const mmScale = sz / World.MM_SIZE;

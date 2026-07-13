@@ -161,34 +161,29 @@ const Quest = (() => {
     return best;
   }
 
-  // 基地解放時のストーリー進行: マップには常に「次の基地」を一つだけ記す
+  // 基地解放時のストーリー進行: マップに記すヒントは「最初の一つ」だけ
   function onBaseUnlocked(id, def){
     const n = Object.keys(SaveSys.data.bases).length;
     const face = def.npc || 'npc_elder';
     SaveSys.data.seen = SaveSys.data.seen || {};
-    const b0 = DATA.BASES.find(b => b.id === id);
-    const best = nextLockedBase(b0 ? b0.x : 0, b0 ? b0.y : 0);
-    if (best) { SaveSys.data.nextHint = best.id; SaveSys.data.seen[best.id] = true; }
-    else SaveSys.data.nextHint = null;   // 主大陸の基地を全て解放した
+    // ヒント先の基地を解放したらヒントを消す(以降は新しいヒントを出さない)
+    if (SaveSys.data.nextHint === id) SaveSys.data.nextHint = null;
 
     if (n === 1) {
+      // 最初の基地: マップの使い方 + 次の拠点を一つだけ記す(これが唯一のヒント)
+      const b0 = DATA.BASES.find(b => b.id === id);
+      const best = nextLockedBase(b0 ? b0.x : 0, b0 ? b0.y : 0);
+      if (best) { SaveSys.data.nextHint = best.id; SaveSys.data.seen[best.id] = true; }
       Game.dialog(def.npcName, face, [
         'これを持っていけ。この辺り一帯の古い地図じゃ。',
         '…擦り切れておるが、次の拠点の場所だけは読み取れる。',
-        'マップに印がついた。次はそこを目指すといい。',
+        'マップに印がついた。あとは自分の足で探すことじゃ。',
         '(🗺 マップは魂の広場の「スキル書庫」で作成できる。次の拠点が一つ記された)',
       ], null);
-    } else if (best) {
-      Game.dialog(def.npcName, face, [
-        'よくやった。次に頼れる拠点の場所を教えよう。',
-        '(🗺 次の拠点がマップに一つ記された)',
-      ], null);
     } else {
-      for (const p of DATA.PORTS) SaveSys.data.seen[p.id] = true;
       Game.dialog(def.npcName, face, [
-        'この島の拠点は、これで全て解放された。見事じゃ。',
-        '沿岸の港を直せば、海の向こうの大陸へ行けるぞ。',
-        '(🗺 島の港の場所がマップに記された!)',
+        'よくぞここまで来た。この拠点はもうお前のものだ。',
+        '他にも拠点や港が眠っておる。自分の目で見つけるといい。',
       ], null);
     }
   }

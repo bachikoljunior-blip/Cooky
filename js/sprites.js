@@ -400,5 +400,30 @@ const Sprites = (() => {
     g.restore();
   }
 
-  return { get, draw, loadOverrides, DEFS };
+  // 色合成した派生スプライト(味方の色分けなどに使う)。スプライトの形だけ色を乗せる
+  const tintCache = {};
+  function tinted(id, color, strength){
+    const key = id + '|' + color + '|' + (strength || 0.5);
+    if (tintCache[key]) return tintCache[key];
+    const src = get(id);
+    const cv = document.createElement('canvas');
+    cv.width = src.width || 64; cv.height = src.height || 64;
+    const c = cv.getContext('2d');
+    c.drawImage(src, 0, 0, cv.width, cv.height);
+    c.globalCompositeOperation = 'source-atop';   // 既に描かれた画素(=キャラの形)にだけ色を乗せる
+    c.globalAlpha = strength || 0.5;
+    c.fillStyle = color;
+    c.fillRect(0, 0, cv.width, cv.height);
+    tintCache[key] = cv;
+    return cv;
+  }
+  function drawTinted(g, id, x, y, size, flip, color, strength){
+    const im = tinted(id, color, strength);
+    g.save(); g.translate(x, y);
+    if (flip) g.scale(-1, 1);
+    g.drawImage(im, -size/2, -size/2, size, size);
+    g.restore();
+  }
+
+  return { get, draw, tinted, drawTinted, loadOverrides, DEFS };
 })();

@@ -210,6 +210,9 @@ const World = (() => {
       for (const b of bases) if (SaveSys.data.bases[b.id] || seen[b.id]) consider(b.x, b.y);
       for (const p of ports) if (SaveSys.data.ports[p.id] || seen[p.id]) consider(p.x, p.y);
       consider(cx, cy);
+      // 次の拠点ヒントも必ず地図に収まるように
+      const wh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
+      if (wh) consider(wh.x, wh.y);
       ext = Math.min(ext, MM_EXTENT);
       const wScale = WM_RES / (MM_EXTENT * 2);
       const sw = ext * 2 * wScale;
