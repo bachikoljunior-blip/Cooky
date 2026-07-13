@@ -1005,6 +1005,8 @@ const Run = (() => {
           if (!arr) continue;
           for (const v of arr) {
             if (v === u) continue;
+            // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
+            if ((u === pl && !v._ally) || (v === pl && !u._ally)) continue;
             // 陣形に整列中の仲間同士は押し合わない(定位置と押し合いの綱引き=振動を防ぐ)
             if (u._ally && v._ally && u.inForm && v.inForm) continue;
             const dx = v.x - u.x, dy = v.y - u.y;
@@ -1604,25 +1606,33 @@ const Run = (() => {
 
     // 移動(botAxisは自動テストプレイ用フック)
     const ax = R.botAxis || Input.axis();
-    // 押し除ける負荷: 止まっている時は無負荷(=不動)。移動すると、進行方向にいる
-    // 仲間と敵を押し退けるぶんだけ足が重くなる(その質量ぶん遅い)。質量は分離処理と同じ式
+    // 主人公は敵をすり抜けるので、敵を押す負荷は直接には受けない。仲間を押す負荷も無し。
+    // ただし進行方向の前方で「仲間が敵を押している」時は、その敵の質量ぶんだけ
+    // 仲間ごしに押している抵抗として足が重くなる。質量は分離処理と同じ式(前と同じ)
     let landSpd = st.speed;
     if (!p.onBoat) {
       const mdl = Math.hypot(ax.x, ax.y);
-      let pushMass = 0;
+      let enemyMass = 0;
       if (mdl > 0.15) {
         const mdx = ax.x / mdl, mdy = ax.y / mdl;
-        const reach = 90;   // 目の前で押し退ける範囲
-        const add = (u, m, r) => {
-          const ux = u.x - p.x, uy = u.y - p.y, ud = Math.hypot(ux, uy) || 1;
-          if (ud - r > reach) return;                 // 目の前にいるものだけ
-          if ((ux * mdx + uy * mdy) / ud < 0.3) return; // 進行方向の前方にいるものだけ
-          pushMass += m;
-        };
-        for (const a of R.allies) { if (a.waitAt || a.dead) continue; add(a, 1 + (a.def.tier || 0) * 0.6, a.def.r); }
-        for (const e of R.enemies) { if (e.dead) continue; add(e, 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0), e.def.r * (e.sizeMul || 1)); }
+        const nActive = R.allies.filter(a => !a.waitAt && !a.dead).length;
+        const reach = formationRadius(nActive) + 80;   // 前線の仲間が押しうる範囲
+        // 前線の仲間がいる時だけ(=軍勢で押している時だけ)敵の負荷を感じる
+        let frontAlly = false;
+        for (const a of R.allies) {
+          if (a.waitAt || a.dead) continue;
+          const ux = a.x - p.x, uy = a.y - p.y, ud = Math.hypot(ux, uy) || 1;
+          if (ud <= reach && (ux * mdx + uy * mdy) / ud >= 0.3) { frontAlly = true; break; }
+        }
+        if (frontAlly) for (const e of R.enemies) {
+          if (e.dead) continue;
+          const ux = e.x - p.x, uy = e.y - p.y, ud = Math.hypot(ux, uy) || 1;
+          if (ud - e.def.r * (e.sizeMul || 1) > reach) continue;
+          if ((ux * mdx + uy * mdy) / ud < 0.3) continue;   // 進行方向の前方にいる敵だけ
+          enemyMass += 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+        }
       }
-      landSpd = st.speed * Math.max(0.35, 1 / (1 + pushMass * 0.05));
+      landSpd = st.speed * Math.max(0.4, 1 / (1 + enemyMass * 0.06));
     }
     const spd = p.onBoat ? st.boatSpeed : landSpd;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
