@@ -824,7 +824,8 @@ const Run = (() => {
     while (i >= start + cap) { start += cap; ring++; cap = 7 + ring * 5; }
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
-    const rad = 28 + ring * 17;
+    // リング間隔を仲間の直径ぶん(約26px)取り、定位置どうしが重ならないようにする
+    const rad = 30 + ring * 26;
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -1035,8 +1036,7 @@ const Run = (() => {
             if (v === u) continue;
             // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
             if ((u === pl && !v._ally) || (v === pl && !u._ally)) continue;
-            // 陣形に整列中の仲間同士は押し合わない(定位置と押し合いの綱引き=振動を防ぐ)
-            if (u._ally && v._ally && u.inForm && v.inForm) continue;
+            // 仲間同士は常に押し合って重ならない(定位置がもう重ならない広さなので振動しない)
             const dx = v.x - u.x, dy = v.y - u.y;
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
