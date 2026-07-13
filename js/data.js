@@ -296,6 +296,7 @@ const PASSIVE_DEFS = [
   ['p_mend',    '軍医の心得',     '仲間のHP自動回復',     'allyRegenAdd',.008, '+0.8%/秒','jelly',7,'hide',5,'ally'],
   ['p_stand',   '不倒の心得',     '仲間が倒れても踏みとどまる確率', 'allyReviveAdd', .05, '+5%', 'bone',7,'crystal',5, 'ally'],
   ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .006, '+0.6%',  'hide',6,'jelly',6, 'ally'],
+  ['p_swift',   '俊足の心得',     '仲間の移動速度',       'allySpeedMul',.04, '+4%',    'hide',6,'wood',6,  'ally'],
   // 主人公・共通の心得
   ['p_vital',   '生命の心得',     '最大HP',               'maxHpAdd',   15,   '+15',    'jelly',8,'bone',5],
   ['p_guard',   '守りの心得',     '被ダメージ軽減',       'armorAdd',   .02,  '+2%',    'bone',8,'scrap',7],
@@ -503,6 +504,7 @@ DATA.META = {
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +15%',           max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +12%',       max:30, cost:gcost(30,1.35) },
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
+  camp_swift:   { st:'camp', name:'仲間の俊足',    desc:'仲間の移動速度 +5%(はぐれず前線を押し上げる)', max:15, cost:gcost(80,1.45) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
   // --- スキル書庫 ---
   lib_map:      { st:'lib', name:'地図の作成',    desc:'周回中にマップ(周辺図/全体図)が使えるようになる', max:1, cost:gcost(120,1) },
@@ -514,19 +516,34 @@ DATA.META = {
   // --- 基地専用強化(基地を解放すると、その基地のマップの施設で買える) ---
   // fac: war=武練場(攻撃) / life=生命の祠(生存) / lore=秘宝の蔵(経済・仲間・特殊)
   // effAdd/effMul はデータ定義だけでステータスに反映される汎用効果
+  // 北の砦: 武練場(反撃/会心) / 生命の祠(城壁/最大HP) / 秘宝の蔵(兵站/仲間俊足)
   g_north_thorn: { st:'b_north', fac:'war',  name:'茨の鎧',    desc:'接触してきた敵に反撃ダメージ +5', max:20, cost:gcost(150,1.4) },
+  g_north_edge:  { st:'b_north', fac:'war',  name:'砦の刃',    desc:'全ダメージ +2%', max:20, cost:gcost(160,1.4), effMul:{atk:.02} },
   g_north_wall:  { st:'b_north', fac:'life', name:'城壁の加護',desc:'HPが30%以下の時、被ダメージ -3%', max:15, cost:gcost(200,1.45) },
+  g_north_keep:  { st:'b_north', fac:'life', name:'砦の備え',  desc:'最大HP +12', max:20, cost:gcost(170,1.4), effAdd:{maxHp:12} },
   g_north_supply:{ st:'b_north', fac:'lore', name:'兵站術',    desc:'素材ドロップ量 +3%', max:15, cost:gcost(180,1.42), effMul:{dropMul:.03} },
+  g_north_march: { st:'b_north', fac:'lore', name:'行軍の号令',desc:'仲間の移動速度 +3%', max:15, cost:gcost(200,1.42), effMul:{allySpeed:.03} },
+  // 東の遺跡: 武練場(範囲/射程) / 生命の祠(結界/回避) / 秘宝の蔵(叡智/仲間全能力)
   g_east_area:   { st:'b_east', fac:'war',  name:'魔力増幅',   desc:'スキルの効果範囲 +4%',  max:20, cost:gcost(180,1.42) },
+  g_east_reach:  { st:'b_east', fac:'war',  name:'遠見の術',   desc:'攻撃の射程 +2%', max:15, cost:gcost(200,1.42), effMul:{range:.02} },
   g_east_ward:   { st:'b_east', fac:'life', name:'遺跡の結界', desc:'被ダメージ -1%', max:10, cost:gcost(220,1.45), effAdd:{armor:.01} },
+  g_east_evade:  { st:'b_east', fac:'life', name:'残像歩法',   desc:'回避率 +0.6%', max:12, cost:gcost(240,1.46), effAdd:{dodge:.006} },
   g_east_cdr:    { st:'b_east', fac:'lore', name:'古代の叡智', desc:'武器の攻撃間隔 -1.5%(書庫と加算)', max:20, cost:gcost(180,1.42) },
+  g_east_muster: { st:'b_east', fac:'lore', name:'遺跡の共鳴', desc:'仲間の攻撃力 +3%', max:15, cost:gcost(210,1.44), effMul:{allyAtk:.03} },
+  // 南の泉: 武練場(浄化/会心) / 生命の祠(治癒/自然回復) / 秘宝の蔵(霊薬/仲間回復)
   g_south_bless: { st:'b_south', fac:'war',  name:'清めの刃',  desc:'全ダメージ +3%', max:15, cost:gcost(200,1.42), effMul:{atk:.03} },
+  g_south_focus: { st:'b_south', fac:'war',  name:'澄んだ心',  desc:'会心率 +1%', max:12, cost:gcost(230,1.44), effAdd:{crit:.01} },
   g_south_heal:  { st:'b_south', fac:'life', name:'癒しの水',  desc:'HP自動回復 +1/秒',      max:15, cost:gcost(220,1.45) },
+  g_south_spring:{ st:'b_south', fac:'life', name:'泉の恵み',  desc:'最大HP +10', max:15, cost:gcost(200,1.42), effAdd:{maxHp:10} },
   g_south_potion:{ st:'b_south', fac:'lore', name:'霊薬精製',  desc:'敵が回復ポーション(HP20%)を落とす確率 +0.4%', max:10, cost:gcost(300,1.5) },
+  g_south_care:  { st:'b_south', fac:'lore', name:'泉の看護',  desc:'仲間HP自動回復 +0.6%/秒', max:12, cost:gcost(260,1.46), effAdd:{allyRegen:.006} },
+  // 西の炉: 武練場(業火/巨人殺し) / 生命の祠(鎧下/棘) / 秘宝の蔵(精錬/仲間HP)
   g_west_fire:   { st:'b_west', fac:'war',  name:'業火の刻印', desc:'全ダメージ +5%(祭壇と加算)', max:25, cost:gcost(250,1.4) },
   g_west_boss:   { st:'b_west', fac:'war',  name:'巨人殺し',   desc:'ボスへのダメージ +8%',  max:20, cost:gcost(300,1.42) },
   g_west_mail:   { st:'b_west', fac:'life', name:'鋼の鎧下',   desc:'最大HP +15', max:15, cost:gcost(250,1.42), effAdd:{maxHp:15} },
+  g_west_forge:  { st:'b_west', fac:'life', name:'炉の頑健',   desc:'被ダメージ -1%', max:12, cost:gcost(280,1.46), effAdd:{armor:.01} },
   g_west_smelt:  { st:'b_west', fac:'lore', name:'精錬の目利き', desc:'コイン獲得量 +4%', max:15, cost:gcost(280,1.45), effMul:{coinMul:.04} },
+  g_west_temper: { st:'b_west', fac:'lore', name:'鍛えの絆',   desc:'仲間の最大HP +3%', max:15, cost:gcost(260,1.45), effMul:{allyHp:.03} },
   // --- 第1環 ---
   g_dragon_fang: { st:'b_dragon', fac:'war',  name:'竜牙の刃',  desc:'ボスへのダメージ +5%', max:15, cost:gcost(1800,1.45), effMul:{bossDmg:.05} },
   g_dragon_res:  { st:'b_dragon', fac:'life', name:'竜鱗の守り', desc:'リーパーからの被ダメージ -6%(最大90%)', max:15, cost:gcost(2000,1.5) },

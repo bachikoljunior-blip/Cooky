@@ -50,6 +50,7 @@ const Run = (() => {
       allyHp: (1 + 0.15*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
       allyAtk: (1 + 0.12*m('camp_atk')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_legion')),
       allyRegen: 0.012 + 0.01*m('camp_heal'),   // 仲間は放っておいても回復していく
+      allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
       dropMul: 1 + 0.1*m('lab_drop'),
@@ -118,6 +119,7 @@ const Run = (() => {
         case 'reaperResAdd':s.reaperRes = Math.min(0.95, s.reaperRes + v); break;
         case 'allyAtkMul':  s.allyAtk *= 1 + v; break;
         case 'allyHpMul':   s.allyHp *= 1 + v; break;
+        case 'allySpeedMul': s.allySpeed = (s.allySpeed || 1) * (1 + v); break;
         case 'allyRegenAdd':  s.allyRegen += v; break;
         case 'allyReviveAdd': s.allyReviveChance = Math.min(0.8, s.allyReviveChance + v); break;
         case 'allyAtkSpdAdd': s.allyAtkSpd = Math.min(0.6, s.allyAtkSpd + v); break;
@@ -857,7 +859,7 @@ const Run = (() => {
     const p = R.player;
     const wb = Skills.stat('warbanner');
     const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
-    const spdMul = (wb ? wb.spd : 1);
+    const spdMul = (wb ? wb.spd : 1) * (R.stats.allySpeed || 1);
     const n = R.allies.length;
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
