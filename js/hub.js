@@ -309,7 +309,33 @@ const Hub = (() => {
       </div>`;
     }
     if (!h) h = '<p class="small">ここにはまだ強化がない。</p>';
+    // 書庫: 周回中スキル表示の設定(解放したことのあるスキルを非表示にできる)
+    if (stKey === 'lib') {
+      const seen = SaveSys.data.skillsSeen || {};
+      const ids = Object.keys(seen).filter(id => DATA.SKILLS[id]);
+      if (ids.length) {
+        h += '<div class="sec-head">周回中のスキル獲得設定(いらないスキルを獲得候補から外せる)</div>';
+        for (const id of ids) {
+          const hidden = SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
+          h += `<div class="up-card"><div class="info">
+            <div class="name">${DATA.SKILLS[id].name}</div>
+            <div class="desc">${hidden ? '周回中は獲得できない(リストにも出ない)' : '周回中に獲得できる'}</div></div>
+            <button class="buy-btn" data-hide="${id}" style="background:${hidden ? '#8b1e24' : '#1f6feb'}">${hidden ? '獲得しない' : '獲得する'}</button>
+          </div>`;
+        }
+      }
+    }
     body.innerHTML = h;
+    body.querySelectorAll('[data-hide]').forEach(b => {
+      b.onclick = () => {
+        SaveSys.data.skillHidden = SaveSys.data.skillHidden || {};
+        const id = b.dataset.hide;
+        SaveSys.data.skillHidden[id] = !SaveSys.data.skillHidden[id];
+        SaveSys.save();
+        Sfx.buy();
+        renderMetaList(stKey, fac);
+      };
+    });
     body.querySelectorAll('.buy-btn[data-meta]').forEach(b => {
       b.onclick = () => {
         if (SaveSys.buyMeta(b.dataset.meta)) {

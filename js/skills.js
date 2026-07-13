@@ -85,7 +85,7 @@ const Skills = (() => {
   }
   // 取得可能(=素材が全部揃っている)スキルの数。HUDのボタン通知に使う
   function hiddenByUser(id){
-    return false;   // 書庫のスキル獲得設定は廃止(スキルはすべて周回中に出現する)
+    return lv(id) === 0 && SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
   }
   function readyIds(){
     const out = [];
