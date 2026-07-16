@@ -730,6 +730,6 @@ DATA.STATIONS = {
 // 時間による敵強化(分あたり)。星読みで緩和可能
 DATA.TIME_HP_GROWTH = 1.128;   // HP: ×1.128^分 (30分で約37倍)
 DATA.TIME_DMG_GROWTH = 1.062;  // ダメージ: 30分で約6倍
-DATA.DIST_RING = 6500;         // 距離リング幅(px) 遠くほど敵が強い(危険度)
+DATA.DIST_RING = 1300;         // 距離リング幅(px) 遠くほど敵が強い(危険度)。狭いほど距離で危険度が速く上がる
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
 DATA.WORLD_EXTENT = 860000;    // 世界の半径(ミニマップ用)
