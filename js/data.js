@@ -74,7 +74,8 @@ DATA.SKILLS = {
   },
   warbanner: {
     name:'ウォーバナー', cat:'ally', icon:'sk_banner',
-    desc:'仲間の攻撃力とHPを強化する軍旗。仲間主体の戦術に。',
+    desc:'仲間の攻撃力とHPを強化する軍旗。仲間主体の戦術に。【前提: カリスマの歌 Lv2】',
+    requires:{ skill:'charisma', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:3,mat:'magic',qty:2}]),
     lvText:['仲間攻撃+20%','仲間HP+30%','仲間攻撃+25%','仲間の移動速度+20%','仲間攻撃+35%・HP+35%'],
     stats:(lv)=>({ atk:1.2+(lv>=2?0.2:0)+(lv>=4?0.25:0)+(lv>=6?0.35:0),
@@ -99,7 +100,8 @@ DATA.SKILLS = {
   },
   vampire: {
     name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
-    desc:'【主人公】敵を倒すとHPを吸収する。',
+    desc:'【主人公】敵を倒すとHPを吸収する。【前提: サンクチュアリ Lv2】',
+    requires:{ skill:'sanctuary', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
     stats:(lv)=>({ killHeal:3+(lv>=2?2:0)+(lv>=4?3:0)+(lv>=6?5:0),
@@ -115,7 +117,8 @@ DATA.SKILLS = {
   },
   curse: {
     name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',
-    desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放】',
+    desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放・前提: 混沌の瘴気 Lv2】',
+    requires:{ skill:'confuse', lv:2 },
     cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:3,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
     lvText:['被ダメ増+10%','減速強化','再発動-25%','被ダメ増+15%','範囲拡大'],
     stats:(lv)=>({ radius:260+(lv>=6?100:0), shred:0.2+(lv>=2?0.1:0)+(lv>=5?0.15:0),
@@ -453,7 +456,6 @@ DATA.META = {
   camp_swift:   { st:'camp', name:'仲間の俊足',    desc:'仲間の移動速度 +5%(はぐれず前線を押し上げる)', max:15, cost:gcost(80,1.45) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
   // --- スキル書庫 ---
-  lib_map:      { st:'lib', name:'地図の作成',    desc:'周回中にマップ(周辺図/全体図)が使えるようになる', max:1, cost:gcost(120,1) },
   lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」が出現候補になる', max:1, cost:gcost(20000,1) },
   lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
   lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },

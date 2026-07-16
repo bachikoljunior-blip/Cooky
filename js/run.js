@@ -155,6 +155,9 @@ const Run = (() => {
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
+    R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
+    R.foeMap = new Map();         // マップ用の敵目撃情報 cellKey -> {x,y,t,boss}(離れて消えても保持)
+    R.foeScanT = 0;
     R.interact = null;
     R.vacuumT = 0; R.warnT = 0; R.warnMsg = '';
     R.maxDist = Math.hypot(startPos.x, startPos.y);
@@ -243,6 +246,7 @@ const Run = (() => {
   function killEnemy(e, opts = {}){
     if (e.dead) return;
     e.dead = true;
+    if (!e.boss && !e.def.isReaper) markCleared(e.x, e.y);   // 倒した場所は1分間リスポーンしない
     R.kills++;
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
@@ -380,10 +384,11 @@ const Run = (() => {
   function rnd(a, b){ return a + Math.random() * (b - a); }
 
   // その座標のエリアで「よく採れる」素材リスト(海は貝殻・珊瑚)
+  // 陸はバイオドームで決まる ― 遠いバイオドームほど上位素材が採れる
   function areaMats(x, y){
     const ti = World.tileAt(x, y);
     if (ti.t === 'sea' || ti.t === 'deep') return ['shell', 'coral'];
-    return (DATA.BIOMES[ti.biome] || {}).mats || [];
+    return World.biodomeMats(x, y);
   }
 
   function effect(type, x, y, opt){
@@ -475,6 +480,8 @@ const Run = (() => {
         x = p.x + Math.cos(a2) * dist; y = p.y + Math.sin(a2) * dist;
         if (i === 5) return null;
       }
+      // 掃討したばかりの場所(1分以内)には環境の敵を湧かせない
+      if (opts.ambient && isClearedCell(x, y)) return null;
     }
     const tm = opts.tm || timeMults();
     const e = {
@@ -508,6 +515,8 @@ const Run = (() => {
   function pickEnemyKey(){
     const tier = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
+    // このバイオドームの得意素材を落とす敵を優遇 ― 場所ごとにモンスターの顔ぶれが変わる
+    const bmats = areaMats(R.player.x, R.player.y);
     const pool = [];
     const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
     let baseW = 0;
@@ -517,7 +526,8 @@ const Run = (() => {
       if (d.tier > tier || d.tier < tier - 2) continue;
       if (onSea && d.env === 'land') continue;
       if (!onSea && d.env === 'sea') continue;
-      const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
+      const matchBiome = (d.drops || []).some(dr => bmats.includes(dr.m));
+      const w = (1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0)) * (matchBiome ? 2.5 : 1);
       if (d.move === 'kite') kites.push({ k, w });
       else { pool.push({ k, w }); baseW += w; }
     }
@@ -616,17 +626,59 @@ const Run = (() => {
     }
   }
 
+  // 倒した場所の格子(この中は1分間リスポーンしない)
+  const CLR_CELL = 340;
+  function clrKey(x, y){ return Math.floor(x / CLR_CELL) + ',' + Math.floor(y / CLR_CELL); }
+  function markCleared(x, y){ if (R.clearedCells) R.clearedCells.set(clrKey(x, y), R.time + 60); }
+  function isClearedCell(x, y){
+    if (!R.clearedCells) return false;
+    const t = R.clearedCells.get(clrKey(x, y));
+    if (t === undefined) return false;
+    if (R.time >= t) { R.clearedCells.delete(clrKey(x, y)); return false; }
+    return true;
+  }
+  // マップ用の敵目撃情報を記録(離れて消えても、この情報だけは残してマップに出す)
+  const FOE_CELL = 900;
+  function stampFoe(e){
+    if (!R.foeMap) return;
+    const k = Math.floor(e.x / FOE_CELL) + ',' + Math.floor(e.y / FOE_CELL);
+    const cur = R.foeMap.get(k);
+    R.foeMap.set(k, { x: e.x, y: e.y, t: R.time, boss: !!(e.boss || (cur && cur.boss && R.time - cur.t < 8)) });
+  }
+
   function director(dt){
     const p = R.player;
     const min = R.time / 60;
     const isReaperTime = R.time >= DATA.REAPER_AT;
     const ring0 = Math.min(12, World.ringOf(R.player.x, R.player.y));
 
+    // マップ用の敵位置スキャン(重くならないよう間引き)。生存中の敵の格子を記録し、
+    // 離れて間引かれても「最後に見た敵の分布」としてマップに残す。
+    R.foeScanT = (R.foeScanT || 0) - dt;
+    if (R.foeScanT <= 0) {
+      R.foeScanT = 0.7;
+      for (const e of R.enemies) if (!e.dead && !e.fromHorde) stampFoe(e);
+      // 古い目撃情報(90秒より前)は捨てる
+      if (R.foeMap) for (const [k, v] of R.foeMap) if (R.time - v.t > 90) R.foeMap.delete(k);
+    }
+
     // --- 環境人口: 画面のまわりに常に一定数の敵をうろつかせる(どこへ行っても同じ分布) ---
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    const nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1));
+    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1));
+    // 直前に通って倒した場所は1分間リスポーンしない ― 周辺の「掃討済み」格子の割合ぶん目標数を下げる
+    if (R.clearedCells && R.clearedCells.size) {
+      let tot = 0, clr = 0;
+      const c0x = Math.floor((p.x - nearR) / CLR_CELL), c1x = Math.floor((p.x + nearR) / CLR_CELL);
+      const c0y = Math.floor((p.y - nearR) / CLR_CELL), c1y = Math.floor((p.y + nearR) / CLR_CELL);
+      for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
+        tot++;
+        const t = R.clearedCells.get(cx + ',' + cy);
+        if (t !== undefined && R.time < t) clr++;
+      }
+      if (tot > 0) nearTarget = Math.round(nearTarget * (1 - clr / tot));
+    }
     R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
@@ -635,7 +687,7 @@ const Run = (() => {
       if (nearN >= nearTarget || R.enemies.length >= 900) break;
       if (Math.random() < 0.12) { spawnHerd(false); nearN += 5; }   // 時々、群れ(まとまってうろつく)
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
-      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240) })) nearN++; }
+      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240), ambient: true })) nearN++; }
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 
@@ -698,6 +750,7 @@ const Run = (() => {
       if (!e.boss && !e.def.isReaper && pd > despawnR) {
         // 時間ごとの大群は消えず、プレイヤーの近くの画面外へ回り込んで襲い続ける
         if (e.fromHorde && relocateOffscreen(e)) continue;
+        if (!e.fromHorde) stampFoe(e);   // 間引く前に最後の位置をマップ情報として残す
         R.enemies.splice(i, 1); continue;
       }
       e.flash = Math.max(0, e.flash - dt);
@@ -927,6 +980,7 @@ const Run = (() => {
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
       if (a.slot === undefined) assignSlot(a);   // 開始時の軍勢・合流など
       a.inForm = false;   // このフレームで陣形整列中かどうか(振動防止の分離除外に使う)
+      if (a.atkAnim > 0) a.atkAnim = Math.max(0, a.atkAnim - dt);   // 攻撃モーションの減衰
       // 自動回復
       if (R.stats.allyRegen > 0) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * R.stats.allyRegen * dt);
       // 待機中(乗船で置いていかれた等)
@@ -986,6 +1040,7 @@ const Run = (() => {
               const d = td || 1;
               R.projs.push({ x:a.x, y:a.y, vx:(tgt.x-a.x)/d*a.def.ranged.pspeed*1.2, vy:(tgt.y-a.y)/d*a.def.ranged.pspeed*1.2,
                              dmg: a.dmg * atkMul / R.stats.atk, life:2.5, size:5, pierce:0, ally:true });
+              a.atkAnim = 0.2; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = true;   // 射撃の反動
             }
             dest = null; // 距離維持
           }
@@ -996,6 +1051,7 @@ const Run = (() => {
           if (a.atkCd <= 0) {
             a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
             dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
+            a.atkAnim = 0.24; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = false;   // 斬りかかるモーション
           }
           dest = null;
         }
@@ -1746,16 +1802,17 @@ const Run = (() => {
       for (const pt of World.ports) {
         if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) SaveSys.data.seen[pt.id] = true;
       }
-      // エリア進入バナー(大陸名・バイオーム・得意素材)
+      // バイオドーム進入バナー(≈1分ごとに別のバイオドームへ入ると表示)
       const L = World.landAt(p.x, p.y);
-      const cid = L ? L.cont.id : 'sea';
-      R.curBiome = L ? (L.cont.biome || 'grass') : 'sea';
+      const bd = World.biodomeAt(p.x, p.y);
+      const cid = L ? ('b' + bd.cx + '_' + bd.cy) : 'sea';
+      R.curBiome = L ? bd.biome : 'sea';
       if (cid !== R.curCont) {
         R.curCont = cid;
         if (L) {
-          const bio = DATA.BIOMES[L.cont.biome] || DATA.BIOMES.grass;
-          const mm = (bio.mats || []).filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
-          R.warnMsg = '― ' + L.cont.name + ' <' + bio.name + '> ―' + (mm ? ' よく採れる: ' + mm : '');
+          const bio = DATA.BIOMES[bd.biome] || DATA.BIOMES.grass;
+          const mm = World.biodomeMats(p.x, p.y).filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
+          R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' よく採れる: ' + mm : '');
         } else {
           R.warnMsg = '― 海域 ― よく採れる: ' + ['shell','coral'].filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
         }
@@ -1943,8 +2000,14 @@ const Run = (() => {
     // 仲間
     for (const a of R.allies) {
       if (a.waitAt) g.globalAlpha = 0.7;
+      // 攻撃モーション: 斬りかかる時は的へ踏み込み、射撃時はのけぞる反動(sinで出て戻る)
+      let ax = a.x, ay = a.y;
+      if (a.atkAnim > 0) {
+        const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
+        ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
+      }
       // 味方は元の色を残しつつ、うっすら青みを乗せて敵と少しだけ違って見えるように(リングなし)
-      Sprites.drawTinted(g, a.def.sprite, a.x, a.y, a.def.r * 2.6, false, '#3d7bff', 0.3);
+      Sprites.drawTinted(g, a.def.sprite, ax, ay, a.def.r * 2.6, false, '#3d7bff', 0.3);
       if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
       if (a.waitAt) {
         g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
@@ -2175,6 +2238,19 @@ const Run = (() => {
       g.fillStyle = c;
       g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, (r || 2) * mk, 0, 7); g.fill();
     };
+    // 敵の分布: 黒塗りから解放した(探索済みの)場所にだけ、最後に見た敵位置を小さく表示。
+    // 離れて間引かれた敵も情報だけ残してあるので、行った場所の敵の居どころが分かる。
+    if (R.foeMap) for (const v of R.foeMap.values()) {
+      if (!World.isExplored(v.x, v.y)) continue;
+      if (!view.inView(v.x, v.y)) continue;
+      const q = view.toMM(v.x, v.y);
+      if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) continue;
+      const fade = Math.max(0.28, 1 - (R.time - v.t) / 90);
+      g.globalAlpha = fade;
+      g.fillStyle = v.boss ? '#ffb000' : '#f85149';
+      g.beginPath(); g.arc(x0 + q.x * mmScale, y0 + q.y * mmScale, (v.boss ? 2.6 : 1.4) * mk, 0, 7); g.fill();
+      g.globalAlpha = 1;
+    }
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
     // 基地を一つでも解放していれば、未解放の基地はすべてヒント(?)として表示する。
     const seen = SaveSys.data.seen || {};
@@ -2210,8 +2286,7 @@ const Run = (() => {
     }
   }
   function drawMinimap(g, W){
-    // マップは書庫の「古い地図の修復」を買うまで存在しない(地図は最初の基地の解放で入手)
-    if (!SaveSys.metaLv('lib_map')) return;
+    // マップは最初から所持している
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     const x0 = W - sz - 10, y0 = 10;
     drawMapInto(g, x0, y0, sz, 'local');   // ミニマップは周辺図のみ
@@ -2220,7 +2295,7 @@ const Run = (() => {
   }
   // タップで開く全画面の全体図
   function drawFullMap(g, W, H){
-    if (!SaveSys.metaLv('lib_map') || !R.mapFull) return;
+    if (!R.mapFull) return;
     g.fillStyle = 'rgba(5,8,14,0.85)'; g.fillRect(0, 0, W, H);
     const sz = Math.min(W, H) - 56;
     const x0 = (W - sz) / 2, y0 = (H - sz) / 2;
@@ -2231,7 +2306,6 @@ const Run = (() => {
   function toggleMap(){ R.mapFull = !R.mapFull; }
   // ミニマップ/全体図のタップ処理(処理したらtrue)
   function tapMap(cx, cy, W){
-    if (!SaveSys.metaLv('lib_map')) return false;
     if (R.mapFull) { R.mapFull = false; return true; }   // 全画面はどこをタップしても閉じる
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     if (cx > W - sz - 10 && cy < sz + 24) { R.mapFull = true; return true; }

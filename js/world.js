@@ -39,10 +39,33 @@ const World = (() => {
     return minGap > 2200 ? 'deep' : 'sea';
   }
 
-  // タイル情報: 地形タイプ + バイオーム(描画用)
+  // ---- バイオドーム: 約1分歩くごと(≈2600px)に別のバイオドームへ入る ----
+  // セルごとに見た目のバイオームが変わり、原点から遠いセルほど手に入る素材のティアが上がる
+  // (先のバイオドームまで行かないと上位素材が採れない)。
+  const BIODOME_W = 2600;
+  const BIO_KEYS = Object.keys(DATA.BIOMES);
+  function biodomeAt(x, y){
+    const cx = Math.floor(x / BIODOME_W), cy = Math.floor(y / BIODOME_W);
+    const h = hash(cx, cy, 55);
+    const biome = BIO_KEYS[Math.min(BIO_KEYS.length - 1, Math.floor(h * BIO_KEYS.length))];
+    // 3バイオドーム(≈7800px, ≈3分)ごとに素材ティアが1段上がる(最大4)
+    const matTier = Math.min(4, Math.floor(Math.hypot(x, y) / (BIODOME_W * 3)));
+    return { biome, matTier, cx, cy };
+  }
+  // その場所で手に入る素材: そのバイオドームの得意素材のうち、距離ティア以下のものだけ。
+  // 空になる内側では基本素材にフォールバック(何も採れない土地を作らない)。
+  const BASE_MATS = ['jelly', 'wood', 'bone', 'hide'];
+  function biodomeMats(x, y){
+    const b = biodomeAt(x, y);
+    const bio = DATA.BIOMES[b.biome] || DATA.BIOMES.grass;
+    const out = (bio.mats || []).filter(m => (DATA.MATERIALS[m].tier || 0) <= b.matTier);
+    return out.length ? out : BASE_MATS.slice(0, 2);
+  }
+
+  // タイル情報: 地形タイプ + バイオーム(描画用)。バイオームはバイオドームで決まる
   function tileAt(x, y){
     const L = landAt(x, y);
-    if (L) return { t: (L.d > L.edge - 90) ? 'sand' : 'grass', biome: L.cont.biome || 'grass' };
+    if (L) return { t: (L.d > L.edge - 90) ? 'sand' : 'grass', biome: biodomeAt(x, y).biome };
     let minGap = 1e9;
     for (const c of DATA.CONTINENTS) {
       const d = Math.hypot(x - c.x, y - c.y) - c.r * Math.max(c.sx || 1, c.sy || 1);
@@ -280,6 +303,7 @@ const World = (() => {
     }
   }
   function exploredArray(){ return Array.from(exSet); }
+  function isExplored(x, y){ return exSet.has(Math.floor(x / EX_CELL) + ',' + Math.floor(y / EX_CELL)); }
 
   // 距離リング(敵の強さ)
   function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
@@ -287,5 +311,6 @@ const World = (() => {
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
-           initExplored, recordExplore, exploredArray, fogCanvas };
+           initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
+           biodomeAt, biodomeMats };
 })();
