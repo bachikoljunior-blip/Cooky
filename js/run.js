@@ -515,19 +515,24 @@ const Run = (() => {
   function pickEnemyKey(){
     const tier = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
-    // このバイオドームの得意素材を落とす敵を優遇 ― 場所ごとにモンスターの顔ぶれが変わる
-    const bmats = areaMats(R.player.x, R.player.y);
+    // バイオドームごとの敵プールから抽選 ― 場所が変わると顔ぶれも変わる。
+    // その場所の許容ティアに合う敵がプールに無ければ全体から拾う(空湧き防止)。
+    let keys;
+    if (onSea) keys = DATA.SEA_FAUNA;
+    else {
+      const bd = World.biodomeAt(R.player.x, R.player.y);
+      keys = DATA.BIOME_FAUNA[bd.biome] || Object.keys(DATA.ENEMIES);
+    }
+    const inTier = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
+      d.tier <= tier && d.tier >= tier - 2 && (onSea ? d.env !== 'land' : d.env !== 'sea'); };
+    let candidates = keys.filter(inTier);
+    if (!candidates.length) candidates = Object.keys(DATA.ENEMIES).filter(inTier);   // フォールバック
     const pool = [];
     const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
     let baseW = 0;
-    for (const k in DATA.ENEMIES) {
+    for (const k of candidates) {
       const d = DATA.ENEMIES[k];
-      if (d.isReaper || d.rare) continue;   // レアは別途0.006で抽選
-      if (d.tier > tier || d.tier < tier - 2) continue;
-      if (onSea && d.env === 'land') continue;
-      if (!onSea && d.env === 'sea') continue;
-      const matchBiome = (d.drops || []).some(dr => bmats.includes(dr.m));
-      const w = (1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0)) * (matchBiome ? 2.5 : 1);
+      const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
       if (d.move === 'kite') kites.push({ k, w });
       else { pool.push({ k, w }); baseW += w; }
     }

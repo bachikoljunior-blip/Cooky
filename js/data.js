@@ -316,7 +316,48 @@ DATA.ENEMIES = {
   abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:18,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
   rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:46.4, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
   reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:28.4, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
+  // ---- バイオドーム別の敵(既存の描画kindを配色替え。場所ごとに顔ぶれが変わる) ----
+  boar:     { name:'イノシシ',        hp:34,  dmg:12, speed:24,   r:14, tier:1, env:'land', move:'chase', coin:3, sprite:'en_boar',    drops:[{m:'hide',c:.5},{m:'wood',c:.2}] },
+  mush:     { name:'マイコニド',      hp:26,  dmg:8,  speed:11,   r:12, tier:1, env:'land', move:'chase', coin:3, sprite:'en_mush',    drops:[{m:'jelly',c:.4},{m:'wood',c:.3}] },
+  iceslime: { name:'アイススライム',  hp:16,  dmg:7,  speed:10,   r:12, tier:0, env:'land', move:'chase', coin:2, sprite:'en_iceslime',drops:[{m:'crystal',c:.35}] },
+  frostwolf:{ name:'フロストウルフ',  hp:40,  dmg:14, speed:23,   r:13, tier:2, env:'land', move:'chase', coin:5, sprite:'en_frostwolf',drops:[{m:'crystal',c:.4},{m:'hide',c:.3}] },
+  yeti:     { name:'イエティ',        hp:240, dmg:30, speed:12,   r:20, tier:3, env:'land', move:'chase', coin:13, sprite:'en_yeti',   drops:[{m:'crystal',c:.5},{m:'star',c:.2}] },
+  icewisp:  { name:'アイスウィスプ',  hp:34,  dmg:13, speed:27,   r:10, tier:2, env:'both', move:'chase', coin:6, sprite:'en_icewisp', drops:[{m:'crystal',c:.4},{m:'star',c:.15}] },
+  lavaslime:{ name:'ラヴァスライム',  hp:30,  dmg:11, speed:11,   r:13, tier:1, env:'land', move:'chase', coin:4, sprite:'en_lavaslime',drops:[{m:'scrap',c:.35},{m:'scale',c:.12}] },
+  emberbat: { name:'エンバーバット',  hp:16,  dmg:9,  speed:22,   r:10, tier:1, env:'both', move:'chase', coin:3, sprite:'en_emberbat',drops:[{m:'hide',c:.3},{m:'scrap',c:.2}] },
+  fireimp:  { name:'ファイアインプ',  hp:70,  dmg:18, speed:24,   r:12, tier:2, env:'land', move:'chase', ranged:{range:230,cd:2.4,pspeed:66}, coin:7, sprite:'en_fireimp', drops:[{m:'magic',c:.35},{m:'scale',c:.2}] },
+  magmagolem:{name:'マグマゴーレム',  hp:300, dmg:34, speed:8,    r:20, tier:3, env:'land', move:'chase', armor:.4, coin:15, sprite:'en_magmagolem',drops:[{m:'scrap',c:.55},{m:'scale',c:.35}] },
+  scarab:   { name:'スカラベ',        hp:38,  dmg:10, speed:16,   r:12, tier:1, env:'land', move:'chase', armor:.25, coin:4, sprite:'en_scarab', drops:[{m:'crystal',c:.35},{m:'bone',c:.3}] },
+  mummy:    { name:'マミー',          hp:95,  dmg:19, speed:11,   r:15, tier:2, env:'land', move:'chase', coin:7, sprite:'en_mummy',   drops:[{m:'bone',c:.5},{m:'hide',c:.3}] },
+  sandwurm: { name:'サンドワーム',    hp:280, dmg:34, speed:19,   r:20, tier:3, env:'land', move:'chase', coin:14, sprite:'en_sandwurm',drops:[{m:'bone',c:.4},{m:'scale',c:.3}] },
+  shade:    { name:'シェイド',        hp:70,  dmg:16, speed:28,   r:12, tier:2, env:'both', move:'chase', coin:6, sprite:'en_shade',   drops:[{m:'magic',c:.4}] },
+  voidwisp: { name:'ヴォイドウィスプ',hp:200, dmg:28, speed:30,   r:12, tier:3, env:'both', move:'chase', coin:16, sprite:'en_voidwisp',drops:[{m:'magic',c:.5},{m:'abyss',c:.2}] },
+  hornedimp:{ name:'ホーンドデーモン',hp:320, dmg:40, speed:21,   r:18, tier:3, env:'land', move:'chase', coin:16, sprite:'en_hornedimp',drops:[{m:'magic',c:.45},{m:'abyss',c:.25}] },
+  stormwisp:{ name:'ストームウィスプ',hp:66,  dmg:15, speed:32,   r:10, tier:2, env:'both', move:'chase', ranged:{range:250,cd:2.6,pspeed:76}, coin:6, sprite:'en_stormwisp',drops:[{m:'scrap',c:.4},{m:'star',c:.15}] },
+  galehound:{ name:'ゲイルハウンド',  hp:78,  dmg:18, speed:30,   r:13, tier:2, env:'land', move:'chase', coin:6, sprite:'en_galehound',drops:[{m:'hide',c:.4},{m:'star',c:.12}] },
 };
+
+// バイオームごとの陸の敵プール(場所ごとに顔ぶれが変わる)。海は別プール。
+// 各プールは低ティア〜高ティアを含み、その場所の allowedTier で絞られる。
+DATA.BIOME_FAUNA = {
+  grass:   ['slime','skeleton','wolf','goblin','boar','orc','mush'],
+  jungle:  ['slime','wolf','boar','mush','lizard','orc','ogre'],
+  mist:    ['bat','wisp','galehound','stormwisp','wolf','shade'],
+  chalk:   ['skeleton','scarab','crab','mummy','knight'],
+  bones:   ['skeleton','mummy','orc','scarab','sandwurm','knight'],
+  desert:  ['skeleton','scarab','mummy','lizard','sandwurm'],
+  storm:   ['bat','stormwisp','galehound','wisp','knight','voidwisp'],
+  frost:   ['iceslime','frostwolf','icewisp','wolf','yeti'],
+  moon:    ['icewisp','wisp','shade','stormwisp','voidwisp'],
+  twilight:['wisp','shade','shaman','necro','voidwisp'],
+  obsidian:['skeleton','knight','shade','golem','hornedimp'],
+  volcano: ['lavaslime','emberbat','fireimp','lizard','whelp'],
+  magma:   ['lavaslime','fireimp','emberbat','magmagolem','demon'],
+  makai:   ['shade','necro','fireimp','hornedimp','demon'],
+  void:    ['voidwisp','shade','hornedimp','demon','abysslord'],
+  end:     ['hornedimp','voidwisp','demon','dragon','abysslord'],
+};
+DATA.SEA_FAUNA = ['jellyfish','crab','shark','siren','icewisp','serpent','shade','whelp','abysslord'];
 
 // ボス: minute = 出現時刻(分)
 DATA.BOSSES = [

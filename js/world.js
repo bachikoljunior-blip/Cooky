@@ -39,18 +39,48 @@ const World = (() => {
     return minGap > 2200 ? 'deep' : 'sea';
   }
 
-  // ---- バイオドーム: 約1分歩くごと(≈2600px)に別のバイオドームへ入る ----
-  // セルごとに見た目のバイオームが変わり、原点から遠いセルほど手に入る素材のティアが上がる
-  // (先のバイオドームまで行かないと上位素材が採れない)。
-  const BIODOME_W = 2600;
-  const BIO_KEYS = Object.keys(DATA.BIOMES);
+  // ---- バイオドーム: 約5分歩くごと(≈12600px)に別のバイオドームへ入る ----
+  // 広い領域ごとに見た目のバイオームが変わり、原点から遠いバイオドームほど手に入る
+  // 素材のティアが上がる(先のバイオドームまで行かないと上位素材が採れない)。
+  // 境界は画一的な直線ではなく、座標をノイズでゆがめて自然な曲線にする(ドメインワープ)。
+  const BIODOME_W = 12600;
+  // 穏やか→過酷の順に並べたバイオーム。隣り合うバイオドームはこの並びで近いものになり、
+  // 一つ跨ぐごとに段階を踏んで少しずつ変わる(たまに急激に変わる場所もある)。
+  const BIO_ORDER = ['grass','jungle','mist','chalk','bones','desert','storm','frost',
+                     'moon','twilight','obsidian','volcano','magma','makai','void','end'];
+  // セルごとのバイオーム順インデックス: 低周波の滑らかなノイズ → 隣接セルは1段くらいしか違わない
+  function biomeIndex(cx, cy){
+    const f = 0.34;
+    let v = Math.sin(cx * f + 1.7) + Math.sin(cy * f * 0.92 + 4.2)
+          + 0.6 * Math.sin((cx + cy) * f * 0.5 + 2.1) + 0.4 * Math.sin((cx - cy) * f * 0.7 + 5.3);
+    v = (v / 2.6 + 1) / 2;                       // ~[0,1] に正規化
+    v = Math.max(0, Math.min(0.999, v));
+    return Math.floor(v * BIO_ORDER.length);
+  }
   function biodomeAt(x, y){
-    const cx = Math.floor(x / BIODOME_W), cy = Math.floor(y / BIODOME_W);
-    const h = hash(cx, cy, 55);
-    const biome = BIO_KEYS[Math.min(BIO_KEYS.length - 1, Math.floor(h * BIO_KEYS.length))];
-    // 3バイオドーム(≈7800px, ≈3分)ごとに素材ティアが1段上がる(最大4)
-    const matTier = Math.min(4, Math.floor(Math.hypot(x, y) / (BIODOME_W * 3)));
-    return { biome, matTier, cx, cy };
+    const W = BIODOME_W;
+    // ドメインワープ(多重・非整数周期): 格子の規則性を崩して境界をうねらせる
+    let wx = x + (Math.sin(y / (W * 0.63) + 1.3) + 0.45 * Math.sin(y / (W * 0.27) + 4.1)
+                  + 0.3 * Math.sin(y / (W * 1.7) + 2.9)) * 0.28 * W;
+    let wy = y + (Math.sin(x / (W * 0.58) + 2.7) + 0.45 * Math.sin(x / (W * 0.31) + 0.7)
+                  + 0.3 * Math.sin(x / (W * 1.9) + 5.5)) * 0.28 * W;
+    // ジッタード・ボロノイ: セル中心を不規則にずらし、最も近い中心の領域に属させる。
+    // 四つ角が集まる格子頂点が消え、3方向で交わる自然な多角形の境界になる。
+    const gx = Math.floor(wx / W), gy = Math.floor(wy / W);
+    let bestD = 1e18, bcx = gx, bcy = gy;
+    for (let iy = gy - 1; iy <= gy + 1; iy++) {
+      for (let ix = gx - 1; ix <= gx + 1; ix++) {
+        const jx = (hash(ix, iy, 3) - 0.5) * 0.92;   // 中心を ±0.46 セルずらす
+        const jy = (hash(ix, iy, 7) - 0.5) * 0.92;
+        const ccx = (ix + 0.5 + jx) * W, ccy = (iy + 0.5 + jy) * W;
+        const dx = wx - ccx, dy = wy - ccy, d = dx * dx + dy * dy;
+        if (d < bestD) { bestD = d; bcx = ix; bcy = iy; }
+      }
+    }
+    const biome = BIO_ORDER[biomeIndex(bcx, bcy)];
+    // 遠いバイオドームほど素材ティアが上がる(1バイオドームごとに+1、最大4)。距離は実座標基準
+    const matTier = Math.min(4, Math.floor(Math.hypot(x, y) / BIODOME_W));
+    return { biome, matTier, cx: bcx, cy: bcy };
   }
   // その場所で手に入る素材: そのバイオドームの得意素材のうち、距離ティア以下のものだけ。
   // 空になる内側では基本素材にフォールバック(何も採れない土地を作らない)。
