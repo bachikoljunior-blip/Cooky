@@ -53,7 +53,7 @@ const Run = (() => {
       allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
-      dropMul: 0.2 + 0.1*m('lab_drop'),   // 初期のドロップ率は従来の1/5(採集の心得で上げる)
+      dropMul: 0.1 + 0.1*m('lab_drop'),   // 初期の素材ドロップ率10%(採集の心得で上げる)
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
@@ -622,7 +622,7 @@ const Run = (() => {
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    const nearTarget = Math.round((48 + min * 8 + ring0 * 8) * (isReaperTime ? 0.4 : 1));
+    const nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1));
     R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
     const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
