@@ -174,17 +174,20 @@ const Run = (() => {
         atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false,
       });
     }
-    seedInitialEnemies();   // 画面の縁に数体(周りには置かない)
+    seedInitialEnemies();   // スタート地点のまわりを目標密度まで埋める(至近には置かない)
   }
 
-  // 開始直後: 画面の外周(縁)に敵を5体ほど置く。主人公の周り(至近)には置かず、
-  // アグロ圏外の距離なので、近づくまで襲ってこない。
+  // 開始直後にスタート地点のまわり(画面の縁〜近傍)を目標密度まで埋める。
+  // 至近(主人公の真横)には置かないが、周りがスカスカにならないよう最初から分布させる。
   function seedInitialEnemies(){
     const p = R.player;
+    const offR = R.offscreenR || 500;
+    const ring0 = Math.min(12, World.ringOf(p.x, p.y));
+    const target = Math.round(192 + ring0 * 12);   // directorの初期目標数と同じ
     let placed = 0;
-    for (let i = 0; i < 40 && placed < 5; i++) {
+    for (let i = 0; i < target * 3 && placed < target; i++) {
       const a = Math.random() * Math.PI * 2;
-      const d = rnd(105, 152);   // 初期画面(半径~158)の外周。至近には置かない
+      const d = rnd(115, offR + 240);   // 画面の縁〜近傍(退場圏内)に散らす。至近には置かない
       const ex = p.x + Math.cos(a) * d, ey = p.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
