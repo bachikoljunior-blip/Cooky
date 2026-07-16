@@ -587,10 +587,11 @@ const Run = (() => {
     }
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
-  // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる(1波目の規模は従来の約20倍)
+  // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる。
+  // 1波目は控えめ(以前の約1/10)。以降も同じ伸び方で1/10スケールに揃えてある。
   function startHordeEvent(){
     const min = R.time / 60;
-    const total = Math.round(40 * (1 + min * 0.25));   // 1波目は小さめ、時間経過で増える
+    const total = Math.round(4 * (1 + min * 0.25));   // 1波目は最小、時間経過で増える(全体1/10)
     const waves = Math.min(14, 1 + Math.floor(min / 4));   // 最初は一波のみ、時間経過で波数が増える
     const perWave = Math.ceil(total / waves);
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
