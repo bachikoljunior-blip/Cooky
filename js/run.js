@@ -53,7 +53,7 @@ const Run = (() => {
       allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
-      dropMul: 0.1 + 0.1*m('lab_drop'),   // 初期の素材ドロップ率10%(採集の心得で上げる)
+      dropMul: 3 * (0.1 + 0.1*m('lab_drop')),   // 素材ドロップ率3倍(初期30%、採集の心得で上げる)
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
