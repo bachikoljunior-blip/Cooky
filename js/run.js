@@ -335,7 +335,7 @@ const Run = (() => {
     let d = dmg;
     // 威圧のオーラ: 範囲内の敵からの攻撃を弱体化
     const fe = Skills.stat('fear');
-    if (fe && src && src.x !== undefined && Math.hypot(src.x - p.x, src.y - p.y) < fe.radius) {
+    if (fe && src && src.x !== undefined && Math.hypot(src.x - p.x, src.y - p.y) < fe.radius * st.area) {
       d *= (1 - fe.reduce);
     }
     let armor = st.armor;
@@ -799,7 +799,7 @@ const Run = (() => {
           }
         } else { e.wander += dt; vx = Math.cos(e.wander); vy = Math.sin(e.wander); }
       } else if (fe && fe.flee && !e.boss && !e.def.isReaper &&
-                 e.hp < e.maxHp * 0.25 && pd < fe.radius * 1.5) {
+                 e.hp < e.maxHp * 0.25 && pd < fe.radius * R.stats.area * 1.5) {
         // 威圧のオーラ: 瀕死の敵が逃げ出す
         vx = (e.x - p.x) / (pd || 1); vy = (e.y - p.y) / (pd || 1);
       } else {
@@ -889,7 +889,7 @@ const Run = (() => {
           e.shootCd = e.def.ranged.cd;
           const d = pd || 1;
           let pdmg = e.dmg;
-          if (fe && pd < fe.radius) pdmg *= (1 - fe.reduce); // 威圧: 射撃も弱体化
+          if (fe && pd < fe.radius * R.stats.area) pdmg *= (1 - fe.reduce); // 威圧: 射撃も弱体化
           R.eprojs.push({ x:e.x, y:e.y, vx:(p.x-e.x)/d*e.def.ranged.pspeed, vy:(p.y-e.y)/d*e.def.ranged.pspeed,
                           dmg:pdmg, life:3, r:5 });
         }
@@ -919,7 +919,7 @@ const Run = (() => {
   function damageAlly(a, dmg, src){
     // 威圧のオーラ: プレイヤーの近くなら仲間への攻撃も弱体化
     const fe = Skills.stat('fear');
-    if (fe && src && Math.hypot(src.x - R.player.x, src.y - R.player.y) < fe.radius) {
+    if (fe && src && Math.hypot(src.x - R.player.x, src.y - R.player.y) < fe.radius * R.stats.area) {
       dmg *= (1 - fe.reduce);
     }
     a.hp -= dmg;
@@ -2034,7 +2034,7 @@ const Run = (() => {
     if (feD) {
       g.strokeStyle = 'rgba(248,81,73,.25)'; g.lineWidth = 2;
       g.setLineDash([8, 8]);
-      g.beginPath(); g.arc(p.x, p.y, feD.radius, 0, 7); g.stroke();
+      g.beginPath(); g.arc(p.x, p.y, feD.radius * R.stats.area, 0, 7); g.stroke();
       g.setLineDash([]);
     }
 

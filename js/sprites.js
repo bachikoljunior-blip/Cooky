@@ -115,6 +115,7 @@ const Sprites = (() => {
     sk_charisma:{ kind:'icon', c:'#f778ba', a:'#ffd6a5', opt:{sym:'♪' } },
     sk_bond:    { kind:'icon', c:'#3fb950', a:'#7ee787', opt:{sym:'∞' } },
     sk_fear:    { kind:'icon', c:'#da3633', a:'#ffa657', opt:{sym:'!' } },
+    sk_area:    { kind:'icon', c:'#76e3ea', a:'#a5d8ff', opt:{sym:'◎' } },
     sk_sharpen: { kind:'icon', c:'#f0883e', a:'#e6edf3', opt:{sym:'⚒' } },
     sk_focus:   { kind:'icon', c:'#1f6feb', a:'#a5d8ff', opt:{sym:'◉' } },
     sk_vampire: { kind:'icon', c:'#8b1e24', a:'#f85149', opt:{sym:'♥' } },

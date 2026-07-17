@@ -65,6 +65,13 @@ DATA.SKILLS = {
     lvText:['回収範囲+40%','たまに全画面吸引(30秒毎)','回収範囲+50%','全画面吸引の間隔-10秒'],
     stats:(lv)=>({ mult:1.5+(lv>=2?0.4:0)+(lv>=4?0.5:0), vacuum:(lv>=3), vacuumCd:(lv>=5?20:30) }),
   },
+  resonance: {
+    name:'共鳴の水晶', cat:'sup', icon:'sk_area',
+    desc:'全てのスキルの効果範囲が広がる(サンクチュアリ・威圧・呪印・時の砂など)。',
+    cost:(lv)=>matCost(lv,{crystal:5,jelly:4},[{from:4,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
+    lvText:Array.from({length:9},(_,i)=>`効果範囲+10%(累計${(i+2)*10}%)`),
+    stats:(lv)=>({ passive:{ key:'areaMul', value:0.10*lv } }),
+  },
   boots: {
     name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
     desc:'移動速度が上がる。逃げる敵(ヒーラー等)を追うのに必須級。',
