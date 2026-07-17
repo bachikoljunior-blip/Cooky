@@ -1017,7 +1017,7 @@ const Run = (() => {
         const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
         const dx = p.x + sp2.x - a.x, dy = p.y + sp2.y - a.y;
         const d = Math.hypot(dx, dy) || 1;
-        const jspd = a.speed * spdMul;   // 合流もステータス速度どおり(早送りしない)
+        const jspd = a.speed * spdMul * 2;   // 合流中は2倍速で駆けつける(無敵・非戦闘の間だけ)
         const step = Math.min(d, jspd * dt);
         a.x += dx / d * step; a.y += dy / d * step;
         if (Math.hypot(a.x - p.x, a.y - p.y) < formR + 20) a.joining = false;
