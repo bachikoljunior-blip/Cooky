@@ -401,10 +401,29 @@ const Sprites = (() => {
   function rr(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.fill(); }
   function strokeRR(g,x,y,w,h,r){ g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r); g.arcTo(x,y+h,x,y,r); g.arcTo(x,y,x+w,y,r); g.closePath(); g.stroke(); }
 
+  // キャラの周りに細い暗色の縁取りを焼き込む(密集時に個体の区切りが見えるように)。
+  // シルエットを8方向に1px弱ずらして下に敷くだけ ― 見た目は普通のドット絵の輪郭線
+  function outline(src){
+    const sil = document.createElement('canvas'); sil.width = S; sil.height = S;
+    const sg = sil.getContext('2d');
+    sg.drawImage(src, 0, 0);
+    sg.globalCompositeOperation = 'source-in';
+    sg.fillStyle = 'rgba(13,17,23,0.9)';
+    sg.fillRect(0, 0, S, S);
+    const cv = document.createElement('canvas'); cv.width = S; cv.height = S;
+    const g = cv.getContext('2d');
+    const o = 2;   // 64px基準の2px ≈ 画面上約1px
+    for (const [dx, dy] of [[o,0],[-o,0],[0,o],[0,-o],[o,o],[o,-o],[-o,o],[-o,-o]]) g.drawImage(sil, dx, dy);
+    g.drawImage(src, 0, 0);
+    return cv;
+  }
+
   function gen(id){
     const cv = document.createElement('canvas'); cv.width = S; cv.height = S;
     const g = cv.getContext('2d');
     painter(g, DEFS[id] || { kind:'?', c:'#f0f', a:'#fff' });
+    // 輪郭はキャラ(敵・仲間に使う en_/boss_ と主人公)だけ。オブジェクトやUIアイコンはそのまま
+    if (/^(en_|boss_)/.test(id) || id === 'player') return outline(cv);
     return cv;
   }
 
