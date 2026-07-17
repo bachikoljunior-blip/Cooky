@@ -27,6 +27,9 @@ const Hub = (() => {
         { kind:'armory', x:620, y:240 },
         { kind:'gate',   x:0,   y:260 },
         { kind:'stats',  x:-620, y:240 },
+        // ストーリーで移り住んでくる住民たち
+        ...((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
+          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:-300 + i * 300, y:60 })),
       ];
     }
     // 基地エリア: 特別強化施設 + NPC + ゲート(周回中に転移してきた時も同じマップ)
@@ -39,8 +42,8 @@ const Hub = (() => {
     });
     if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-250 });
     // 住民(サイドクエスト): しに戻り後もここで依頼を受けられる
-    (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).forEach((sq, i) => {
-      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:(i + 1) * 240 - 480, y:-250 + (i % 2) * 0 });
+    (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).filter(sq => Quest.sideVisible(sq)).forEach((sq, i) => {
+      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:(i + 1) * 240 - 480, y:-250 });
     });
     list.push({ kind:'gate', x:0, y:260 });
     return list;

@@ -857,12 +857,31 @@ DATA.ACHIEVEMENTS = [
 // reward.hintBase / hintPort: 達成すると場所がマップに載る(ストーリーで場所が分かる)。
 // type 'visit': 目的地を訪ねる依頼。目的地の近くに未発見の拠点があれば自然と見つかる。
 DATA.SIDEQUESTS = {
+  // 魂の広場(初期基地): ストーリーが進むと住民が移り住んでくる
+  main: [
+    { id:'sq_toto2', npc:'npc_mapper', npcName:'地図職人トト', type:'delivery', need:{ mats:{ wood:12 } },
+      appearStory:'toto_map',   // 東の丘の測量後、魂の広場に工房を開く
+      intro:['おお、お前さんか!ワシは魂の広場に工房を移したんじゃ。','完成版の地図を作りたい。板材に写すから木材12、頼めるか。'],
+      done:['…できた!ワシの生涯最高の地図じゃ。お前さんの探索の記録がぐっと広く残るぞ。','(パワーアップ「地図学」が上がった)'],
+      reward:{ coins:150, metaLv:{ m_cartography:1 }, story:'toto_guild' } },
+    { id:'sq_kalci', npc:'en_skel', npcName:'骸骨兵カルシ', type:'hunt', enemy:'shade', count:8,
+      appearStory:'bones_rite',   // 骨の民の儀式で友好化した骸骨が広場に現れる
+      intro:['カタカタ…(骨の民の儀式のおかげで、我は正気を保っておる)','(だがシェイドが同胞を操る…8体、頼めるか)'],
+      done:['カタカタ…!(恩に着る。我が同胞たちを、お前の軍勢に加えよう)','(パワーアップ「骸骨の軍勢」が上がった)'],
+      reward:{ coins:200, metaLv:{ g_bones_army:1 }, story:'kalci_join' } },
+    { id:'sq_hoshi', npc:'npc_miko', npcName:'星詠みの弟子ホシ', type:'delivery', need:{ mats:{ crystal:8 } },
+      appearStory:'star_sign',   // 星見の村の導きで魂の広場に来た
+      intro:['星見の村から参りました。あなたの噂は星に聞いています。','瘴気の書を写したいのです。水晶を8つ、貸していただけますか。'],
+      done:['写本ができました。「混沌の瘴気」の知識をあなたに。','(書庫の解放「混沌の瘴気」が手に入った)'],
+      reward:{ coins:100, metaLv:{ lib_sk_confuse:1 }, story:'hoshi_book' } },
+  ],
   b_north: [
     { id:'sq_hanna', npc:'npc_girl', npcName:'村娘ハンナ', type:'hunt', enemy:'slime', count:8,
       intro:['あっ、旅の人!この砦の村ではみんなで畑をやってるの。','でもスライムが作物を食べちゃって…8体だけ、退治してくれない?'],
       done:['すごい!これで冬を越せるわ。','…そういえば地図職人のトトさんが、あなたみたいな人を探してたわよ。'],
       reward:{ coins:60, story:'north_peace' } },
     { id:'sq_toto', npc:'npc_mapper', npcName:'地図職人トト', type:'visit', visit:{ x:10200, y:5000, label:'東の丘の測量点' },
+      leaveStory:'toto_map',   // 依頼を果たすと魂の広場へ工房を移す
       requiresStory:'north_peace', lockedLine:'今は測量の計算中でな…村の手伝いでもしてきてくれ。',
       intro:['ワシは地図職人のトト。東の丘に測量点を打ったんじゃが、','護衛がおらんで回収に行けん。代わりに測量点を調べてきてくれ。','東へまっすぐ…丘を越えた先じゃ。'],
       done:['おお、戻ったか!…なに?丘の向こうに古い遺跡と街があった?','それは「東の遺跡」…学術都市じゃよ。地図に描いておこう。'],

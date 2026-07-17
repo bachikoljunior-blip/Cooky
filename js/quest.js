@@ -36,8 +36,16 @@ const Quest = (() => {
     }
     return sideIdx[id] || null;
   }
+  // 住民NPCの在/不在: ストーリーで現れたり(appearStory)、旅立ったり(leaveStory)する
+  function sideVisible(def){
+    const st = SaveSys.data.story || {};
+    if (def.appearStory && !st[def.appearStory]) return false;
+    if (def.leaveStory && st[def.leaveStory]) return false;
+    return true;
+  }
   function locOf(kind, id){
-    if (kind === 'side') { const s = sideOf(id); return s ? DATA.BASES.find(b => b.id === s.base) : null; }
+    if (kind === 'side') { const s = sideOf(id);
+      return s ? (DATA.BASES.find(b => b.id === s.base) || { x:0, y:0 }) : null; }
     return kind === 'port' ? World.ports.find(p => p.id === id)
                            : DATA.BASES.find(b => b.id === id);
   }
@@ -184,6 +192,12 @@ const Quest = (() => {
         const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所'); }
       if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
+      // 世界観と結びついたパワーアップ報酬(地図学・骸骨の軍勢・スキル解放など)
+      for (const mid in rw.metaLv || {}) {
+        const md = DATA.META[mid]; if (!md) continue;
+        const cur = SaveSys.data.meta[mid] || 0;
+        if (cur < md.max) { SaveSys.data.meta[mid] = cur + rw.metaLv[mid]; txt.push('✨「' + md.name + '」+' + rw.metaLv[mid]); }
+      }
       R.warnMsg = '🎁 依頼達成! ' + (txt.length ? '報酬: ' + txt.join('・') : '');
     } else if (kind === 'base2') {
       // 2段階目: 報酬
@@ -331,6 +345,6 @@ const Quest = (() => {
     }
     return out;
   }
-  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint, visitTargets,
+  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint, visitTargets, sideVisible,
            get active(){ return actives[0] || null; } };
 })();

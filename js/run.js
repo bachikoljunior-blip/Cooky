@@ -580,17 +580,41 @@ const Run = (() => {
   }
   // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく。
   // alerted: 1体でも気づくと群れ全体が襲ってくる(updateEnemiesで連鎖)。
+  // 群れ: 「そのティアだけ」で構成される。どのティアの群れが出るかは
+  // 通常湧きと同じ時間・危険度の式(allowedTier + ティア重み)で決まる。
+  function pickHerdTier(){
+    const top = allowedTier();
+    const onSea = !World.isLand(R.player.x, R.player.y);
+    let keys;
+    if (onSea) keys = DATA.SEA_FAUNA;
+    else keys = DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES);
+    // この土地に存在するティアだけを候補に、pickEnemyKeyと同じ重み付けで抽選
+    const tiers = [...new Set(keys.map(k => DATA.ENEMIES[k]).filter(d => d && !d.isReaper && !d.rare)
+      .map(d => d.tier || 0))].filter(t => t <= top && t >= top - 2);
+    if (!tiers.length) return 0;
+    const ws = tiers.map(t => 1 + t * 1.6 + (t === top ? 2 : 0));
+    let r2 = Math.random() * ws.reduce((a, b) => a + b, 0);
+    for (let i = 0; i < tiers.length; i++) { r2 -= ws[i]; if (r2 <= 0) return tiers[i]; }
+    return tiers[tiers.length - 1];
+  }
   function spawnHerd(mad){
-    const key = pickEnemyKey(); if (!key) return;
-    const def = DATA.ENEMIES[key];
+    const tier = pickHerdTier();
+    const onSea = !World.isLand(R.player.x, R.player.y);
+    const keys = (onSea ? DATA.SEA_FAUNA
+      : DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES))
+      .filter(k => { const dd = DATA.ENEMIES[k];
+        return dd && !dd.isReaper && !dd.rare && (dd.tier || 0) === tier &&
+               (onSea ? dd.env !== 'land' : dd.env !== 'sea'); });
+    if (!keys.length) return;
     const offR = R.offscreenR || 500;
     const a = Math.random() * Math.PI * 2, hd = offR + rnd(30, 200);   // 画面外だが近く(退場圏内)
     const c = { x: R.player.x + Math.cos(a) * hd, y: R.player.y + Math.sin(a) * hd };
     const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5), alerted: !!mad };
-    const n = 4 + Math.floor(Math.random() * 5);
+    const n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4);   // 低ティアほど大所帯
     for (let i = 0; i < n; i++) {
+      const key = keys[Math.floor(Math.random() * keys.length)];   // 同ティア内の種で構成
       const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
-      if (!canStand(def, ex, ey)) continue;
+      if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       spawnEnemy(key, { x: ex, y: ey, herd, mad });
     }
   }
@@ -1854,6 +1878,7 @@ const Run = (() => {
     if (q2a && q2a.phase === 'return') return true;
     if (un && DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !q2a) return true;
     for (const sq of (DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) || []) {
+      if (!Quest.sideVisible(sq)) continue;   // 旅立った/まだ来ていない住民は数えない
       const a = Quest.activeFor('side', sq.id);
       if (a && a.phase === 'return') return true;
       if (!a && !(SaveSys.data.sideDone || {})[sq.id] &&
