@@ -264,9 +264,9 @@ const PASSIVE_DEFS = [
   ['p_shepherd','庇護の心得',     '仲間の最大HP',         'allyHpMul',  .08,  '+8%',    'jelly',8,'wood',7, 'ally'],
   ['p_vanguard','先陣の心得',     '仲間の攻撃力',         'allyAtkMul', .06,  '+6%',    'wood',7,'hide',6,  'ally'],
   ['p_warcry',  '鬨の心得',       '仲間の攻撃間隔短縮',   'allyAtkSpdAdd',.03, '+3%',   'hide',7,'bone',6,  'ally'],
-  ['p_mend',    '軍医の心得',     '仲間のHP自動回復',     'allyRegenAdd',.008, '+0.8%/秒','jelly',7,'hide',5,'ally'],
+  ['p_mend',    '軍医の心得',     '仲間のHP自動回復',     'allyRegenAdd',.04,  '+4%/秒', 'jelly',7,'hide',5,'ally'],
   ['p_stand',   '不倒の心得',     '仲間が倒れても踏みとどまる確率', 'allyReviveAdd', .05, '+5%', 'bone',7,'crystal',5, 'ally'],
-  ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .006, '+0.6%',  'hide',6,'jelly',6, 'ally'],
+  ['p_recruit', '同胞の心得',     '敵が仲間になる確率',   'recruitAdd', .03,  '+3%',    'hide',6,'jelly',6, 'ally'],
   ['p_swift',   '俊足の心得',     '仲間の移動速度',       'allySpeedMul',.04, '+4%',    'hide',6,'wood',6,  'ally'],
   // 主人公のステータスを上げる心得は廃止(強化はしに戻り後のパワーアップのみ)。
   // 仲間強化の心得だけが残る。
@@ -526,6 +526,7 @@ DATA.META = {
   g_north_march: { st:'b_north', fac:'lore', name:'行軍の号令',desc:'仲間の移動速度 +3%', max:15, cost:gcost(200,1.42), effMul:{allySpeed:.03} },
   // 東の遺跡: 武練場(範囲/射程) / 生命の祠(結界/回避) / 秘宝の蔵(叡智/仲間全能力)
   g_east_area:   { st:'b_east', fac:'war',  name:'魔力増幅',   desc:'スキルの効果範囲 +4%',  max:20, cost:gcost(180,1.42) },
+  g_east_potency:{ st:'b_east', fac:'war',  name:'秘術の増幅', desc:'スキルの効果量 +3%(回復・弱体・持続など)', max:15, cost:gcost(260,1.45) },
   g_east_reach:  { st:'b_east', fac:'war',  name:'遠見の術',   desc:'攻撃の射程 +2%', max:15, cost:gcost(200,1.42), effMul:{range:.02} },
   g_east_ward:   { st:'b_east', fac:'life', name:'遺跡の結界', desc:'被ダメージ -1%', max:10, cost:gcost(220,1.45), effAdd:{armor:.01} },
   g_east_evade:  { st:'b_east', fac:'life', name:'残像歩法',   desc:'回避率 +0.6%', max:12, cost:gcost(240,1.46), effAdd:{dodge:.006} },

@@ -54,7 +54,32 @@ const Skills = (() => {
 
   function cap(){ return Math.min(DATA.SKILL_CAP_MAX, DATA.SKILL_BASE_CAP + SaveSys.metaLv('lib_cap')); }
   function lv(id){ return owned[id] || 0; }
-  function stat(id){ const l = lv(id); return l > 0 ? DATA.SKILLS[id].stats(l) : null; }
+  // スキル効果量の増幅(しに戻り後の「秘術の増幅」)。範囲(area)・CD・個数は対象外で、
+  // 回復量・弱体量・持続時間・吸収量・倍率のボーナス部分などの「効果量」だけ増幅する
+  let pow = 1;
+  function setPow(p){ pow = p || 1; return pow; }
+  function stat(id){
+    const l = lv(id); if (l <= 0) return null;
+    const st = DATA.SKILLS[id].stats(l);
+    if (pow !== 1) {
+      if (st.hps) st.hps *= pow;                                   // サンクチュアリ回復
+      if (st.burst) st.burst *= pow;                               // シールド爆発
+      if (st.reduce) st.reduce = Math.min(0.9, st.reduce * pow);   // 威圧の弱体
+      if (st.killHeal) st.killHeal *= pow;                         // 吸血
+      if (st.lifesteal) st.lifesteal *= pow;
+      if (st.dur) st.dur *= pow;                                   // 混乱・呪い・砂の持続
+      if (st.shred) st.shred *= pow;                               // 呪印の被ダメ増
+      if (st.slow) st.slow = Math.min(0.95, st.slow * pow);        // 減速率
+      if (st.recruit) st.recruit *= pow;                           // カリスマ
+      if (st.trail) st.trail *= pow;                               // 靴の残像ダメージ
+      if (st.mult) st.mult = 1 + (st.mult - 1) * pow;              // 倍率系はボーナス部分だけ
+      if (st.atk) st.atk = 1 + (st.atk - 1) * pow;                 // ウォーバナー
+      if (st.hp) st.hp = 1 + (st.hp - 1) * pow;
+      if (st.allyMul) st.allyMul = 1 + (st.allyMul - 1) * pow;
+      if (st.passive) st.passive = { key: st.passive.key, value: st.passive.value * pow };   // 心得
+    }
+    return st;
+  }
   function matCount(m){ return mats[m] || 0; }
   function addMat(m, n){ mats[m] = (mats[m] || 0) + (n || 1); }
   function matUnlocked(m){
@@ -333,7 +358,7 @@ const Skills = (() => {
   }
   function isOpen(){ return !panel.classList.contains('hidden'); }
 
-  return { reset, lv, stat, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
+  return { reset, lv, stat, setPow, cap, mats: () => mats, matCount, addMat, matUnlocked, skillUnlocked,
            nextCost, costMet, acquire, open, close, isOpen, render, readyCount, unseenReadyCount, reqMet, refreshRevealed,
            get owned(){ return owned; } };
 })();

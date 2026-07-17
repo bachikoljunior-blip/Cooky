@@ -43,6 +43,7 @@ const Run = (() => {
       allyDeathBlast: 30*m('g_grave_blast'),
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
+      skillPow: Skills.setPow(1 + 0.03*m('g_east_potency')),   // スキル効果量の増幅(秘術の増幅)
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
       recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
       allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
@@ -92,6 +93,7 @@ const Run = (() => {
     const mg = Skills.stat('magnetSk'); if (mg) s.magnet *= mg.mult;
     const ch = Skills.stat('charisma'); if (ch) { s.recruit += ch.recruit; s.allyHp *= ch.allyMul; s.allyAtk *= ch.allyMul; }
     const va = Skills.stat('vampire');  if (va) { s.killHeal = va.killHeal; s.lifesteal = va.lifesteal; }
+    Skills.setPow(s.skillPow);   // スキル効果量の増幅を反映(以降のstat()読み取り全てに効く)
     // 「心得」パッシブスキル群
     for (const id in Skills.owned) {
       const stt = Skills.stat(id);
