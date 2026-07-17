@@ -1952,7 +1952,7 @@ const Run = (() => {
   function drawPlayerUnit(g, p){
     if (p.invuln > 0 && Math.floor(R.time * 12) % 2 === 0) g.globalAlpha = 0.4;
     if (p.onBoat) Sprites.draw(g, 'boat', p.x, p.y, 52, p.dir < 0);
-    else Sprites.draw(g, 'player', p.x, p.y, 36, p.dir < 0);
+    else Sprites.draw(g, 'player', p.x, p.y, 52, p.dir < 0);
     g.globalAlpha = 1;
     // シールド表示
     if (R.shield.stocks > 0) {
@@ -2011,7 +2011,7 @@ const Run = (() => {
     g.fillStyle = 'rgba(0,0,0,.25)';
     for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }
     for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); g.fill(); } }
-    g.beginPath(); g.ellipse(p.x, p.y + 15, 12, 4, 0, 0, 7); g.fill();
+    g.beginPath(); g.ellipse(p.x, p.y + 20, 16, 5, 0, 0, 7); g.fill();
 
     // ゾーン(毒沼)
     for (const z of R.zones) {
@@ -2092,13 +2092,13 @@ const Run = (() => {
       Sprites.draw(g, 'sk_turret', t.x, t.y, 30);
     }
 
-    // レイヤー順は 仲間 → 敵 → 主人公 のまま。各レイヤーの中だけYソートして、
+    // レイヤー順: 主人公(一番下) → 仲間 → 敵。各レイヤーの中だけYソートして、
     // 同じ陣営同士では手前(画面の下)にいるキャラが上に重なるようにする
+    drawPlayerUnit(g, p);
     const allySorted = R.allies.slice().sort((A, B) => A.y - B.y);
     for (const a of allySorted) drawAllyUnit(g, a);
     const enemySorted = R.enemies.slice().sort((A, B) => A.y - B.y);
     for (const e of enemySorted) drawEnemyUnit(g, e);
-    drawPlayerUnit(g, p);
 
     // オービット描画
     const ob = wstat('orbit');
