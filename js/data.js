@@ -598,32 +598,32 @@ DATA.BIOMES = {
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
   // 初期大陸(最初の目標。足が遅いうちはここまでも命がけ)
-  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村', sym:'🏰' },
-  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', sym:'📚' },
-  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', sym:'⛲' },
-  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', sym:'⚒' },
+  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村', spr:'base_fort' },
+  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy' },
+  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring' },
+  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge' },
   // 第1環
-  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east', kind:'狩人の集落', sym:'🏹' },
-  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west', kind:'詩人の隠れ里', sym:'🎻' },
-  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north', kind:'星見の村', sym:'🔭' },
-  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south', kind:'森の集落', sym:'🌳' },
-  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne', kind:'港街', sym:'⚓' },
-  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw', kind:'祠の村', sym:'⛩' },
+  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east', kind:'狩人の集落', spr:'base_lodge' },
+  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
+  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north', kind:'星見の村', spr:'base_star' },
+  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south', kind:'森の集落', spr:'base_grove' },
+  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne', kind:'港街', spr:'base_port' },
+  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw', kind:'祠の村', spr:'base_shrine' },
   // 中間の小島
-  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist', kind:'観測の村', sym:'🌫' },
-  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones', kind:'野営地', sym:'⛺' },
-  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember', kind:'火の民の村', sym:'🔥' },
-  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost', kind:'氷の隠れ里', sym:'❄' },
+  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist', kind:'観測の村', spr:'base_mist' },
+  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones', kind:'野営地', spr:'base_camp' },
+  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
+  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
   // 第2環
-  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge', kind:'工房都市', sym:'🏭' },
-  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon', kind:'月の修道院', sym:'🌙' },
-  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm', kind:'塔の街', sym:'🗼' },
-  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave', kind:'弔いの村', sym:'🕯' },
+  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge', kind:'工房都市', spr:'base_factory' },
+  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon', kind:'月の修道院', spr:'base_abbey' },
+  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm', kind:'塔の街', spr:'base_tower' },
+  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave', kind:'弔いの村', spr:'base_grave' },
   // 第3環
-  { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun', kind:'神殿都市', sym:'🏛' },
-  { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void', kind:'隠者の庵', sym:'🌀' },
+  { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
+  { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
   // 最果て
-  { id:'b_end',   name:'最果ての碑', x:2000,    y:-805000, cont:'r4_end', kind:'最果ての城', sym:'🏯' },
+  { id:'b_end',   name:'最果ての碑', x:2000,    y:-805000, cont:'r4_end', kind:'最果ての城', spr:'base_castle' },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる

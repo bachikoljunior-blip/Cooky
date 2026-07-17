@@ -2276,8 +2276,7 @@ const Run = (() => {
       const un = SaveSys.data.bases[b.id];
       // 周回マップ上の基地は「特色に合わせた転移シンボル」だけ。
       // 村の暮らし・住民・依頼は、転移した先の基地マップにある。
-      Sprites.draw(g, 'st_warp', b.x, b.y, 60);
-      if (b.sym) { g.font = '26px sans-serif'; g.textAlign = 'center'; g.fillText(b.sym, b.x, b.y - 34); }
+      Sprites.draw(g, b.spr || 'st_warp', b.x, b.y, 78);
       if (un) {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();

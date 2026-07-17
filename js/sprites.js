@@ -94,6 +94,29 @@ const Sprites = (() => {
     npc_boy:    { kind:'humanoid',c:'#57ab5a', a:'#a5d8ff', opt:{} },
     npc_mapper: { kind:'humanoid',c:'#d29922', a:'#e6edf3', opt:{staff:true} },
     npc_miner:  { kind:'humanoid',c:'#8b5a2b', a:'#9aa5b1', opt:{big:true} },
+    // 基地の転移シンボル(集落の特色に合わせた建造物)
+    base_fort:    { kind:'settlement', c:'#9aa5b1', a:'#58a6ff', opt:{v:'fort'} },
+    base_academy: { kind:'settlement', c:'#e6d9b8', a:'#3fb950', opt:{v:'academy'} },
+    base_spring:  { kind:'settlement', c:'#8fa8b5', a:'#76e3ea', opt:{v:'spring'} },
+    base_forge:   { kind:'settlement', c:'#6e4c30', a:'#ff6b35', opt:{v:'forge'} },
+    base_lodge:   { kind:'settlement', c:'#b08968', a:'#e6edf3', opt:{v:'lodge'} },
+    base_camp:    { kind:'settlement', c:'#8f8a78', a:'#e6edf3', opt:{v:'lodge'} },
+    base_poet:    { kind:'settlement', c:'#5c4a5e', a:'#f778ba', opt:{v:'hut'} },
+    base_hermit:  { kind:'settlement', c:'#33244a', a:'#a78bfa', opt:{v:'hut'} },
+    base_star:    { kind:'settlement', c:'#3a4468', a:'#a5d8ff', opt:{v:'observatory'} },
+    base_mist:    { kind:'settlement', c:'#6e7a6a', a:'#a5d8ff', opt:{v:'observatory'} },
+    base_grove:   { kind:'settlement', c:'#2ea043', a:'#7ee787', opt:{v:'grove'} },
+    base_port:    { kind:'settlement', c:'#e6edf3', a:'#f85149', opt:{v:'lighthouse'} },
+    base_shrine:  { kind:'settlement', c:'#484f58', a:'#2dd4bf', opt:{v:'abbey'} },
+    base_frost:   { kind:'settlement', c:'#8fa8b5', a:'#a5d8ff', opt:{v:'abbey'} },
+    base_ember:   { kind:'settlement', c:'#5c3a28', a:'#ff6b35', opt:{v:'forge'} },
+    base_factory: { kind:'settlement', c:'#484f58', a:'#fde047', opt:{v:'forge'} },
+    base_abbey:   { kind:'settlement', c:'#3a4468', a:'#f1f5f9', opt:{v:'abbey'} },
+    base_tower:   { kind:'settlement', c:'#5a655c', a:'#9aa5b1', opt:{v:'tower'} },
+    base_grave:   { kind:'settlement', c:'#8b949e', a:'#ffd766', opt:{v:'grave'} },
+    base_temple:  { kind:'settlement', c:'#a8894a', a:'#ffd766', opt:{v:'temple'} },
+    base_portal:  { kind:'settlement', c:'#6e40c9', a:'#76e3ea', opt:{v:'portal'} },
+    base_castle:  { kind:'settlement', c:'#54242c', a:'#ffd766', opt:{v:'castle'} },
     ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
     ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
     st_altar:   { kind:'building',c:'#f0883e', a:'#ffd766', opt:{sym:'⚔'} },
@@ -410,6 +433,93 @@ const Sprites = (() => {
         g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,9,0,7); g.fill();
         g.strokeStyle=c; g.lineWidth=3; g.beginPath(); g.ellipse(0,0,13,5,-0.5,0,7); g.stroke();
         g.fillStyle=c; g.beginPath(); g.arc(0,0,3,0,7); g.fill(); break;
+      case 'settlement': {
+        const v = o.v;
+        if (v === 'fort') {          // 砦: 石塔+銃眼+旗
+          g.fillStyle=c; rr(g,-14,-14,28,36,3);
+          g.fillStyle=c; for(let i=-14;i<=8;i+=8) g.fillRect(i,-20,6,7);
+          g.fillStyle='#0d1117'; rr(g,-5,8,10,14,3);
+          g.strokeStyle='#6e4c30'; g.lineWidth=2; g.beginPath(); g.moveTo(12,-20); g.lineTo(12,-32); g.stroke();
+          g.fillStyle=a; g.beginPath(); g.moveTo(12,-32); g.lineTo(24,-28); g.lineTo(12,-24); g.closePath(); g.fill();
+        } else if (v === 'academy') { // 学術都市: 柱廊+ペディメント+書
+          g.fillStyle=c; g.beginPath(); g.moveTo(-22,-8); g.lineTo(0,-22); g.lineTo(22,-8); g.closePath(); g.fill();
+          g.fillStyle=c; for(let i=-18;i<=12;i+=10) g.fillRect(i,-6,5,24);
+          g.fillStyle=c; g.fillRect(-22,18,44,5);
+          g.fillStyle=a; rr(g,-7,-19,14,9,2);
+        } else if (v === 'spring') {  // 泉: 水盤+噴水
+          g.fillStyle=c; g.beginPath(); g.ellipse(0,12,22,9,0,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.ellipse(0,11,17,6,0,0,7); g.fill();
+          g.strokeStyle=a; g.lineWidth=3; g.beginPath(); g.moveTo(0,10); g.quadraticCurveTo(-3,-12,0,-18); g.stroke();
+          g.fillStyle=a; g.beginPath(); g.arc(0,-18,4,0,7); g.fill();
+          g.fillStyle=a; g.globalAlpha=.6; g.beginPath(); g.arc(-8,-6,2,0,7); g.arc(8,-8,2,0,7); g.fill(); g.globalAlpha=1;
+        } else if (v === 'forge') {   // 鍛冶: 炉屋+煙突+火
+          g.fillStyle=c; rr(g,-20,-4,40,26,3);
+          g.fillStyle=c; g.fillRect(8,-20,9,18);
+          g.fillStyle='#8b949e'; g.globalAlpha=.7; g.beginPath(); g.arc(13,-24,4,0,7); g.arc(17,-29,3,0,7); g.fill(); g.globalAlpha=1;
+          g.fillStyle='#0d1117'; rr(g,-12,4,16,18,7);
+          g.fillStyle=a; g.beginPath(); g.moveTo(-9,20); g.quadraticCurveTo(-4,6,0,20); g.quadraticCurveTo(-4,14,-9,20); g.fill();
+        } else if (v === 'lodge') {   // 狩人・野営: テント+骨柱
+          g.fillStyle=c; g.beginPath(); g.moveTo(-20,18); g.lineTo(0,-18); g.lineTo(20,18); g.closePath(); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.moveTo(-7,18); g.lineTo(0,2); g.lineTo(7,18); g.closePath(); g.fill();
+          g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.moveTo(-4,-16); g.lineTo(-10,-26); g.moveTo(4,-16); g.lineTo(10,-26); g.stroke();
+        } else if (v === 'hut') {     // 隠れ里・庵: 丸屋根の庵
+          g.fillStyle=a; g.beginPath(); g.arc(0,0,18,Math.PI,0); g.fill();
+          g.fillStyle=c; rr(g,-16,0,32,20,3);
+          g.fillStyle='#0d1117'; rr(g,-5,6,10,14,4);
+          g.fillStyle='#ffd766'; g.beginPath(); g.arc(10,8,3,0,7); g.fill();
+        } else if (v === 'observatory') { // 観測: ドーム+望遠鏡
+          g.fillStyle=c; rr(g,-16,-2,32,24,3);
+          g.fillStyle=a; g.beginPath(); g.arc(0,-2,16,Math.PI,0); g.fill();
+          g.strokeStyle='#0d1117'; g.lineWidth=4; g.beginPath(); g.moveTo(2,-8); g.lineTo(14,-24); g.stroke();
+        } else if (v === 'grove') {   // 森の社: 大樹+注連縄
+          g.fillStyle='#6e4c30'; g.fillRect(-4,0,8,22);
+          g.fillStyle=c; g.beginPath(); g.arc(0,-8,18,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.arc(-9,-14,7,0,7); g.arc(10,-10,6,0,7); g.fill();
+          g.strokeStyle='#e6edf3'; g.lineWidth=2; g.beginPath(); g.moveTo(-14,4); g.lineTo(14,4); g.stroke();
+          g.fillStyle='#e6edf3'; g.fillRect(-8,4,3,6); g.fillRect(5,4,3,6);
+        } else if (v === 'lighthouse') { // 港街: 縞の灯台
+          g.fillStyle=c; g.beginPath(); g.moveTo(-10,22); g.lineTo(-6,-14); g.lineTo(6,-14); g.lineTo(10,22); g.closePath(); g.fill();
+          g.fillStyle=a; g.beginPath(); g.moveTo(-9,14); g.lineTo(9,14); g.lineTo(8,6); g.lineTo(-8,6); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(-7,-2); g.lineTo(7,-2); g.lineTo(6,-8); g.lineTo(-6,-8); g.closePath(); g.fill();
+          g.fillStyle='#ffd766'; rr(g,-6,-22,12,8,2);
+          g.globalAlpha=.35; g.beginPath(); g.moveTo(6,-18); g.lineTo(26,-26); g.lineTo(26,-10); g.closePath(); g.fill(); g.globalAlpha=1;
+        } else if (v === 'abbey') {   // 修道院: 尖塔+三日月
+          g.fillStyle=c; rr(g,-16,-6,32,28,3);
+          g.fillStyle=c; g.beginPath(); g.moveTo(-16,-6); g.lineTo(0,-26); g.lineTo(16,-6); g.closePath(); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,8,6,Math.PI,0); g.fill(); g.fillRect(-6,8,12,14);
+          g.fillStyle=a; g.beginPath(); g.arc(0,-30,5,0,7); g.fill();
+          g.fillStyle=c; g.beginPath(); g.arc(2,-31,4.5,0,7); g.fill();
+        } else if (v === 'tower') {   // 塔の街: 高塔+避雷針
+          g.fillStyle=c; g.beginPath(); g.moveTo(-12,22); g.lineTo(-7,-18); g.lineTo(7,-18); g.lineTo(12,22); g.closePath(); g.fill();
+          g.fillStyle=a; rr(g,-9,-24,18,8,2);
+          g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.moveTo(0,-24); g.lineTo(0,-32); g.stroke();
+          g.fillStyle='#fde047'; g.beginPath(); g.moveTo(0,-32); g.lineTo(4,-27); g.lineTo(1,-27); g.lineTo(5,-21); g.stroke();
+          g.fillStyle='#0d1117'; rr(g,-4,6,8,16,3);
+        } else if (v === 'grave') {   // 弔いの村: 墓碑+蝋燭
+          g.fillStyle=c; g.beginPath(); g.arc(-6,-6,9,Math.PI,0); g.fill(); g.fillRect(-15,-6,18,26);
+          g.strokeStyle='#0d1117'; g.lineWidth=2; g.beginPath(); g.moveTo(-6,-8); g.lineTo(-6,4); g.moveTo(-11,-3); g.lineTo(-1,-3); g.stroke();
+          g.fillStyle='#e6edf3'; g.fillRect(10,4,5,14);
+          g.fillStyle=a; g.beginPath(); g.ellipse(12.5,0,3,5,0,0,7); g.fill();
+        } else if (v === 'temple') {  // 神殿都市: 日輪の神殿
+          g.fillStyle=a; g.beginPath(); g.arc(0,-16,8,0,7); g.fill();
+          g.strokeStyle=a; g.lineWidth=2;
+          for(let i=0;i<8;i++){ const t=i/8*Math.PI*2; g.beginPath(); g.moveTo(Math.cos(t)*10,-16+Math.sin(t)*10); g.lineTo(Math.cos(t)*14,-16+Math.sin(t)*14); g.stroke(); }
+          g.fillStyle=c; g.fillRect(-20,-4,40,4); for(let i=-16;i<=11;i+=9) g.fillRect(i,0,5,18); g.fillRect(-20,18,40,5);
+        } else if (v === 'portal') {  // 虚無: 渦の門
+          g.strokeStyle=c; g.lineWidth=5; g.beginPath(); g.ellipse(0,0,14,20,0,0,7); g.stroke();
+          g.strokeStyle=a; g.lineWidth=2;
+          g.beginPath(); g.arc(0,0,9,0,4.5); g.stroke();
+          g.beginPath(); g.arc(0,0,5,2,6.5); g.stroke();
+          g.fillStyle=a; g.beginPath(); g.arc(0,0,2,0,7); g.fill();
+        } else if (v === 'castle') {  // 最果ての城: 天守+双塔
+          g.fillStyle=c; rr(g,-22,-4,12,26,2); rr(g,10,-4,12,26,2);
+          for(const x of [-22,10]) for(let i=0;i<2;i++) g.fillRect(x+i*7,-9,5,5);
+          g.fillStyle=c; rr(g,-12,-18,24,40,2);
+          for(let i=-12;i<=6;i+=8) g.fillRect(i,-23,5,5);
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,10,6,Math.PI,0); g.fill(); g.fillRect(-6,10,12,12);
+          g.fillStyle=a; g.beginPath(); g.moveTo(0,-23); g.lineTo(0,-33); g.lineTo(10,-30); g.lineTo(0,-27); g.fill();
+        }
+        break; }
       case 'building':
         g.fillStyle=c; rr(g,-18,-8,36,24,4);
         g.beginPath(); g.moveTo(-22,-8); g.lineTo(0,-24); g.lineTo(22,-8); g.closePath(); g.fill();
