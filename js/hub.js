@@ -110,6 +110,7 @@ const Hub = (() => {
       const fac = s.fac && DATA.BASE_FACS[s.fac];
       const b = DATA.BASES.find(b => b.id === s.st);
       const name = st ? st.name : (b ? b.name + 'の' : '') + (fac ? fac.name : '特別強化');
+      if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) return name + '(眠っている ― 村の依頼で目覚める)';
       if (H.fromRun) return name + '(周回中は強化できない)';
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
@@ -125,6 +126,10 @@ const Hub = (() => {
     const s = H.interact;
     if (!s) return;
     if (s.kind === 'meta') {
+      // 基地の施設は「施設解放クエスト」(ゲート解放後にNPCから)を果たすまで眠っている
+      if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) {
+        Game.dialog('', null, ['この施設はまだ眠っている…', '村の人の依頼を果たせば、目を覚ますだろう。'], null); return;
+      }
       if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は しに戻ってから 落ち着いて行おう。'], null); return; }
       openMetaPanel(s.st, s.fac);
     }
@@ -383,6 +388,8 @@ const Hub = (() => {
           return `<p style="opacity:${done ? 1 : .5}">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}<br>
             <span class="small">報酬: ${a.reward}</span></p>`;
         }).join('')}
+        <div class="sec-head">🕯 世界の記憶(この世界の理)</div>
+        ${(DATA.LORE || []).map(l => `<p><b>${l.t}</b><br><span class="small">${l.b}</span></p>`).join('')}
       </div>`;
   }
 
@@ -424,6 +431,20 @@ const Hub = (() => {
     g.save();
     g.translate(-camX, -camY);
 
+    // 基地マップ: 集落の実景(中央に本殿=シンボルの元、周りに家々)。
+    // 周回マップのシンボルはこの実景を縮小デフォルメしたもの。
+    if (H.area !== 'main') {
+      const bd = DATA.BASES.find(b => b.id === H.area);
+      if (bd) {
+        Sprites.draw(g, bd.spr || 'st_warp', 0, bounds().y0 + 90, 190);
+        Sprites.draw(g, 'ob_house', -370, bounds().y0 + 110, 90);
+        Sprites.draw(g, 'ob_house2', 370, bounds().y0 + 104, 80);
+        Sprites.draw(g, 'ob_house2', -390, 170, 72);
+        Sprites.draw(g, 'ob_house', 390, 180, 78);
+        g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
+        g.fillText('― ' + bd.name + '〈' + (bd.kind || '拠点') + '〉 ―', 0, bounds().y0 + 190);
+      }
+    }
     // 広場の縁(装飾つき)
     g.strokeStyle = '#2b3654'; g.lineWidth = 6;
     g.strokeRect(bnd.x0, bnd.y0, bnd.x1 - bnd.x0, bnd.y1 - bnd.y0);
