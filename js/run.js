@@ -862,7 +862,7 @@ const Run = (() => {
       }
       // 接触ダメージ(仲間)
       if (!confused) for (const a of R.allies) {
-        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 16) {   // 仲間の近接(+16)と同じ間合い
+        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
@@ -1001,16 +1001,25 @@ const Run = (() => {
         if (Math.hypot(a.x - p.x, a.y - p.y) < formR + 20) a.joining = false;
         continue;
       }
-      // ターゲット探索: 「その仲間に近づいた敵」だけを追尾する。判定は仲間ごとの距離で、
-      // 種類ごとに迎撃範囲が微妙に違う(射撃タイプは射程ぶん広い)。
-      const engageR = a.def.ranged ? a.def.ranged.range : (a.def.r + 46 + (a.def.tier || 0) * 8);
+      // ターゲット探索。近接: 「その仲間に近づいた敵」を追尾(縁距離)。
+      // 弓兵: 襲ってきている敵(mad)だけを、敵の射撃と同じ基準(中心距離<射程)で狙う。
+      // うろついているだけの画面外の敵を狙って「何もない方へ撃つ」ことはない。
       let tgt = null, td = 1e9;
-      for (const e of R.enemies) {
-        if (e.dead) continue;
-        const er = e.def.r * (e.sizeMul || 1);
-        const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
-        if (d > engageR) continue;
-        if (d < td) { tgt = e; td = d; }
+      if (a.def.ranged) {
+        for (const e of R.enemies) {
+          if (e.dead || !e.mad) continue;
+          const d = Math.hypot(e.x - a.x, e.y - a.y);
+          if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
+        }
+      } else {
+        const engageR = a.def.r + 46 + (a.def.tier || 0) * 8;
+        for (const e of R.enemies) {
+          if (e.dead) continue;
+          const er = e.def.r * (e.sizeMul || 1);
+          const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
+          if (d > engageR) continue;
+          if (d < td) { tgt = e; td = d; }
+        }
       }
       // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる。
       // ただし射撃タイプ(弓など)は逃げながらでも撃ち続ける。
@@ -1024,27 +1033,21 @@ const Run = (() => {
         }
       }
       let dest, spd = a.speed * spdMul;
-      if (tgt) {
-        dest = tgt;
-        // 射撃タイプの仲間
-        if (a.def.ranged) {
-          a.shootCd -= dt;
-          // 射程は敵と同じ基準(中心距離)。同じ種類なら敵と同じ距離から撃つ
-          const er2 = tgt.def.r * (tgt.sizeMul || 1);
-          if (td + er2 < a.def.ranged.range) {
-            if (a.shootCd <= 0) {
-              a.shootCd = a.def.ranged.cd * (1 - R.stats.allyAtkSpd);
-              const d = td || 1;
-              R.projs.push({ x:a.x, y:a.y, vx:(tgt.x-a.x)/d*a.def.ranged.pspeed*1.2, vy:(tgt.y-a.y)/d*a.def.ranged.pspeed*1.2,
-                             dmg: a.dmg * atkMul / R.stats.atk, life:2.5, size:5, pierce:0, ally:true });
-              a.atkAnim = 0.2; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = true;   // 射撃の反動
-            }
-            dest = null; // 距離維持
-          }
+      if (tgt && a.def.ranged) {
+        // 弓兵は敵を追いかけず、陣形へ戻りながら(移動しながら)撃つ。destは決めない=陣形追従
+        a.shootCd -= dt;
+        if (a.shootCd <= 0) {
+          a.shootCd = a.def.ranged.cd * (1 - R.stats.allyAtkSpd);
+          const d = td || 1;
+          R.projs.push({ x:a.x, y:a.y, vx:(tgt.x-a.x)/d*a.def.ranged.pspeed*1.2, vy:(tgt.y-a.y)/d*a.def.ranged.pspeed*1.2,
+                         dmg: a.dmg * atkMul / R.stats.atk, life:2.5, size:5, pierce:0, ally:true });
+          a.atkAnim = 0.2; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = true;   // 射撃の反動
         }
-        // 接触攻撃(tdは敵の体の縁までの距離)
+      } else if (tgt) {
+        dest = tgt;
+        // 接触攻撃(tdは敵の体の縁までの距離)。間合いは敵の接触攻撃(+4)と同じ
         a.atkCd -= dt;
-        if (dest && td < a.def.r + 16) {
+        if (td < a.def.r + 4) {
           if (a.atkCd <= 0) {
             a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
             dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
@@ -1066,15 +1069,16 @@ const Run = (() => {
             dest = null;   // その場で叩く
           } else dest = ot;
         }
-        if (dest === undefined) {
-          // 同心円陣形: 主人公の周りに定位置。主人公が動けば陣形もついていく
-          const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
-          dest = { x: p.x + sp2.x, y: p.y + sp2.y };
-          const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-          if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
-          // 陣形追従もステータス速度どおり(早送りしない)。遅い仲間は自然に後ろへ流れる
-          a.inForm = true;
-        }
+      }
+      if (dest === undefined) {
+        // 同心円陣形: 主人公の周りに定位置。主人公が動けば陣形もついていく
+        // (弓兵は敵がいてもここに来る=陣形へ戻りながら撃つ)
+        const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
+        dest = { x: p.x + sp2.x, y: p.y + sp2.y };
+        const d = Math.hypot(dest.x - a.x, dest.y - a.y);
+        if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
+        // 陣形追従もステータス速度どおり(早送りしない)。遅い仲間は自然に後ろへ流れる
+        a.inForm = true;
       }
       if (dest) {
         const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
