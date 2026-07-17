@@ -861,7 +861,7 @@ const Run = (() => {
       }
       // 接触ダメージ(仲間)
       if (!confused) for (const a of R.allies) {
-        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
+        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 16) {   // 仲間の近接(+16)と同じ間合い
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
@@ -1028,7 +1028,9 @@ const Run = (() => {
         // 射撃タイプの仲間
         if (a.def.ranged) {
           a.shootCd -= dt;
-          if (td < a.def.ranged.range) {
+          // 射程は敵と同じ基準(中心距離)。同じ種類なら敵と同じ距離から撃つ
+          const er2 = tgt.def.r * (tgt.sizeMul || 1);
+          if (td + er2 < a.def.ranged.range) {
             if (a.shootCd <= 0) {
               a.shootCd = a.def.ranged.cd * (1 - R.stats.allyAtkSpd);
               const d = td || 1;
@@ -1117,7 +1119,7 @@ const Run = (() => {
     // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
     const units = [];
     for (const e of R.enemies) if (!e.dead) {
-      e._r = e.def.r * (e.sizeMul || 1) / 3;
+      e._r = e.def.r * (e.sizeMul || 1) / 2;   // 敵は仲間より少し広めに散らばる
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
       units.push(e);
     }
