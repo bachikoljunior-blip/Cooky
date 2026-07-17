@@ -1158,13 +1158,15 @@ const Run = (() => {
             if (v === u) continue;
             // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
             if ((u === pl && !v._ally) || (v === pl && !u._ally)) continue;
-            // 仲間同士は常に押し合って重ならない(定位置がもう重ならない広さなので振動しない)
             const dx = v.x - u.x, dy = v.y - u.y;
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
-            const d = Math.sqrt(d2), tot = (rr - d) * 0.32;
+            // 同じ陣営同士(仲間↔仲間・敵↔敵)は弱い押し合いだけ ― 押しのけながらすり抜けて
+            // 歩ける。敵↔仲間は強い押し合いのままで、合戦の戦線は崩れない。
+            const sameSide = u !== pl && v !== pl && !!u._ally === !!v._ally;
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : 0.32);
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)

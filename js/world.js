@@ -57,14 +57,14 @@ const World = (() => {
     v = Math.max(0, Math.min(0.999, v));
     return Math.floor(v * BIO_ORDER.length);
   }
-  function biodomeAt(x, y){
+  // ジッタード・ボロノイのセル判定(ワープ済み座標で最も近い中心の領域に属させる)
+  function domeCellAt(x, y){
     const W = BIODOME_W;
     // ドメインワープ(多重・非整数周期): 格子の規則性を崩して境界をうねらせる
-    let wx = x + (Math.sin(y / (W * 0.63) + 1.3) + 0.45 * Math.sin(y / (W * 0.27) + 4.1)
+    const wx = x + (Math.sin(y / (W * 0.63) + 1.3) + 0.45 * Math.sin(y / (W * 0.27) + 4.1)
                   + 0.3 * Math.sin(y / (W * 1.7) + 2.9)) * 0.28 * W;
-    let wy = y + (Math.sin(x / (W * 0.58) + 2.7) + 0.45 * Math.sin(x / (W * 0.31) + 0.7)
+    const wy = y + (Math.sin(x / (W * 0.58) + 2.7) + 0.45 * Math.sin(x / (W * 0.31) + 0.7)
                   + 0.3 * Math.sin(x / (W * 1.9) + 5.5)) * 0.28 * W;
-    // ジッタード・ボロノイ: セル中心を不規則にずらし、最も近い中心の領域に属させる。
     // 四つ角が集まる格子頂点が消え、3方向で交わる自然な多角形の境界になる。
     const gx = Math.floor(wx / W), gy = Math.floor(wy / W);
     let bestD = 1e18, bcx = gx, bcy = gy;
@@ -77,10 +77,32 @@ const World = (() => {
         if (d < bestD) { bestD = d; bcx = ix; bcy = iy; }
       }
     }
-    const biome = BIO_ORDER[biomeIndex(bcx, bcy)];
+    // スタート地点(原点)そのものを追加のシードにする ― 初期バイオドームは
+    // スポーンを中心とした一領域になり、境界(≈半セル)まで十分な距離がある
+    if (originSeed) {
+      const dx = wx - originSeed.x, dy = wy - originSeed.y;
+      if (dx * dx + dy * dy < bestD) return { cx: ORIGIN_CX, cy: ORIGIN_CY };
+    }
+    return { cx: bcx, cy: bcy };
+  }
+  const ORIGIN_CX = -1e9, ORIGIN_CY = -1e9;   // 原点シード領域のセルID(番兵)
+  let originSeed = null;
+  function initOriginSeed(){
+    // 原点のワープ後座標(domeCellAtと同じ式)をシード位置にする
+    const W = BIODOME_W;
+    originSeed = {
+      x: (Math.sin(1.3) + 0.45 * Math.sin(4.1) + 0.3 * Math.sin(2.9)) * 0.28 * W,
+      y: (Math.sin(2.7) + 0.45 * Math.sin(0.7) + 0.3 * Math.sin(5.5)) * 0.28 * W,
+    };
+  }
+  function biodomeAt(x, y){
+    if (!originSeed) initOriginSeed();
+    const c = domeCellAt(x, y);
+    // 初期(原点シード)のバイオドームは必ず草原
+    const biome = c.cx === ORIGIN_CX ? 'grass' : BIO_ORDER[biomeIndex(c.cx, c.cy)];
     // 遠いバイオドームほど素材ティアが上がる(1バイオドームごとに+1、最大4)。距離は実座標基準
     const matTier = Math.min(4, Math.floor(Math.hypot(x, y) / BIODOME_W));
-    return { biome, matTier, cx: bcx, cy: bcy };
+    return { biome, matTier, cx: c.cx, cy: c.cy };
   }
   // その場所で手に入る素材: そのバイオドームの得意素材のうち、距離ティア以下のものだけ。
   // 空になる内側では基本素材にフォールバック(何も採れない土地を作らない)。
