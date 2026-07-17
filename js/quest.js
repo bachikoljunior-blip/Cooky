@@ -27,14 +27,32 @@ const Quest = (() => {
   function hasActive(){ return actives.length > 0; }
   function removeActive(kind, id){ actives = actives.filter(a => !(a.kind === kind && a.id === id)); persist(); }
 
+  // サイドクエスト索引: sqId -> { def, base }
+  let sideIdx = null;
+  function sideOf(id){
+    if (!sideIdx) {
+      sideIdx = {};
+      for (const bid in DATA.SIDEQUESTS || {}) for (const sq of DATA.SIDEQUESTS[bid]) sideIdx[sq.id] = { def: sq, base: bid };
+    }
+    return sideIdx[id] || null;
+  }
   function locOf(kind, id){
+    if (kind === 'side') { const s = sideOf(id); return s ? DATA.BASES.find(b => b.id === s.base) : null; }
     return kind === 'port' ? World.ports.find(p => p.id === id)
                            : DATA.BASES.find(b => b.id === id);
   }
   function defOf(kind, id){
+    if (kind === 'side') { const s = sideOf(id); return s ? s.def : null; }
     return kind === 'base2' ? DATA.QUESTS2[id] : DATA.QUESTS[id];
   }
+  // visit型の目的地(座標指定 or 港指定)
+  function visitLoc(def){
+    if (!def.visit) return null;
+    if (def.visit.port) { const p = World.ports.find(p => p.id === def.visit.port); return p ? { x:p.x, y:p.y } : null; }
+    return { x:def.visit.x, y:def.visit.y };
+  }
   function faceOf(kind, id, def){
+    if (kind === 'side') return def.npc || 'npc_elder';
     return def.npc || (DATA.QUESTS[id] && DATA.QUESTS[id].npc) || 'npc_elder';
   }
 
@@ -42,6 +60,7 @@ const Quest = (() => {
     if (def.type === 'hunt') return DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
     if (def.type === 'survive') return 'この場所の近くで' + def.time + '秒間守り抜く';
     if (def.type === 'delivery') return '素材とコインを届ける';
+    if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(マップに📍)';
     return '依頼をこなす';
   }
   function oneObjText(a){
@@ -52,6 +71,7 @@ const Quest = (() => {
       const near = a.near ? '' : '(場所に近づけ!)';
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
     }
+    if (d.type === 'visit') return '📜 目的地へ: ' + (d.visit.label || '') + '(マップの📍)';
     return '📜 ' + objSummary(d);
   }
   function objText(){ return actives.map(oneObjText).join('\n'); }
@@ -61,6 +81,17 @@ const Quest = (() => {
     const def = defOf(kind, id);
     if (!def) return;
     const face = faceOf(kind, id, def);
+    if (kind === 'side') {
+      if ((SaveSys.data.sideDone || {})[id]) {
+        Game.dialog(def.npcName, face, [def.done[def.done.length - 1]], null);   // 後日談
+        return;
+      }
+      // ストーリーが進むまで受けられない依頼
+      if (def.requiresStory && !(SaveSys.data.story || {})[def.requiresStory]) {
+        Game.dialog(def.npcName, face, [def.lockedLine || '…今は話せることがない。'], null);
+        return;
+      }
+    }
     // このNPCの依頼が進行中なら報告/経過。他の依頼を抱えていても新規は受けられる(同時進行OK)
     if (activeFor(kind, id)) { atNpc(kind, id); return; }
     Game.dialog(def.npcName, face, def.intro.slice(), () => {
@@ -121,6 +152,7 @@ const Quest = (() => {
     } else {
       const hint = d.type === 'hunt'
         ? 'まだ敵が残っているぞ。あと' + (d.count - a.killed) + '体だ。'
+        : d.type === 'visit' ? 'マップの📍の場所じゃ。頼んだぞ。'
         : '今は持ちこたえてくれ!';
       Game.dialog(d.npcName, face, [hint], null);
     }
@@ -139,6 +171,20 @@ const Quest = (() => {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
       R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ';
+    } else if (kind === 'side') {
+      SaveSys.data.sideDone = SaveSys.data.sideDone || {};
+      SaveSys.data.sideDone[id] = true;
+      const rw = def.reward || {};
+      const txt = [];
+      if (rw.coins) { SaveSys.data.coins += rw.coins; txt.push('🪙' + rw.coins); }
+      for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
+      if (rw.story) { SaveSys.data.story = SaveSys.data.story || {}; SaveSys.data.story[rw.story] = true; }
+      SaveSys.data.seen = SaveSys.data.seen || {};
+      if (rw.hintBase) { SaveSys.data.seen[rw.hintBase] = true; SaveSys.data.nextHint = rw.hintBase;
+        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所'); }
+      if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
+      R.warnMsg = '🎁 依頼達成! ' + (txt.length ? '報酬: ' + txt.join('・') : '');
     } else if (kind === 'base2') {
       // 2段階目: 報酬
       SaveSys.data.quests2 = SaveSys.data.quests2 || {};
@@ -238,6 +284,18 @@ const Quest = (() => {
     const R = Run.state;
     let persistNeeded = false;
     for (const a of actives) {
+      // visit型: 目的地に到達したら達成 → 報告へ
+      if (a.phase === 'go' && a.def.type === 'visit') {
+        const vl = visitLoc(a.def);
+        if (vl && Math.hypot(R.player.x - vl.x, R.player.y - vl.y) < 420) {
+          a.phase = 'return';
+          R.warnMsg = '📜 目的地を確認した!' + a.def.npcName + 'に報告しよう';
+          R.warnColor = '#ffd766'; R.warnT = 4;
+          Sfx.skill();
+          persist();
+        }
+        continue;
+      }
       if (a.phase !== 'go' || a.def.type !== 'survive') continue;
       const secBefore = Math.ceil(a.timer);
       a.near = Math.hypot(R.player.x - a.loc.x, R.player.y - a.loc.y) < 800;
@@ -264,6 +322,15 @@ const Quest = (() => {
 
   function _forceReturn(kind, id){ const a = kind ? activeFor(kind, id) : actives[0]; if (a) { a.phase = 'return'; persist(); } }
 
-  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint,
+  function visitTargets(){
+    const out = [];
+    for (const a of actives) {
+      if (a.phase !== 'go' || a.def.type !== 'visit') continue;
+      const vl = visitLoc(a.def);
+      if (vl) out.push({ x:vl.x, y:vl.y, label:a.def.visit.label || '' });
+    }
+    return out;
+  }
+  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint, visitTargets,
            get active(){ return actives[0] || null; } };
 })();

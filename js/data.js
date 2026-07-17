@@ -598,32 +598,32 @@ DATA.BIOMES = {
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
   // 初期大陸(最初の目標。足が遅いうちはここまでも命がけ)
-  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main' },
-  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main' },
-  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main' },
-  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main' },
+  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村' },
+  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市' },
+  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村' },
+  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街' },
   // 第1環
-  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east' },
-  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west' },
-  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north' },
-  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south' },
-  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne' },
-  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw' },
+  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east', kind:'狩人の集落' },
+  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west', kind:'詩人の隠れ里' },
+  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north', kind:'星見の村' },
+  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south', kind:'森の集落' },
+  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne', kind:'港街' },
+  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw', kind:'祠の村' },
   // 中間の小島
-  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist' },
-  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones' },
-  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember' },
-  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost' },
+  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist', kind:'観測の村' },
+  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones', kind:'野営地' },
+  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember', kind:'火の民の村' },
+  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost', kind:'氷の隠れ里' },
   // 第2環
-  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge' },
-  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon' },
-  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm' },
-  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave' },
+  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge', kind:'工房都市' },
+  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon', kind:'月の修道院' },
+  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm', kind:'塔の街' },
+  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave', kind:'弔いの村' },
   // 第3環
-  { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun' },
-  { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void' },
+  { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun', kind:'神殿都市' },
+  { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void', kind:'隠者の庵' },
   // 最果て
-  { id:'b_end',   name:'最果ての碑', x:2000,    y:-805000, cont:'r4_end' },
+  { id:'b_end',   name:'最果ての碑', x:2000,    y:-805000, cont:'r4_end', kind:'最果ての城' },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる
@@ -851,6 +851,54 @@ DATA.ACHIEVEMENTS = [
 // ---------------- クエスト(基地・港の解放条件) ----------------
 // 未解放の基地/未修理の船に近づくと専用マップに転移し、NPCのクエストをこなすと解放される
 // type: hunt=討伐 / fetch=収集(お使い) / survive=防衛 / delivery=素材納品
+// ---------------- サイドクエスト: 基地の住民たちの依頼 ----------------
+// 基地は村や街として人が暮らしており、複数の住民が依頼を持つ。
+// requiresStory: このストーリーフラグが立つまで受けられない(lockedLineでお預け)。
+// reward.hintBase / hintPort: 達成すると場所がマップに載る(ストーリーで場所が分かる)。
+// type 'visit': 目的地を訪ねる依頼。目的地の近くに未発見の拠点があれば自然と見つかる。
+DATA.SIDEQUESTS = {
+  b_north: [
+    { id:'sq_hanna', npc:'npc_girl', npcName:'村娘ハンナ', type:'hunt', enemy:'slime', count:8,
+      intro:['あっ、旅の人!この砦の村ではみんなで畑をやってるの。','でもスライムが作物を食べちゃって…8体だけ、退治してくれない?'],
+      done:['すごい!これで冬を越せるわ。','…そういえば地図職人のトトさんが、あなたみたいな人を探してたわよ。'],
+      reward:{ coins:60, story:'north_peace' } },
+    { id:'sq_toto', npc:'npc_mapper', npcName:'地図職人トト', type:'visit', visit:{ x:10200, y:5000, label:'東の丘の測量点' },
+      requiresStory:'north_peace', lockedLine:'今は測量の計算中でな…村の手伝いでもしてきてくれ。',
+      intro:['ワシは地図職人のトト。東の丘に測量点を打ったんじゃが、','護衛がおらんで回収に行けん。代わりに測量点を調べてきてくれ。','東へまっすぐ…丘を越えた先じゃ。'],
+      done:['おお、戻ったか!…なに?丘の向こうに古い遺跡と街があった?','それは「東の遺跡」…学術都市じゃよ。地図に描いておこう。'],
+      reward:{ coins:80, hintBase:'b_east', story:'toto_map' } },
+  ],
+  b_east: [
+    { id:'sq_kilo', npc:'npc_boy', npcName:'見習い研究員キロ', type:'hunt', enemy:'goblin', count:10,
+      intro:['ぼく、リナ先生の弟子なんだ。','ゴブリンが研究資料を持っていっちゃう!10体やっつけて!'],
+      done:['資料が戻ってきた!ありがとう!'],
+      reward:{ coins:80, mats:{ crystal:3 } } },
+    { id:'sq_pino', npc:'npc_girl', npcName:'助手ピノ', type:'delivery', need:{ mats:{ crystal:6 } },
+      requiresStory:'toto_map', lockedLine:'装置の解析中です。トトさんの地図が届いたら分かるかも…',
+      intro:['トトさんの地図のおかげで分かったんです。この装置、東の大陸と共鳴してる!','水晶6つあれば共鳴先を特定できます。お願いできますか?'],
+      done:['…見えた!共鳴先は東の大海の向こう、「竜骨の大陸」の前哨です。','狩人の集落があるはず。地図に印を付けますね。'],
+      reward:{ coins:100, hintBase:'b_dragon', story:'east_engine' } },
+  ],
+  b_south: [
+    { id:'sq_riku', npc:'npc_boy', npcName:'泉守の少年リク', type:'visit', visit:{ port:'p_e', label:'東の砂浜' },
+      intro:['ねえねえ、東の砂浜にすごく大きな船が打ち上がってるんだ!','ぼく一人じゃ怖くて…見てきてくれない?'],
+      done:['やっぱり船だった?船大工のおじさんが直したがってたやつだ!','港の場所、地図に描いておくね。'],
+      reward:{ coins:60, hintPort:'p_e', story:'south_sea' } },
+  ],
+  b_west: [
+    { id:'sq_bud', npc:'npc_miner', npcName:'炭鉱夫バド', type:'delivery', need:{ mats:{ scrap:10 } },
+      intro:['この街の鉱脈も昔ほど出なくなっちまった。','鉄クズ10個ありゃ、坑道の支柱が直せるんだが。'],
+      done:['恩に着るぜ。これで街の炉も回り続ける。','ドバンの奴にもよろしく言っといてくれ。'],
+      reward:{ coins:120, story:'west_fire' } },
+  ],
+  b_dragon: [
+    { id:'sq_ryu', npc:'npc_sage', npcName:'語り部リュウ', type:'hunt', enemy:'lizard', count:8,
+      requiresStory:'east_engine', lockedLine:'…お前からは、まだ「共鳴」の気配がせん。学術都市の装置を知る者にのみ語れる話じゃ。',
+      intro:['共鳴装置を目覚めさせた者か。ならば語ろう…この大陸の竜は、霧の彼方から来た。','だがリザードマンどもが語りの場を荒らす。8体、鎮めてくれ。'],
+      done:['静けさが戻った…では約束の続きを。竜が来た「霧の彼方」――','北東の海に霧に包まれた小島がある。観測の村があると聞く。地図に記そう。'],
+      reward:{ coins:150, hintBase:'b_mist', story:'dragon_tale' } },
+  ],
+};
 DATA.QUESTS = {
   // --- 始まりの大陸 ---
   b_north: { npc:'npc_elder', npcName:'老兵ガルド', type:'hunt', enemy:'skeleton', count:6,

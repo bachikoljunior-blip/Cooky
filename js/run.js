@@ -1846,6 +1846,10 @@ const Run = (() => {
   }
 
   // ---------------- 港・基地・船 ----------------
+  // 基地の住民NPC(サイドクエスト持ち)の定位置。i番目の住民のオフセット
+  const SIDE_NPC_POS = [ { x:-64, y:22 }, { x:60, y:44 }, { x:-28, y:-56 } ];
+  function sideNpcPos(b, i){ const o = SIDE_NPC_POS[i % SIDE_NPC_POS.length]; return { x:b.x + o.x, y:b.y + o.y }; }
+
   function updateInteractions(dt){
     const p = R.player;
     R.interact = null;
@@ -1871,6 +1875,19 @@ const Run = (() => {
       }
       if (d < 150 && SaveSys.data.bases[b.id]) {
         p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
+      }
+      // 住民(サイドクエストNPC): 基地の近くに暮らしていて、近い方を優先して話せる
+      if (d < 160 && DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) {
+        DATA.SIDEQUESTS[b.id].forEach((sq, i) => {
+          const np = sideNpcPos(b, i);
+          if (Math.hypot(p.x - np.x, p.y - np.y) < 42) {
+            const a = Quest.activeFor('side', sq.id);
+            const mark = a && a.phase === 'return' ? ' ❗報告'
+                       : a ? '(依頼進行中)'
+                       : (SaveSys.data.sideDone || {})[sq.id] ? '' : ' ❕';
+            R.interact = { type:'sidequest', id: sq.id, label: 'E: ' + sq.npcName + 'と話す' + mark };
+          }
+        });
       }
     }
 
@@ -1903,6 +1920,7 @@ const Run = (() => {
     if (!it) return;
     if (it.type === 'portquest') Quest.offer('port', it.port.id);
     else if (it.type === 'basequest') Quest.offer('base', it.base.id);
+    else if (it.type === 'sidequest') Quest.offer('side', it.id);
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
@@ -2244,6 +2262,21 @@ const Run = (() => {
     }
     for (const b of World.bases) {
       const un = SaveSys.data.bases[b.id];
+      // 集落: 街・村・城などの特色。家々と住民が暮らしている
+      Sprites.draw(g, 'ob_house', b.x - 96, b.y - 30, 52);
+      Sprites.draw(g, 'ob_house2', b.x + 92, b.y - 44, 46);
+      if (DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) {
+        DATA.SIDEQUESTS[b.id].forEach((sq, i) => {
+          const np = sideNpcPos(b, i);
+          const bob = Math.sin(R.time * 2 + i * 2.1) * 1.5;   // その場の生活感(ゆれ)
+          Sprites.draw(g, sq.npc, np.x, np.y + bob, 30);
+          const a = Quest.activeFor('side', sq.id);
+          const mk = a && a.phase === 'return' ? '❗' : (!a && !(SaveSys.data.sideDone || {})[sq.id] &&
+            (!sq.requiresStory || (SaveSys.data.story || {})[sq.requiresStory])) ? '❕' : '';
+          if (mk) { g.fillStyle = '#ffd766'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
+            g.fillText(mk, np.x, np.y - 22); }
+        });
+      }
       Sprites.draw(g, 'ob_flag', b.x, b.y, 48);
       if (un && DATA.QUESTS[b.id]) {
         Sprites.draw(g, DATA.QUESTS[b.id].npc, b.x + 42, b.y + 8, 34);
@@ -2257,7 +2290,7 @@ const Run = (() => {
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();
       }
       g.fillStyle = un ? '#7ee787' : '#8b949e'; g.font = '11px sans-serif'; g.textAlign = 'center';
-      g.fillText((un ? '✦ ' : '') + b.name, b.x, b.y - 32);
+      g.fillText((un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''), b.x, b.y - 32);
     }
     if (p.boatAnchor) Sprites.draw(g, 'boat', p.boatAnchor.x, p.boatAnchor.y, 44);
 
@@ -2475,6 +2508,14 @@ const Run = (() => {
       else if (seen[port.id]) dot(port.x, port.y, '#d29922', 2.5);
     }
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
+    // 進行中のvisit依頼の目的地(📍): ここへ行くと自然と新しい場所が見つかる
+    for (const t of Quest.visitTargets()) {
+      if (!view.inView(t.x, t.y)) continue;
+      const q = view.toMM(t.x, t.y);
+      if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) continue;
+      g.fillStyle = '#ff7b72'; g.font = 'bold ' + Math.round(10 * mk) + 'px sans-serif'; g.textAlign = 'center';
+      g.fillText('📍', x0 + q.x * mmScale, y0 + q.y * mmScale + 3);
+    }
     dot(R.player.x, R.player.y, '#fff', 3.5);
     // 拠点ヒント: 自分のマークに埋もれない大きさで、最後に(一番上に)描く
     const pulse = 0.65 + 0.35 * Math.sin(R.time * 5);

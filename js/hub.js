@@ -38,6 +38,10 @@ const Hub = (() => {
       list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
     });
     if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-250 });
+    // 住民(サイドクエスト): しに戻り後もここで依頼を受けられる
+    (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).forEach((sq, i) => {
+      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:(i + 1) * 240 - 480, y:-250 + (i % 2) * 0 });
+    });
     list.push({ kind:'gate', x:0, y:260 });
     return list;
   }
@@ -107,6 +111,7 @@ const Hub = (() => {
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
+    if (s.kind === 'sidenpc') return s.name + 'と話す';
     if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
     if (s.kind === 'gate') return H.fromRun ? '転送ゲート(周回に戻る)' : '転送ゲート(出撃 / 基地へ移動)';
     if (s.kind === 'stats') return '記録の石碑を見る';
@@ -121,6 +126,7 @@ const Hub = (() => {
       openMetaPanel(s.st, s.fac);
     }
     else if (s.kind === 'npc') Game.npcTalk(s.base);
+    else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
     else if (s.kind === 'armory') openArmoryPanel();
     else if (s.kind === 'gate') openGatePanel();
     else if (s.kind === 'stats') openStatsPanel();
@@ -384,6 +390,7 @@ const Hub = (() => {
       return { spr:'st_altar', label:'特別強化', short:'強化' };
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
+    if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
     if (s.kind === 'stats') return { spr:'ob_rock', label:'記録の石碑', short:'石碑' };
