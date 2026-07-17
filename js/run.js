@@ -936,14 +936,14 @@ const Run = (() => {
     }
   }
 
-  // 同心円スロット: リング0=密着(28px)、以降+17pxずつの密集陣形。定員はリングごとに増える
+  // 同心円スロット: 密集陣形(従来の2倍の密度)。定員はリングごとに増える
   function slotPos(i){
     let ring = 0, cap = 7, start = 0;
     while (i >= start + cap) { start += cap; ring++; cap = 7 + ring * 5; }
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
-    // リング間隔を仲間の直径ぶん(約26px)取り、定位置どうしが重ならないようにする
-    const rad = 30 + ring * 26;
+    // 当たり判定が体の1/3になったので、リング間隔は約13px(2倍密集)でも中心は重ならない
+    const rad = 15 + ring * 13;
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -1125,14 +1125,15 @@ const Run = (() => {
   // ---------------- ユニット分離(敵・仲間・自分が重ならない = 合戦の戦線) ----------------
   // 押し合いは質量ベース: 同格同士は均等に押し合い、強い(tierが高い/ボス)ほど押されにくい
   function separateUnits(){
+    // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
     const units = [];
     for (const e of R.enemies) if (!e.dead) {
-      e._r = e.def.r * (e.sizeMul || 1);
+      e._r = e.def.r * (e.sizeMul || 1) / 3;
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
       units.push(e);
     }
     for (const a of R.allies) if (!a.waitAt && !a.dead) {
-      a._r = a.def.r;
+      a._r = a.def.r / 3;
       a._m = 1 + (a.def.tier || 0) * 0.6;
       a._ally = true;
       units.push(a);
@@ -1140,7 +1141,7 @@ const Run = (() => {
     // 主人公にも当たり判定(船上は除く)。質量は極大 ― 仲間や敵に押されず、
     // 逆に周りをどかす(止まっていても仲間に押されない)
     const pl = R.player;
-    if (!pl.onBoat) { pl._r = 12; pl._m = 1e7; units.push(pl); }
+    if (!pl.onBoat) { pl._r = 4; pl._m = 1e7; units.push(pl); }
     if (units.length < 2) return;
     const cell = 64, grid = new Map();
     for (const u of units) {
