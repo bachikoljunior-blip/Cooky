@@ -323,6 +323,11 @@ DATA.ENEMIES = {
   abysslord:{ name:'アビスロード',    hp:1200,dmg:70, speed:18,  r:24, tier:4, env:'sea',  move:'chase', armor:.3, coin:60, sprite:'en_abyss', drops:[{m:'abyss',c:.5},{m:'star',c:.4}] },
   rainbow:  { name:'レインボースライム', hp:40, dmg:0, speed:46.4, r:12, tier:1, env:'both', move:'kite', rare:true, coin:120, sprite:'en_rainbow', drops:[{m:'prism',c:1}] },
   reaper:   { name:'終焉のリーパー',  hp:45000, dmg:160, speed:28.4, r:24, tier:9, env:'both', move:'chase', coin:250, sprite:'en_reaper', isReaper:true, drops:[{m:'abyss',c:.8},{m:'star',c:.8}] },
+  // ---- エリート種: 強くて大きい範囲攻撃(スラム)持ち。いるバイオドームといないバイオドームがある ----
+  kingslime:  { name:'キングスライム',       hp:180, dmg:18, speed:9,  r:22, tier:2, env:'land', move:'chase', slam:{radius:80, cd:3.5}, coin:12, sprite:'en_kingslime',  drops:[{m:'jelly',c:.8},{m:'crystal',c:.3}] },
+  frostgiant: { name:'フロストジャイアント', hp:420, dmg:30, speed:10, r:24, tier:3, env:'land', move:'chase', slam:{radius:95, cd:3.5}, coin:20, sprite:'en_frostgiant', drops:[{m:'crystal',c:.6},{m:'star',c:.25}] },
+  magmatitan: { name:'マグマタイタン',       hp:800, dmg:45, speed:9,  r:26, tier:4, env:'land', move:'chase', armor:.3, slam:{radius:105, cd:3.8}, coin:38, sprite:'en_magmatitan', drops:[{m:'scale',c:.5},{m:'abyss',c:.2}] },
+  voidtitan:  { name:'虚無の巨像',           hp:1000,dmg:55, speed:10, r:26, tier:4, env:'both', move:'chase', armor:.3, slam:{radius:110, cd:3.5}, coin:50, sprite:'en_voidtitan',  drops:[{m:'abyss',c:.4},{m:'star',c:.3}] },
   // ---- バイオドーム別の敵(既存の描画kindを配色替え。場所ごとに顔ぶれが変わる) ----
   boar:     { name:'イノシシ',        hp:34,  dmg:12, speed:24,   r:14, tier:1, env:'land', move:'chase', coin:3, sprite:'en_boar',    drops:[{m:'hide',c:.5},{m:'wood',c:.2}] },
   mush:     { name:'マイコニド',      hp:26,  dmg:8,  speed:11,   r:12, tier:1, env:'land', move:'chase', coin:3, sprite:'en_mush',    drops:[{m:'jelly',c:.4},{m:'wood',c:.3}] },
@@ -347,22 +352,22 @@ DATA.ENEMIES = {
 // バイオームごとの陸の敵プール(場所ごとに顔ぶれが変わる)。海は別プール。
 // 各プールは低ティア〜高ティアを含み、その場所の allowedTier で絞られる。
 DATA.BIOME_FAUNA = {
-  grass:   ['slime','bat','skeleton','wolf','goblin','boar','orc','mush'],   // bat=序盤(ティア0)の毛皮源
-  jungle:  ['slime','wolf','boar','mush','lizard','orc','ogre'],
+  grass:   ['slime','bat','skeleton','wolf','goblin','boar','orc','mush','kingslime'],   // bat=序盤(ティア0)の毛皮源
+  jungle:  ['slime','wolf','boar','mush','lizard','orc','ogre','kingslime'],
   mist:    ['bat','wisp','galehound','stormwisp','wolf','shade'],
   chalk:   ['skeleton','scarab','crab','mummy','knight'],
   bones:   ['skeleton','mummy','orc','scarab','sandwurm','knight'],
   desert:  ['skeleton','scarab','mummy','lizard','sandwurm'],
   storm:   ['bat','stormwisp','galehound','wisp','knight','voidwisp'],
-  frost:   ['iceslime','frostwolf','icewisp','wolf','yeti'],
-  moon:    ['icewisp','wisp','shade','stormwisp','voidwisp'],
+  frost:   ['iceslime','frostwolf','icewisp','wolf','yeti','frostgiant'],
+  moon:    ['icewisp','wisp','shade','stormwisp','voidwisp','frostgiant'],
   twilight:['wisp','shade','shaman','necro','voidwisp'],
   obsidian:['skeleton','knight','shade','golem','hornedimp'],
-  volcano: ['lavaslime','emberbat','fireimp','lizard','whelp'],
-  magma:   ['lavaslime','fireimp','emberbat','magmagolem','demon'],
+  volcano: ['lavaslime','emberbat','fireimp','lizard','whelp','magmatitan'],
+  magma:   ['lavaslime','fireimp','emberbat','magmagolem','demon','magmatitan'],
   makai:   ['shade','necro','fireimp','hornedimp','demon'],
-  void:    ['voidwisp','shade','hornedimp','demon','abysslord'],
-  end:     ['hornedimp','voidwisp','demon','dragon','abysslord'],
+  void:    ['voidwisp','shade','hornedimp','demon','abysslord','voidtitan'],
+  end:     ['hornedimp','voidwisp','demon','dragon','abysslord','voidtitan'],
 };
 DATA.SEA_FAUNA = ['jellyfish','crab','shark','siren','icewisp','serpent','shade','whelp','abysslord'];
 

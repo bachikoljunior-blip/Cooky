@@ -493,7 +493,7 @@ const Run = (() => {
     };
     e.hp = e.maxHp;
     e.rank = rank;   // 色違いランク(見た目は色+大きさで表現)
-    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.13);
+    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.2);   // 色違いは大きさでも見分く(金1.2倍/紅1.4倍)
     if (opts.boss) R.bossAlive = e;
     R.enemies.push(e);
     return e;
@@ -866,6 +866,26 @@ const Run = (() => {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
+        }
+      }
+      // 範囲攻撃(スラム): 大型エリートが周囲の主人公・仲間をまとめて叩く
+      if (e.def.slam && !confused && e.mad) {
+        if (e.slamCd === undefined) e.slamCd = rnd(1, 2);
+        e.slamCd -= dt;
+        if (e.slamCd <= 0) {
+          const rad = e.def.slam.radius * (e.sizeMul || 1);
+          let anyone = pd < rad + 14;
+          if (!anyone) for (const a of R.allies) {
+            if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) { anyone = true; break; }
+          }
+          if (anyone) {   // 誰かが範囲内にいる時だけ振り下ろす
+            e.slamCd = e.def.slam.cd;
+            effect('ring', e.x, e.y, { color:'#ffa657', r: rad });
+            if (pd < rad + 14) damagePlayer(e.dmg, e);
+            for (const a of R.allies) {
+              if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
+            }
+          } else e.slamCd = 0.3;
         }
       }
       // 射撃(気づいている敵のみ)

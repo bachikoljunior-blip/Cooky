@@ -60,6 +60,10 @@ const Sprites = (() => {
     en_hornedimp:{ kind:'demon',    c:'#8b1e24', a:'#c084fc' },
     en_stormwisp:{ kind:'ghost',    c:'#fde047', a:'#8b949e' },
     en_galehound:{ kind:'beast',    c:'#8b949e', a:'#76e3ea' },
+    en_kingslime: { kind:'blob',     c:'#2ea043', a:'#7ee787' },
+    en_frostgiant:{ kind:'humanoid', c:'#a5d8ff', a:'#5a7585', opt:{big:true} },
+    en_magmatitan:{ kind:'golem',    c:'#8b1e24', a:'#ff6b35' },
+    en_voidtitan: { kind:'golem',    c:'#2d1b4e', a:'#a78bfa' },
 
     boss_golem: { kind:'golem',   c:'#d29922', a:'#f85149', opt:{big:true} },
     boss_fenrir:{ kind:'beast',   c:'#484f58', a:'#f85149', opt:{big:true} },
