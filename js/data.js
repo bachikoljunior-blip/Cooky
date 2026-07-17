@@ -501,7 +501,7 @@ DATA.META = {
   lab_mat_star: { st:'lab', name:'【解放】星のかけら', desc:'新素材「星のかけら」が出現する', max:1, cost:gcost(15000,1) },
   lab_mat_abyss:{ st:'lab', name:'【解放】深淵の核', desc:'新素材「深淵の核」が出現する', max:1, cost:gcost(50000,1) },
   // --- 仲間の宿舎 ---
-  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +0.2%(基本10%)', max:20, cost:gcost(40,1.38) },
+  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +0.2%(基本20%)', max:20, cost:gcost(40,1.38) },
   camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +1.5%',          max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +1.2%',      max:30, cost:gcost(30,1.35) },

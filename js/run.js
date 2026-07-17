@@ -44,7 +44,7 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.1 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本10%)
+      recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
       allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.015*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
@@ -551,7 +551,7 @@ const Run = (() => {
     // 移動方向があればその前方寄り、なければ全方位から
     const moveA = (Math.abs(p.vx) + Math.abs(p.vy) > 1) ? Math.atan2(p.vy, p.vx) : Math.random() * Math.PI * 2;
     for (let k = 0; k < 6; k++) {
-      const a = moveA + rnd(-0.6, 0.6);   // 正面の狭い角度=移動していても正面に壁として現れる
+      const a = moveA + rnd(-1.4, 1.4);
       const nx = p.x + Math.cos(a) * base, ny = p.y + Math.sin(a) * base;
       if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; e.mad = true; return true; }
     }
@@ -599,22 +599,21 @@ const Run = (() => {
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
     R.hordeWaves = R.hordeWaves || [];
     for (let w = 0; w < waves; w++) {
-      // 1波=同一種のかたまり(環境の混成敵と見分けが付くように)。波ごとに種類が変わる
-      R.hordeWaves.push({ t: w * rnd(0.7, 1.4), count: perWave, dir: dir0 + rnd(-0.25, 0.25), key: pickEnemyKey() });
+      R.hordeWaves.push({ t: w * rnd(0.7, 1.4), count: perWave, dir: dir0 + rnd(-0.7, 0.7) });
     }
     R.warnMsg = '⚔ 敵の大群が押し寄せてくる!(' + waves + '波)'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde();
   }
   // 1波ぶんを、すぐ画面外から一斉に
   function spawnHordeWave(wave){
     if (R.enemies.length > 1400) return;   // 安全: 過多なら間引く
-    // 画面の縁ぎりぎり(すぐ見える位置)に、狭い扇形で密集して湧く=「大群が来た」と分かる
-    const base = (R.offscreenR || 950) + rnd(5, 30);
+    // 回り込みのしきい値(offR+180)より内側に湧かせる(湧いた直後に再配置されない)
+    const base = (R.offscreenR || 950) + rnd(10, 80);
     let placed = 0;
     for (let i = 0; i < wave.count * 2 && placed < wave.count; i++) {
-      const a = wave.dir + rnd(-0.35, 0.35);
-      const d = base + rnd(0, 60);
+      const a = wave.dir + rnd(-0.7, 0.7);
+      const d = base + rnd(0, 80);
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
-      const key = wave.key || pickEnemyKey(); if (!key) break;
+      const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) placed++;
     }
@@ -755,7 +754,7 @@ const Run = (() => {
       // 燃焼・時間系
       if (e.burn > 0) { e.burnT -= dt; e.hp -= e.burn * dt * R.stats.atk; if (e.burnT <= 0) e.burn = 0;
         if (e.hp <= 0) { killEnemy(e); continue; } }
-      let spd = e.def.speed;
+      let spd = e.def.speed * (e.fromHorde ? 1.4 : 1);   // 大群は少しだけ速い
       if (R.time < e.slowUntil) spd *= (1 - e.slowMul);
       if (R.time < e.frozenUntil) spd = 0;
       // 時の砂
