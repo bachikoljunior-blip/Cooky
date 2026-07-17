@@ -95,7 +95,7 @@ DATA.SKILLS = {
     desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
     cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
     lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
-    stats:(lv)=>({ radius:150+(lv>=3?45:0)+(lv>=6?65:0),
+    stats:(lv)=>({ radius:50+(lv>=3?45:0)+(lv>=6?65:0),
       reduce:Math.min(0.6, 0.15+(lv>=2?0.10:0)+(lv>=4?0.05:0)+(lv>=5?0.10:0)), flee:(lv>=7) }),
   },
   vampire: {
@@ -111,9 +111,9 @@ DATA.SKILLS = {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
     desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:4,mat:'star',qty:2}]),
-    lvText:['混乱数+1','混乱時間+50%','混乱数+2','再発動-25%','混乱数+2・時間さらに+'],
+    lvText:['混乱数+1','混乱時間+50%・範囲拡大','混乱数+2','再発動-25%・範囲拡大','混乱数+2・時間さらに+'],
     stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
-      dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340 }),
+      dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340+(lv>=3?80:0)+(lv>=5?100:0) }),
   },
   curse: {
     name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',

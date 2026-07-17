@@ -946,8 +946,8 @@ const Run = (() => {
     while (i >= start + cap) { start += cap; ring++; cap = 7 + ring * 5; }
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
-    // 当たり判定が体の1/3になったので、リング間隔は約13px(2倍密集)でも中心は重ならない
-    const rad = 15 + ring * 13;
+    // 当たり判定が体の1/3なので、この間隔でも中心は重ならない(密集感は保ちつつ少し緩め)
+    const rad = 20 + ring * 17;
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -2092,11 +2092,15 @@ const Run = (() => {
       Sprites.draw(g, 'sk_turret', t.x, t.y, 30);
     }
 
-    // レイヤー順: 主人公(一番下) → 仲間 → 敵。各レイヤーの中だけYソートして、
-    // 同じ陣営同士では手前(画面の下)にいるキャラが上に重なるようにする
-    drawPlayerUnit(g, p);
-    const allySorted = R.allies.slice().sort((A, B) => A.y - B.y);
-    for (const a of allySorted) drawAllyUnit(g, a);
+    // レイヤー順: [主人公+仲間](同じレイヤーでYソート) → 敵。
+    // 同じレイヤー内では手前(画面の下)にいるキャラが上に重なる
+    const friendly = R.allies.slice().sort((A, B) => A.y - B.y);
+    let pDrawn = false;
+    for (const a of friendly) {
+      if (!pDrawn && p.y <= a.y) { drawPlayerUnit(g, p); pDrawn = true; }
+      drawAllyUnit(g, a);
+    }
+    if (!pDrawn) drawPlayerUnit(g, p);
     const enemySorted = R.enemies.slice().sort((A, B) => A.y - B.y);
     for (const e of enemySorted) drawEnemyUnit(g, e);
 
