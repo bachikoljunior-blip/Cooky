@@ -860,8 +860,9 @@ const Run = (() => {
         e.contactCd = 0.6;
         damagePlayer(e.dmg, e);
       }
-      // 接触ダメージ(仲間)
+      // 接触ダメージ(仲間)。合流中は無敵なので狙わない
       if (!confused) for (const a of R.allies) {
+        if (a.joining) continue;
         if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
@@ -883,7 +884,7 @@ const Run = (() => {
             effect('ring', e.x, e.y, { color:'#ffa657', r: rad });
             if (pd < rad + 14) damagePlayer(e.dmg, e);
             for (const a of R.allies) {
-              if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
+              if (!a.waitAt && !a.joining && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
             }
           } else e.slamCd = 0.3;
         }
@@ -910,7 +911,7 @@ const Run = (() => {
       // 仲間の壁: この1フレームの弾道が仲間に触れたら消滅(高速でもすり抜けない)
       let blocked = false;
       for (const a of R.allies) {
-        if (a.waitAt || a.dead) continue;
+        if (a.waitAt || a.dead || a.joining) continue;   // 合流中はすり抜ける(無敵・壁にならない)
         if (segCircleHit(px0, py0, b.x, b.y, a.x, a.y, a.def.r + 5)) {
           damageAlly(a, b.dmg * 0.35, b);   // 仲間への弾ダメージは控えめ
           R.eprojs.splice(i, 1); blocked = true; break;
@@ -923,6 +924,7 @@ const Run = (() => {
 
   // ---------------- 仲間の更新 ----------------
   function damageAlly(a, dmg, src){
+    if (a.joining) return;   // 合流中(勧誘直後、主人公の元へ駆けつけるまで)は無敵
     // 威圧のオーラ: プレイヤーの近くなら仲間への攻撃も弱体化
     const fe = Skills.stat('fear');
     if (fe && src && Math.hypot(src.x - R.player.x, src.y - R.player.y) < fe.radius * R.stats.area) {
@@ -1148,7 +1150,7 @@ const Run = (() => {
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
       units.push(e);
     }
-    for (const a of R.allies) if (!a.waitAt && !a.dead) {
+    for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining) {   // 合流中はすり抜け
       a._r = a.def.r / 3;
       a._m = 1 + (a.def.tier || 0) * 0.6;
       a._ally = true;
@@ -1896,6 +1898,7 @@ const Run = (() => {
   // ---- キャラ1体ぶんの描画(Yソート描画から呼ばれる) ----
   function drawAllyUnit(g, a){
     if (a.waitAt) g.globalAlpha = 0.7;
+    else if (a.joining) g.globalAlpha = 0.75;   // 合流中(無敵・非戦闘)は少し透ける
     // 攻撃モーション: 斬りかかる時は的へ踏み込み、射撃時はのけぞる反動(sinで出て戻る)
     let ax = a.x, ay = a.y;
     if (a.atkAnim > 0) {
