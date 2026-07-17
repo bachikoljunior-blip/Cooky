@@ -120,6 +120,7 @@ const Run = (() => {
         case 'regenAdd':    s.regen += v; break;
         case 'magnetMul':   s.magnet *= 1 + v; break;
         case 'coinMul':     s.coinMul *= 1 + v; break;
+        case 'luck2Add':    s.luck2 += v; break;
         case 'dropMul':     s.dropMul *= 1 + v; break;
         case 'critAdd':     s.crit += v; break;
         case 'cdrAdd':      s.cdr = Math.min(0.65, s.cdr + v); break;
@@ -948,6 +949,8 @@ const Run = (() => {
   // ---------------- 仲間の更新 ----------------
   function damageAlly(a, dmg, src){
     if (a.joining) return;   // 合流中(勧誘直後、主人公の元へ駆けつけるまで)は無敵
+    const ds = Skills.stat('dragonscale');
+    if (ds) dmg *= (1 - ds.res);   // 竜鱗の陣: 仲間の被ダメ軽減
     // 威圧のオーラ: プレイヤーの近くなら仲間への攻撃も弱体化
     const fe = Skills.stat('fear');
     if (fe && src && Math.hypot(src.x - R.player.x, src.y - R.player.y) < fe.radius * R.stats.area) {
@@ -1013,7 +1016,8 @@ const Run = (() => {
     const p = R.player;
     const wb = Skills.stat('warbanner');
     const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
-    const spdMul = (wb ? wb.spd : 1) * (R.stats.allySpeed || 1);
+    const spdMul = (wb ? wb.spd : 1) * (R.stats.allySpeed || 1) *
+      ((R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1);   // 月光の疾走
     const n = R.allies.length;
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
@@ -1096,6 +1100,8 @@ const Run = (() => {
           if (a.atkCd <= 0) {
             a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
             dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
+            const ff = Skills.stat('forgefire');   // 鍛冶の心火: 確率で炎上
+            if (ff && Math.random() < ff.chance) { tgt.burn = Math.max(tgt.burn, ff.burn); tgt.burnT = 3; }
             a.atkAnim = 0.24; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = false;   // 斬りかかるモーション
           }
           dest = null;
@@ -1485,6 +1491,123 @@ const Run = (() => {
       } else R.cd['gstorm'] = R.time + 0.5;
     }
     // --- 混沌の瘴気(敵を混乱させ同士討ち) ※対象がいない時は保留 ---
+    // --- 遺跡の脈動: 弾き飛ばし+短時間停止 ---
+    const pu = Skills.stat('pulse');
+    if (pu && cdReady('pulse', pu.cd)) {
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead || e.boss || e.def.isReaper) continue;
+        const dd = Math.hypot(e.x - p.x, e.y - p.y);
+        if (dd > pu.radius * area) continue;
+        const nx = e.x + (e.x - p.x) / (dd || 1) * pu.push, ny = e.y + (e.y - p.y) / (dd || 1) * pu.push;
+        if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; }
+        e.frozenUntil = Math.max(e.frozenUntil, R.time + pu.freeze);
+        n++;
+      }
+      if (n > 0) effect('ring', p.x, p.y, { color:'#a5d8ff', r: pu.radius * area });
+      else R.cd['pulse'] = R.time + 0.3;
+    }
+    // --- 命の泉水: 自分と仲間をまとめて回復 ---
+    const sw = Skills.stat('spring');
+    if (sw && (R.cd['spring'] || 0) <= R.time) {
+      const hurt = p.hp < st.maxHp || R.allies.some(a => !a.waitAt && a.hp < a.maxHp);
+      if (hurt) {
+        R.cd['spring'] = R.time + sw.cd * (1 - st.cdr);
+        p.hp = Math.min(st.maxHp, p.hp + sw.heal);
+        for (const a of R.allies) if (!a.waitAt) a.hp = Math.min(a.maxHp, a.hp + sw.heal);
+        effect('ring', p.x, p.y, { color:'#7ee787', r: 120 });
+      } else R.cd['spring'] = R.time + 0.5;
+    }
+    // --- 黄昏の帳: 敵弾消去+射撃封印 ---
+    const vl = Skills.stat('veil');
+    if (vl && (R.cd['veil'] || 0) <= R.time) {
+      if (R.eprojs.length > 0) {
+        R.cd['veil'] = R.time + vl.cd * (1 - st.cdr);
+        R.eprojs.length = 0;
+        for (const e of R.enemies) {
+          if (!e.dead && e.def.ranged && Math.hypot(e.x - p.x, e.y - p.y) < vl.radius * area)
+            e.shootCd = Math.max(e.shootCd, vl.seal);
+        }
+        effect('ring', p.x, p.y, { color:'#f778ba', r: vl.radius * area });
+      } else R.cd['veil'] = R.time + 0.4;
+    }
+    // --- 野生の呼び声: 近くの敵を仲間に引き入れる ---
+    const wc = Skills.stat('wildcall');
+    if (wc && R.allies.length < st.allyCap && (R.cd['wildcall'] || 0) <= R.time) {
+      let pick = null, pd2 = 1e9;
+      for (const e of R.enemies) {
+        if (e.dead || e.boss || e.def.isReaper || e.def.rare) continue;
+        if ((e.def.tier || 0) > wc.tier) continue;
+        const dd = Math.hypot(e.x - p.x, e.y - p.y);
+        if (dd < wc.radius * area && dd < pd2) { pick = e; pd2 = dd; }
+      }
+      if (pick) {
+        R.cd['wildcall'] = R.time + wc.cd * (1 - st.cdr);
+        recruitAlly(pick);
+        pick.dead = true;   // ドロップ無しで敵から外す(仲間into)
+        popup(pick.x, pick.y - 20, '仲間になった!', '#7ee787');
+      } else R.cd['wildcall'] = R.time + 0.5;
+    }
+    // --- 白亜の灯: 画面中のアイテムを引き寄せ ---
+    const bc = Skills.stat('beacon');
+    if (bc && (R.cd['beacon'] || 0) <= R.time) {
+      if (R.pickups.length > 0) {
+        R.cd['beacon'] = R.time + bc.cd * (1 - st.cdr);
+        for (const pk of R.pickups) { pk.vacuumed = true; pk.vacDeadline = R.time + bc.dur; }
+        effect('ring', p.x, p.y, { color:'#ffd766', r: 140 });
+      } else R.cd['beacon'] = R.time + 0.5;
+    }
+    // --- 月光の疾走: 自分と仲間の加速バースト ---
+    const mr = Skills.stat('moonrush');
+    if (mr && cdReady('moonrush', mr.cd)) {
+      R.speedBurst = { until: R.time + mr.dur, mult: mr.mult };
+      effect('ring', p.x, p.y, { color:'#a5d8ff', r: 90 });
+    }
+    // --- 雷雲の呼び声: 周囲の敵を感電停止 ---
+    const sc = Skills.stat('stormcall');
+    if (sc && (R.cd['stormcall'] || 0) <= R.time) {
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead || e.boss || e.def.isReaper) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < sc.radius * area) { e.frozenUntil = Math.max(e.frozenUntil, R.time + sc.dur); n++; }
+      }
+      if (n > 0) {
+        R.cd['stormcall'] = R.time + sc.cd * (1 - st.cdr);
+        effect('ring', p.x, p.y, { color:'#fde047', r: sc.radius * area });
+      } else R.cd['stormcall'] = R.time + 0.3;
+    }
+    // --- 太陽の熱波: 広範囲をまとめて炎上 ---
+    const sb = Skills.stat('sunburst');
+    if (sb && (R.cd['sunburst'] || 0) <= R.time) {
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < sb.radius * area) {
+          e.burn = Math.max(e.burn, sb.burn); e.burnT = sb.dur; n++;
+        }
+      }
+      if (n > 0) {
+        R.cd['sunburst'] = R.time + sb.cd * (1 - st.cdr);
+        effect('ring', p.x, p.y, { color:'#d29922', r: sb.radius * area });
+      } else R.cd['sunburst'] = R.time + 0.3;
+    }
+    // --- 虚無の引力: 周囲の敵を引き寄せる ---
+    const vg = Skills.stat('voidgrip');
+    if (vg && (R.cd['voidgrip'] || 0) <= R.time) {
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead || e.boss || e.def.isReaper) continue;
+        const dd = Math.hypot(e.x - p.x, e.y - p.y);
+        if (dd > vg.radius * area || dd < 110) continue;
+        const nd = Math.max(110, dd * vg.pull);
+        const nx = p.x + (e.x - p.x) / dd * nd, ny = p.y + (e.y - p.y) / dd * nd;
+        if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; e.mad = true; n++; }
+      }
+      if (n > 0) {
+        R.cd['voidgrip'] = R.time + vg.cd * (1 - st.cdr);
+        effect('ring', p.x, p.y, { color:'#6e40c9', r: vg.radius * area });
+      } else R.cd['voidgrip'] = R.time + 0.4;
+    }
     // --- 火の粉: 周囲の敵を炎上させる ---
     const em = Skills.stat('ember');
     if (em && (R.cd['ember'] || 0) <= R.time) {
@@ -1832,7 +1955,8 @@ const Run = (() => {
     // 移動(botAxisは自動テストプレイ用フック)
     const ax = R.botAxis || Input.axis();
     // 主人公は敵をすり抜ける。対敵中でも速度は落とさない(常にステータス速度で動ける)
-    const spd = p.onBoat ? st.boatSpeed : st.speed;
+    const rushMul = (R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1;   // 月光の疾走
+    const spd = (p.onBoat ? st.boatSpeed : st.speed) * rushMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
