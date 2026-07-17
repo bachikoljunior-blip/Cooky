@@ -61,7 +61,7 @@ DATA.SKILLS = {
   magnetSk: {
     name:'マグネットフィールド', cat:'sup', icon:'sk_magnet',
     desc:'アイテムの回収範囲が広がる。',
-    cost:(lv)=>matCost(lv,{scrap:3,jelly:3}),
+    cost:(lv)=>matCost(lv,{scrap:3,jelly:3},[{from:3,mat:'shell',qty:3},{from:5,mat:'magic',qty:2}]),
     lvText:['回収範囲+40%','たまに全画面吸引(30秒毎)','回収範囲+50%','全画面吸引の間隔-10秒'],
     stats:(lv)=>({ mult:1.5+(lv>=2?0.4:0)+(lv>=4?0.5:0), vacuum:(lv>=3), vacuumCd:(lv>=5?20:30) }),
   },
@@ -75,7 +75,7 @@ DATA.SKILLS = {
   boots: {
     name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
     desc:'移動速度が上がる。逃げる敵(ヒーラー等)を追うのに必須級。',
-    cost:(lv)=>matCost(lv,{hide:4,bone:3}),
+    cost:(lv)=>matCost(lv,{hide:4,bone:3},[{from:3,mat:'crystal',qty:3},{from:5,mat:'star',qty:1}]),
     lvText:['移動速度+8%','ダッシュの残像が敵にダメージ','移動速度+10%','移動速度+12%'],
     stats:(lv)=>({ mult:1.1+(lv>=2?0.08:0)+(lv>=4?0.10:0)+(lv>=5?0.12:0), trail:(lv>=3?5:0) }),
   },
@@ -143,7 +143,7 @@ DATA.SKILLS = {
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
     desc:'【クエスト報酬】歴戦の戦術。仲間の攻撃力が上がる。',
-    cost:(lv)=>matCost(lv,{bone:6,hide:4}),
+    cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:3,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+5%(累計${(i+2)*5}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.05*lv } }),
   },
@@ -780,6 +780,6 @@ DATA.STATIONS = {
 // 時間による敵強化(分あたり)。星読みで緩和可能
 DATA.TIME_HP_GROWTH = 1.128;   // HP: ×1.128^分 (30分で約37倍)
 DATA.TIME_DMG_GROWTH = 1.062;  // ダメージ: 30分で約6倍
-DATA.DIST_RING = 1300;         // 距離リング幅(px) 遠くほど敵が強い(危険度)。狭いほど距離で危険度が速く上がる
+DATA.DIST_RING = 2600;         // 距離リング幅(px)。バイオドーム(約1分=2600px)を1つ越えるごとに危険度+1
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
 DATA.WORLD_EXTENT = 860000;    // 世界の半径(ミニマップ用)

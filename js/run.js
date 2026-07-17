@@ -736,9 +736,9 @@ const Run = (() => {
       // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
-      // 大群は消えず、完全に画面外へ出た(見えなくなった)瞬間に前方へ回り込む。
+      // 大群とボスは消えず、完全に画面外へ出た(見えなくなった)瞬間に前方へ回り込む。
       // しきい値は回り込み先(offR+30〜160)より外なので、回り込み直後に再発動しない
-      if (e.fromHorde && pd > (R.offscreenR || 500) + 180) {
+      if ((e.fromHorde || e.boss) && pd > (R.offscreenR || 500) + 180) {
         if (relocateOffscreen(e)) continue;
       }
       const despawnR = e.mad ? 3200 : ((R.offscreenR || 500) + 260);
@@ -1889,17 +1889,7 @@ const Run = (() => {
   function drawEnemyUnit(g, e){
     const p = R.player;
     const sz = e.def.r * 2.6 * (e.sizeMul || 1);
-    // 強化ランクのオーラ(強い個体ほど禍々しい)
-    if (e.rank > 0) {
-      const rc = RANK_COLORS[e.rank];
-      g.strokeStyle = rc; g.globalAlpha = 0.55; g.lineWidth = 1.5 + e.rank;
-      g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 5, 0, 7); g.stroke();
-      if (e.rank >= 3) {
-        g.globalAlpha = 0.18; g.fillStyle = rc;
-        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 9, 0, 7); g.fill();
-      }
-      g.globalAlpha = 1;
-    }
+    // 強化ランクは体の大きさ(sizeMul)だけで表現する。丸枠のオーラは鬱陶しいので描かない
     if (e.def.rare) {   // レアモンスターは虹色に輝く
       g.strokeStyle = 'hsl(' + ((R.time * 240) % 360) + ',95%,65%)';
       g.globalAlpha = 0.8; g.lineWidth = 3;
