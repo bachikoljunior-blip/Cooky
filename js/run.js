@@ -1151,7 +1151,7 @@ const Run = (() => {
     // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
     const units = [];
     for (const e of R.enemies) if (!e.dead) {
-      e._r = e.def.r * (e.sizeMul || 1) / 2;   // 敵は仲間より少し広めに散らばる
+      e._r = e.def.r * (e.sizeMul || 1) * 0.75;   // 敵は体の3/4で押し合う(あまり重ならない)
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
       units.push(e);
     }
@@ -1187,10 +1187,10 @@ const Run = (() => {
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
-            // 同じ陣営同士(仲間↔仲間・敵↔敵)は弱い押し合いだけ ― 押しのけながらすり抜けて
-            // 歩ける。敵↔仲間は強い押し合いのままで、合戦の戦線は崩れない。
+            // 同じ陣営同士は弱い押し合いだけ ― 押しのけながらすり抜けて歩ける。
+            // 敵同士は仲間同士より少し強め(重なりにくい)。敵↔仲間は強い押し合いのまま。
             const sameSide = u !== pl && v !== pl && !!u._ally === !!v._ally;
-            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : 0.32);
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? (u._ally ? 0.06 : 0.10) : 0.32);
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
