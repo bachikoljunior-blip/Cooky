@@ -347,7 +347,7 @@ DATA.ENEMIES = {
 // バイオームごとの陸の敵プール(場所ごとに顔ぶれが変わる)。海は別プール。
 // 各プールは低ティア〜高ティアを含み、その場所の allowedTier で絞られる。
 DATA.BIOME_FAUNA = {
-  grass:   ['slime','skeleton','wolf','goblin','boar','orc','mush'],
+  grass:   ['slime','bat','skeleton','wolf','goblin','boar','orc','mush'],   // bat=序盤(ティア0)の毛皮源
   jungle:  ['slime','wolf','boar','mush','lizard','orc','ogre'],
   mist:    ['bat','wisp','galehound','stormwisp','wolf','shade'],
   chalk:   ['skeleton','scarab','crab','mummy','knight'],

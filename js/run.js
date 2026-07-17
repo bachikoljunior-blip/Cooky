@@ -485,7 +485,6 @@ const Run = (() => {
       mad: !!opts.mad || !!opts.boss, aggro: opts.aggro || rnd(75, 115),
       herd: opts.herd || null,
       fromHorde: !!opts.fromHorde,   // 時間ごとの大群: 置いていかれても近くの画面外へ回り込む
-      rush: !!opts.rush,             // 大群の突撃: 移動速度アップですぐ押し寄せる
     };
     e.hp = e.maxHp;
     // 強化ランク: 時間・距離で強くなった敵は見た目が変わる(大きさ+オーラ)
@@ -583,8 +582,8 @@ const Run = (() => {
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
-      // aggro最大で諦めず、rushで突撃速度アップ ― すぐ押し寄せる
-      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true, rush: true })) placed++;
+      // aggro最大で諦めない(速度は他の敵と同じ。置いていかれたら前方へ回り込む)
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) placed++;
     }
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
@@ -601,7 +600,7 @@ const Run = (() => {
     }
     R.warnMsg = '⚔ 敵の大群が押し寄せてくる!(' + waves + '波)'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde();
   }
-  // 1波ぶんを、すぐ画面外から一斉に(rushで猛スピード突撃)
+  // 1波ぶんを、すぐ画面外から一斉に
   function spawnHordeWave(wave){
     if (R.enemies.length > 1400) return;   // 安全: 過多なら間引く
     // 回り込みのしきい値(offR+180)より内側に湧かせる(湧いた直後に再配置されない)
@@ -613,7 +612,7 @@ const Run = (() => {
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
-      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true, rush: true })) placed++;
+      if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) placed++;
     }
   }
 
@@ -753,7 +752,7 @@ const Run = (() => {
       // 燃焼・時間系
       if (e.burn > 0) { e.burnT -= dt; e.hp -= e.burn * dt * R.stats.atk; if (e.burnT <= 0) e.burn = 0;
         if (e.hp <= 0) { killEnemy(e); continue; } }
-      let spd = e.def.speed * (e.rush ? 3.2 : 1);   // 大群は突撃速度でぐっと速い
+      let spd = e.def.speed;
       if (R.time < e.slowUntil) spd *= (1 - e.slowMul);
       if (R.time < e.frozenUntil) spd = 0;
       // 時の砂
