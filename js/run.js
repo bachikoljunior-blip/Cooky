@@ -1034,7 +1034,7 @@ const Run = (() => {
           if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
         }
       } else {
-        const engageR = a.def.r + 46 + (a.def.tier || 0) * 8;
+        const engageR = a.def.r + 24 + (a.def.tier || 0) * 4;   // 追尾範囲は狭め(すぐそばの敵だけ)
         for (const e of R.enemies) {
           if (e.dead) continue;
           const er = e.def.r * (e.sizeMul || 1);
@@ -1111,9 +1111,9 @@ const Run = (() => {
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
       }
-      // ハードリーシュ(安全網): 主人公から離れられる範囲。狭め(戻ってくるまでが早い)。
+      // ハードリーシュ(安全網): 主人公から離れられる範囲。広め(戻ってくるまでの距離が長い)。
       {
-        const maxD = formR + 75;
+        const maxD = formR + 150;
         const dd = Math.hypot(a.x - p.x, a.y - p.y);
         if (dd > maxD) {
           a.x = p.x + (a.x - p.x) / dd * maxD;
