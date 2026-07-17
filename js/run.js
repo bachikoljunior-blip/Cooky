@@ -440,13 +440,18 @@ const Run = (() => {
     const byRing = Math.min(4, Math.floor(ring / 1.4));
     return Math.min(4, Math.max(byTime, byRing));
   }
-  function timeMults(){
-    const effMin = (R.time / 60) * (1 - R.stats.timeMitig);
+  // 敵の強さは「種類+色違いランク」で固定。時間・危険度で個体は強くならず、
+  // 進行に応じて強い別種(ティア)や色違いのランク個体が出るようになる。
+  // 色違い: rank1=金(HP4倍/攻撃1.7倍)、rank2=紅(HP16倍/攻撃2.9倍)。同じ種類+ランクなら常に同じ強さ。
+  const RANK_HP = [1, 4, 16], RANK_DMG = [1, 1.7, 2.9];
+  function pickRank(){
+    const min = R.time / 60;
     const ring = World.ringOf(R.player.x, R.player.y);
-    return {
-      hp: Math.pow(DATA.TIME_HP_GROWTH, effMin) * (1 + 0.55 * ring),
-      dmg: Math.pow(DATA.TIME_DMG_GROWTH, effMin) * (1 + 0.22 * ring),
-    };
+    const escal = (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig);   // 星読みの加護で緩和
+    let rank = 0;
+    if (Math.random() < Math.min(0.6, Math.max(0, (escal - 1) * 0.25))) rank = 1;
+    if (rank === 1 && Math.random() < Math.min(0.5, Math.max(0, (escal - 3) * 0.2))) rank = 2;
+    return rank;
   }
 
   function spawnEnemy(defKey, opts = {}){
@@ -469,12 +474,12 @@ const Run = (() => {
       // 掃討したばかりの場所(1分以内)には環境の敵を湧かせない
       if (opts.ambient && isClearedCell(x, y)) return null;
     }
-    const tm = opts.tm || timeMults();
+    const rank = (opts.boss || def.isReaper) ? 0 : (opts.rank !== undefined ? opts.rank : pickRank());
     const e = {
       def, defKey,
       x, y,
-      maxHp: def.hp * tm.hp * (opts.hpMul || 1),
-      dmg: def.dmg * tm.dmg * (opts.dmgMul || 1),
+      maxHp: def.hp * RANK_HP[rank] * (opts.hpMul || 1),
+      dmg: def.dmg * RANK_DMG[rank] * (opts.dmgMul || 1),
       coin: opts.coin || def.coin,
       boss: !!opts.boss, bossName: opts.bossName,
       hp: 0, flash: 0, slowUntil: 0, slowMul: 1, frozenUntil: 0,
@@ -487,10 +492,8 @@ const Run = (() => {
       fromHorde: !!opts.fromHorde,   // 時間ごとの大群: 置いていかれても近くの画面外へ回り込む
     };
     e.hp = e.maxHp;
-    // 強化ランク: 時間・距離で強くなった敵は見た目が変わる(大きさ+オーラ)
-    const power = tm.hp * (opts.hpMul || 1) / (opts.boss ? 14 : 1);
-    e.rank = power < 4 ? 0 : power < 15 ? 1 : power < 60 ? 2 : power < 250 ? 3 : 4;
-    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + e.rank * 0.09);
+    e.rank = rank;   // 色違いランク(見た目は色+大きさで表現)
+    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.13);
     if (opts.boss) R.bossAlive = e;
     R.enemies.push(e);
     return e;
@@ -715,8 +718,7 @@ const Run = (() => {
       const interval = Math.max(1.2, 4 - (R.time - DATA.REAPER_AT) / 120);
       if (R.reaperAcc >= interval) {
         R.reaperAcc = 0;
-        const over = (R.time - DATA.REAPER_AT) / 60;
-        spawnEnemy('reaper', { tm: { hp: Math.pow(1.13, over), dmg: Math.pow(1.05, over) }, dist: rnd(500, 700) });
+        spawnEnemy('reaper', { dist: rnd(500, 700) });
       }
     }
   }
@@ -824,10 +826,9 @@ const Run = (() => {
           e.healCd -= dt;
           if (e.healCd <= 0 && e.def.heal) {
             e.healCd = 1;
-            const tm = timeMults();
             for (const o of R.enemies) {
               if (o !== e && !o.dead && o.hp < o.maxHp && Math.hypot(o.x-e.x, o.y-e.y) < e.def.heal.radius) {
-                o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * tm.hp);
+                o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * RANK_HP[e.rank || 0]);
                 effect('healline', e.x, e.y, { x2:o.x, y2:o.y });
               }
             }
@@ -1887,7 +1888,7 @@ const Run = (() => {
     g.globalAlpha = 1;
   }
 
-  const RANK_COLORS = [null, '#c9d1d9', '#ffd766', '#f85149', '#c084fc'];
+  const RANK_COLORS = [null, '#ffd766', '#f85149'];   // 色違い: 金 / 紅
   function drawEnemyUnit(g, e){
     const p = R.player;
     const sz = e.def.r * 2.6 * (e.sizeMul || 1);
@@ -1899,7 +1900,8 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     if (e.flash > 0) { g.globalAlpha = 0.6; }
-    Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
+    if (e.rank > 0) Sprites.drawTinted(g, e.def.sprite, e.x, e.y, sz, e.x > p.x, RANK_COLORS[e.rank], 0.4);
+    else Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
     g.globalAlpha = 1;
     if (R.time < e.frozenUntil) {
       g.fillStyle = 'rgba(118,227,234,.4)';

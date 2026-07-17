@@ -45,7 +45,7 @@ DATA.SKILLS = {
   shield: {
     name:'ガーディアンシールド', cat:'sup', icon:'sk_shield',
     desc:'ダメージを1回無効化するバリアを張る。',
-    cost:(lv)=>matCost(lv,{bone:5,crystal:3},[{from:3,mat:'shell',qty:3},{from:6,mat:'scale',qty:1}]),
+    cost:(lv)=>matCost(lv,{bone:5,crystal:3},[{from:2,mat:'shell',qty:3},{from:6,mat:'scale',qty:1}]),
     lvText:['再展開が早くなる','バリア展開時に周囲を弾き飛ばす','ストック+1','再展開がさらに早く','割れた時に爆発ダメージ','ストック+1'],
     stats:(lv)=>({ stocks:1+(lv>=4?1:0)+(lv>=7?1:0), cd:14*(lv>=2?0.75:1)*(lv>=5?0.7:1),
       knock:(lv>=3), burst:(lv>=6?60:0) }),
@@ -53,7 +53,7 @@ DATA.SKILLS = {
   sanctuary: {
     name:'サンクチュアリ', cat:'sup', icon:'sk_sanct',
     desc:'自分と仲間のHPを徐々に回復するオーラ。',
-    cost:(lv)=>matCost(lv,{jelly:6,shell:2},[{from:3,mat:'magic',qty:2},{from:6,mat:'coral',qty:3}]),
+    cost:(lv)=>matCost(lv,{jelly:6,shell:2},[{from:2,mat:'magic',qty:2},{from:6,mat:'coral',qty:3}]),
     lvText:['回復量+60%','範囲拡大(仲間に届きやすく)','回復量+60%','オーラ内の敵を微減速','回復量+80%・範囲拡大'],
     stats:(lv)=>({ hps:1.5*Math.pow(1.6,(lv>=2?1:0)+(lv>=4?1:0))*(lv>=6?1.8:1),
       radius:110+(lv>=3?50:0)+(lv>=6?50:0), slow:(lv>=5?0.15:0) }),
@@ -61,21 +61,21 @@ DATA.SKILLS = {
   magnetSk: {
     name:'マグネットフィールド', cat:'sup', icon:'sk_magnet',
     desc:'アイテムの回収範囲が広がる。',
-    cost:(lv)=>matCost(lv,{scrap:3,jelly:3},[{from:3,mat:'shell',qty:3},{from:5,mat:'magic',qty:2}]),
+    cost:(lv)=>matCost(lv,{scrap:3,jelly:3},[{from:2,mat:'shell',qty:3},{from:5,mat:'magic',qty:2}]),
     lvText:['回収範囲+40%','たまに全画面吸引(30秒毎)','回収範囲+50%','全画面吸引の間隔-10秒'],
     stats:(lv)=>({ mult:1.5+(lv>=2?0.4:0)+(lv>=4?0.5:0), vacuum:(lv>=3), vacuumCd:(lv>=5?20:30) }),
   },
   resonance: {
     name:'共鳴の水晶', cat:'sup', icon:'sk_area',
     desc:'全てのスキルの効果範囲が広がる(サンクチュアリ・威圧・呪印・時の砂など)。',
-    cost:(lv)=>matCost(lv,{crystal:5,jelly:4},[{from:4,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
+    cost:(lv)=>matCost(lv,{crystal:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`効果範囲+10%(累計${(i+2)*10}%)`),
     stats:(lv)=>({ passive:{ key:'areaMul', value:0.10*lv } }),
   },
   boots: {
     name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
     desc:'移動速度が上がる。逃げる敵(ヒーラー等)を追うのに必須級。',
-    cost:(lv)=>matCost(lv,{hide:4,bone:3},[{from:3,mat:'crystal',qty:3},{from:5,mat:'star',qty:1}]),
+    cost:(lv)=>matCost(lv,{hide:4,bone:3},[{from:2,mat:'crystal',qty:3},{from:5,mat:'star',qty:1}]),
     lvText:['移動速度+8%','ダッシュの残像が敵にダメージ','移動速度+10%','移動速度+12%'],
     stats:(lv)=>({ mult:1.1+(lv>=2?0.08:0)+(lv>=4?0.10:0)+(lv>=5?0.12:0), trail:(lv>=3?5:0) }),
   },
@@ -83,7 +83,7 @@ DATA.SKILLS = {
     name:'ウォーバナー', cat:'ally', icon:'sk_banner',
     desc:'仲間の攻撃力とHPを強化する軍旗。仲間主体の戦術に。【前提: カリスマの歌 Lv2】',
     requires:{ skill:'charisma', lv:2 },
-    cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:3,mat:'magic',qty:2}]),
+    cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:2,mat:'magic',qty:2}]),
     lvText:['仲間攻撃+20%','仲間HP+30%','仲間攻撃+25%','仲間の移動速度+20%','仲間攻撃+35%・HP+35%'],
     stats:(lv)=>({ atk:1.2+(lv>=2?0.2:0)+(lv>=4?0.25:0)+(lv>=6?0.35:0),
       hp:1+(lv>=3?0.3:0)+(lv>=6?0.35:0), spd:(lv>=5?1.2:1) }),
@@ -92,7 +92,7 @@ DATA.SKILLS = {
   charisma: {
     name:'カリスマの歌', cat:'ally', icon:'sk_charisma',
     desc:'【仲間】歌声で敵の心を掴む。敵が仲間になる確率が上がる(仲間数に上限なし)。',
-    cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:4,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
+    cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:2,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
     lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
     stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
       allyMul:Math.pow(1.08,(lv>=3?1:0)+(lv>=5?1:0)+(lv>=7?1:0)) }),
@@ -100,7 +100,7 @@ DATA.SKILLS = {
   fear: {
     name:'威圧のオーラ', cat:'foe', icon:'sk_fear',
     desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
-    cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
+    cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
     lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
     stats:(lv)=>({ radius:50+(lv>=3?45:0)+(lv>=6?65:0),
       reduce:Math.min(0.6, 0.15+(lv>=2?0.10:0)+(lv>=4?0.05:0)+(lv>=5?0.10:0)), flee:(lv>=7) }),
@@ -109,7 +109,7 @@ DATA.SKILLS = {
     name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
     desc:'【主人公】敵を倒すとHPを吸収する。【前提: サンクチュアリ Lv2】',
     requires:{ skill:'sanctuary', lv:2 },
-    cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:3,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
+    cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
     stats:(lv)=>({ killHeal:3+(lv>=2?2:0)+(lv>=4?3:0)+(lv>=6?5:0),
       lifesteal:(lv>=3?0.01:0)+(lv>=5?0.01:0)+(lv>=7?0.01:0) }),
@@ -117,7 +117,7 @@ DATA.SKILLS = {
   confuse: {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
     desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
-    cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:4,mat:'star',qty:2}]),
+    cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:2,mat:'star',qty:2}]),
     lvText:['混乱数+1','混乱時間+50%・範囲拡大','混乱数+2','再発動-25%・範囲拡大','混乱数+2・時間さらに+'],
     stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
       dur:3*(lv>=3?1.5:1)*(lv>=6?1.4:1), cd:8*(lv>=5?0.75:1), radius:340+(lv>=3?80:0)+(lv>=5?100:0) }),
@@ -126,7 +126,7 @@ DATA.SKILLS = {
     name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',
     desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放・前提: 混沌の瘴気 Lv2】',
     requires:{ skill:'confuse', lv:2 },
-    cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:3,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
+    cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:2,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
     lvText:['被ダメ増+10%','減速強化','再発動-25%','被ダメ増+15%','範囲拡大'],
     stats:(lv)=>({ radius:260+(lv>=6?100:0), shred:0.2+(lv>=2?0.1:0)+(lv>=5?0.15:0),
       slow:0.1+(lv>=3?0.15:0), dur:4, cd:6*(lv>=4?0.75:1) }),
@@ -135,7 +135,7 @@ DATA.SKILLS = {
   sands: {
     name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands',
     desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
-    cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:3,mat:'abyss',qty:1}]),
+    cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:2,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','再発動-25%','ほぼ静止級の減速'],
     stats:(lv)=>({ slow:0.4+(lv>=2?0.15:0)+(lv>=6?0.25:0), dur:3*(lv>=3?1.5:1),
       radius:220+(lv>=4?120:0), cd:12*(lv>=5?0.75:1) }),
@@ -143,7 +143,7 @@ DATA.SKILLS = {
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
     desc:'【クエスト報酬】歴戦の戦術。仲間の攻撃力が上がる。',
-    cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:3,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
+    cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:2,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+5%(累計${(i+2)*5}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.05*lv } }),
   },
@@ -282,7 +282,7 @@ PASSIVE_DEFS.forEach(([id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat], 
     desc: `【心得】${effDesc} ${unit}/Lv。レベルが上がると必要な素材の種類も少しずつ変わる。`,
     cost: (lv) => {
       const c = matCost(lv, { [ma]: qa, [mb]: qb });
-      if (lv >= 4) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 4) * 0.5);
+      if (lv >= 2) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 2) * 0.5);
       if (lv >= 7 && flux2 !== flux1) c[flux2] = (c[flux2] || 0) + Math.ceil(1 + (lv - 7) * 0.5);
       return c;
     },
@@ -548,7 +548,7 @@ DATA.META = {
   g_dusk_veil:   { st:'b_dusk', fac:'life', name:'黄昏の帳',   desc:'回避率 +0.8%', max:10, cost:gcost(2200,1.5), effAdd:{dodge:.008} },
   g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.05%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.0005} },
   g_star_meteor: { st:'b_star', fac:'war',  name:'流星の火',   desc:'会心率 +1.5%', max:10, cost:gcost(2800,1.5), effAdd:{crit:.015} },
-  g_star_time:   { st:'b_star', fac:'life', name:'星読みの加護', desc:'敵の時間経過による強化を3%緩和(最大45%)', max:15, cost:gcost(3000,1.55) },
+  g_star_time:   { st:'b_star', fac:'life', name:'星読みの加護', desc:'強い色違いの敵の出現を3%緩和(最大45%)', max:15, cost:gcost(3000,1.55) },
   g_star_chart:  { st:'b_star', fac:'lore', name:'星図の導き', desc:'移動速度 +1.5%', max:15, cost:gcost(2600,1.5), effMul:{speed:.015} },
   g_green_hunt:  { st:'b_green', fac:'war',  name:'森の狩人',  desc:'全ダメージ +3%', max:15, cost:gcost(2400,1.48), effMul:{atk:.03} },
   g_green_rest:  { st:'b_green', fac:'life', name:'森の寝床',  desc:'HP自動回復 +0.8/秒', max:10, cost:gcost(2600,1.5), effAdd:{regen:.8} },
@@ -777,9 +777,7 @@ DATA.STATIONS = {
   lib:   { name:'スキル書庫',   sprite:'st_lib',   desc:'スキルの解放と上限' },
 };
 
-// 時間による敵強化(分あたり)。星読みで緩和可能
-DATA.TIME_HP_GROWTH = 1.128;   // HP: ×1.128^分 (30分で約37倍)
-DATA.TIME_DMG_GROWTH = 1.062;  // ダメージ: 30分で約6倍
+// 敵の強さは種類+色違いランクで固定(時間による個体強化は廃止)
 DATA.DIST_RING = 2600;         // 距離リング幅(px)。バイオドーム(約1分=2600px)を1つ越えるごとに危険度+1
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
 DATA.WORLD_EXTENT = 860000;    // 世界の半径(ミニマップ用)
