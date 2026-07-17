@@ -67,21 +67,21 @@ DATA.SKILLS = {
   },
   resonance: {
     name:'共鳴の水晶', cat:'sup', icon:'sk_area',
-    desc:'全てのスキルの効果範囲が広がる(サンクチュアリ・威圧・呪印・時の砂など)。',
+    desc:'全てのスキルの効果範囲が広がる。',
     cost:(lv)=>matCost(lv,{crystal:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`効果範囲+10%(累計${(i+2)*10}%)`),
     stats:(lv)=>({ passive:{ key:'areaMul', value:0.10*lv } }),
   },
   boots: {
     name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
-    desc:'移動速度が上がる。逃げる敵(ヒーラー等)を追うのに必須級。',
+    desc:'移動速度が上がる。逃げる敵を追いやすくなる。',
     cost:(lv)=>matCost(lv,{hide:4,bone:3},[{from:2,mat:'crystal',qty:3},{from:5,mat:'star',qty:1}]),
     lvText:['移動速度+8%','ダッシュの残像が敵にダメージ','移動速度+10%','移動速度+12%'],
     stats:(lv)=>({ mult:1.1+(lv>=2?0.08:0)+(lv>=4?0.10:0)+(lv>=5?0.12:0), trail:(lv>=3?5:0) }),
   },
   warbanner: {
     name:'ウォーバナー', cat:'ally', icon:'sk_banner',
-    desc:'仲間の攻撃力とHPを強化する軍旗。仲間主体の戦術に。【前提: カリスマの歌 Lv2】',
+    desc:'仲間の攻撃力とHPを強化する軍旗。【前提: カリスマの歌 Lv2】',
     requires:{ skill:'charisma', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:2,mat:'magic',qty:2}]),
     lvText:['仲間攻撃+20%','仲間HP+30%','仲間攻撃+25%','仲間の移動速度+20%','仲間攻撃+35%・HP+35%'],
@@ -91,7 +91,7 @@ DATA.SKILLS = {
   // ---- 多角スキル: 仲間・敵・武器・経済 ----
   charisma: {
     name:'カリスマの歌', cat:'ally', icon:'sk_charisma',
-    desc:'【仲間】歌声で敵の心を掴む。敵が仲間になる確率が上がる(仲間数に上限なし)。',
+    desc:'敵が仲間になる確率が上がる。',
     cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:2,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
     lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
     stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
@@ -99,7 +99,7 @@ DATA.SKILLS = {
   },
   fear: {
     name:'威圧のオーラ', cat:'foe', icon:'sk_fear',
-    desc:'【敵弱体】周囲の敵が怯み、攻撃力が下がる。',
+    desc:'周囲の敵の攻撃力を下げるオーラ。',
     cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
     lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
     stats:(lv)=>({ radius:50+(lv>=3?45:0)+(lv>=6?65:0),
@@ -107,7 +107,7 @@ DATA.SKILLS = {
   },
   vampire: {
     name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
-    desc:'【主人公】敵を倒すとHPを吸収する。【前提: サンクチュアリ Lv2】',
+    desc:'敵を倒すとHPを吸収する。【前提: サンクチュアリ Lv2】',
     requires:{ skill:'sanctuary', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
@@ -116,7 +116,7 @@ DATA.SKILLS = {
   },
   confuse: {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
-    desc:'【敵操作】周期的に敵を混乱させ、同士討ちさせる。【要解放】',
+    desc:'一定間隔で敵を混乱させ、同士討ちさせる。【要解放】',
     cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:2,mat:'star',qty:2}]),
     lvText:['混乱数+1','混乱時間+50%・範囲拡大','混乱数+2','再発動-25%・範囲拡大','混乱数+2・時間さらに+'],
     stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
@@ -124,7 +124,7 @@ DATA.SKILLS = {
   },
   curse: {
     name:'衰弱の呪印', cat:'foe', icon:'sk_curse', unlock:'lib_sk_curse',
-    desc:'【敵弱体】周期的に周囲の敵を呪い、受けるダメージを増やして減速させる。【要解放・前提: 混沌の瘴気 Lv2】',
+    desc:'一定間隔で周囲の敵を呪い、被ダメージ増加+減速。【要解放/前提: 混沌の瘴気 Lv2】',
     requires:{ skill:'confuse', lv:2 },
     cost:(lv)=>matCost(lv,{magic:4,bone:6},[{from:2,mat:'star',qty:1},{from:5,mat:'abyss',qty:1}]),
     lvText:['被ダメ増+10%','減速強化','再発動-25%','被ダメ増+15%','範囲拡大'],
@@ -134,7 +134,7 @@ DATA.SKILLS = {
   // ---- 魂の広場で解放するスキル ----
   sands: {
     name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands',
-    desc:'周期的に周囲の敵の時を遅らせる。終焉の刻の切り札。【要解放】',
+    desc:'一定間隔で周囲の敵を大きく減速させる。【要解放】',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:2,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','再発動-25%','ほぼ静止級の減速'],
     stats:(lv)=>({ slow:0.4+(lv>=2?0.15:0)+(lv>=6?0.25:0), dur:3*(lv>=3?1.5:1),
@@ -142,7 +142,7 @@ DATA.SKILLS = {
   },
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
-    desc:'【クエスト報酬】歴戦の戦術。仲間の攻撃力が上がる。',
+    desc:'仲間の攻撃力が上がる。【クエスト報酬】',
     cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:2,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+5%(累計${(i+2)*5}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.05*lv } }),
@@ -279,7 +279,7 @@ PASSIVE_DEFS.forEach(([id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat], 
   const flux2 = avail[(idx + 3) % avail.length];         // lv7からさらに別の素材
   DATA.SKILLS[id] = {
     name, icon: 'sk_' + id, cat: cat || 'kokoroe',
-    desc: `【心得】${effDesc} ${unit}/Lv。レベルが上がると必要な素材の種類も少しずつ変わる。`,
+    desc: `【心得】${effDesc} ${unit}/Lv。`,
     cost: (lv) => {
       const c = matCost(lv, { [ma]: qa, [mb]: qb });
       if (lv >= 2) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 2) * 0.5);
@@ -482,7 +482,7 @@ DATA.META = {
   // --- 強化の祭壇(戦闘) ---
   altar_hp:     { st:'altar', name:'生命力',       desc:'最大HP +20',            max:40, cost:gcost(15,1.32),  },
   altar_atk:    { st:'altar', name:'攻撃力',       desc:'全ダメージ +8%',        max:40, cost:gcost(20,1.34),  },
-  altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +4%(広大な世界の探索に必須)', max:25, cost:gcost(30,1.42), },
+  altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +4%', max:25, cost:gcost(30,1.42), },
   altar_regen:  { st:'altar', name:'自然治癒',     desc:'HP自動回復 +0.5/秒',    max:20, cost:gcost(40,1.42),  },
   altar_armor:  { st:'altar', name:'鉄の皮膚',     desc:'被ダメージ -2%(最大60%)', max:30, cost:gcost(35,1.4) },
   altar_crit:   { st:'altar', name:'会心の心得',   desc:'クリティカル率 +2%(2倍ダメージ)', max:25, cost:gcost(50,1.42) },
@@ -494,7 +494,7 @@ DATA.META = {
   lab_magnet:   { st:'lab', name:'磁力',           desc:'アイテム回収範囲 +12%', max:15, cost:gcost(20,1.45) },
   lab_luck:     { st:'lab', name:'幸運',           desc:'素材が2個落ちる確率 +4%', max:20, cost:gcost(60,1.4) },
   lab_starter:  { st:'lab', name:'出撃支度',       desc:'開始時に基本素材を+2ずつ所持', max:10, cost:gcost(100,1.6) },
-  lab_sail:     { st:'lab', name:'帆の改良',       desc:'船の速度 +8%(遠海の大陸へ)', max:15, cost:gcost(200,1.42) },
+  lab_sail:     { st:'lab', name:'帆の改良',       desc:'船の速度 +8%', max:15, cost:gcost(200,1.42) },
   lab_mat_magic:{ st:'lab', name:'【解放】魔石',   desc:'新素材「魔石」が世界に出現する', max:1, cost:gcost(400,1) },
   lab_mat_coral:{ st:'lab', name:'【解放】珊瑚',   desc:'新素材「珊瑚」が海域に出現する', max:1, cost:gcost(1500,1) },
   lab_mat_scale:{ st:'lab', name:'【解放】竜のうろこ', desc:'新素材「竜のうろこ」が出現する', max:1, cost:gcost(6000,1) },
@@ -506,12 +506,12 @@ DATA.META = {
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +1.5%',          max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +1.2%',      max:30, cost:gcost(30,1.35) },
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
-  camp_swift:   { st:'camp', name:'仲間の俊足',    desc:'仲間の移動速度 +5%(はぐれず前線を押し上げる)', max:15, cost:gcost(80,1.45) },
+  camp_swift:   { st:'camp', name:'仲間の俊足',    desc:'仲間の移動速度 +5%', max:15, cost:gcost(80,1.45) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
   // --- スキル書庫 ---
-  lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」が出現候補になる', max:1, cost:gcost(20000,1) },
-  lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'敵を同士討ちさせるスキルが出現候補になる', max:1, cost:gcost(1200,1) },
-  lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'敵を弱体化させるスキルが出現候補になる', max:1, cost:gcost(3500,1) },
+  lib_sk_sands: { st:'lib', name:'【解放】時の砂', desc:'スキル「時の砂」を習得できるようになる', max:1, cost:gcost(20000,1) },
+  lib_sk_confuse:{ st:'lib', name:'【解放】混沌の瘴気', desc:'スキル「混沌の瘴気」を習得できるようになる', max:1, cost:gcost(1200,1) },
+  lib_sk_curse: { st:'lib', name:'【解放】衰弱の呪印', desc:'スキル「衰弱の呪印」を習得できるようになる', max:1, cost:gcost(3500,1) },
   lib_cap:      { st:'lib', name:'スキル上限解放', desc:'全スキルの最大レベル +1(基本5)', max:5, cost:gcost(1000,3.2) },
   lib_cdr:      { st:'lib', name:'速撃術',         desc:'武器の攻撃間隔 -2%(最大40%)', max:20, cost:gcost(80,1.42) },
   // --- 基地専用強化(基地を解放すると、その基地のマップの施設で買える) ---
@@ -764,15 +764,15 @@ DATA.QUESTS2 = {
 // NPCの豆知識(再会話で1つ話してくれる)
 DATA.NPC_TIPS = [
   'ヒーラー系の敵は倒すと仲間になって、今度はお前を回復してくれるぞ。',
-  'エリアごとに採れやすい素材が違う。欲しい素材の土地へ遠征するんだ。',
+  'バイオドームごとに住む魔物が違う。欲しい素材は、それを落とす魔物の土地で狩るんだ。',
   '虹色に光るスライムを見たら追え。「虹のかけら」は奴しか落とさん。',
   '金色に輝く古木や真珠貝…レアなオブジェクトには専用素材が眠っている。',
   '30分を過ぎると終焉の刻が来る。備えなしでは生き残れんぞ。',
   '危険度の数字が高い土地ほど敵は強いが、コインも素材も美味い。',
   '船の速度は研究所の「帆の改良」で上がる。遠海に行くなら必須だ。',
   '仲間が増えると視界が広がる。軍勢の合戦は壮観だぞ。',
-  'スキルには前提があるものも。ボルトを鍛えるとレーザーの道が開ける、とかな。',
-  '魂の広場の書庫では、もう知っているスキルを非表示にできるらしい。',
+  '攻撃手段やスキルには前提があるものも。前のものを鍛えると次の道が開ける。',
+  '色違いの魔物は同じ種類でも段違いに強い。金より紅、紅より紫だ。',
 ];
 
 DATA.STATIONS = {
