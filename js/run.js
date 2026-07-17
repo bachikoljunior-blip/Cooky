@@ -782,6 +782,9 @@ const Run = (() => {
       // サンクチュアリ減速
       const sanct = Skills.stat('sanctuary');
       if (sanct && sanct.slow && pd < sanct.radius * R.stats.area) spd *= (1 - sanct.slow);
+      // 霜のオーラ: 範囲内の敵を絶えず減速
+      const fa = Skills.stat('frostaura');
+      if (fa && pd < fa.radius * R.stats.area) spd *= (1 - fa.slow);
 
       // 行動
       let tx = p.x, ty = p.y;
@@ -1482,6 +1485,34 @@ const Run = (() => {
       } else R.cd['gstorm'] = R.time + 0.5;
     }
     // --- 混沌の瘴気(敵を混乱させ同士討ち) ※対象がいない時は保留 ---
+    // --- 火の粉: 周囲の敵を炎上させる ---
+    const em = Skills.stat('ember');
+    if (em && (R.cd['ember'] || 0) <= R.time) {
+      let n = 0;
+      for (const e of R.enemies) {
+        if (e.dead) continue;
+        if (Math.hypot(e.x - p.x, e.y - p.y) < em.radius * area) {
+          e.burn = Math.max(e.burn, em.burn); e.burnT = em.dur;
+          if (++n >= em.count) break;
+        }
+      }
+      if (n > 0) {
+        R.cd['ember'] = R.time + em.cd * (1 - st.cdr);
+        effect('ring', p.x, p.y, { color:'#ff6b35', r: em.radius * area });
+      } else R.cd['ember'] = R.time + 0.3;
+    }
+    // --- 骨の呼び声: 骸骨の仲間を召喚 ---
+    const bw = Skills.stat('bonewall');
+    if (bw && R.allies.length < st.allyCap && cdReady('bonewall', bw.cd)) {
+      const def = DATA.ENEMIES.skeleton;
+      const hp = def.hp * bw.hpMul * st.allyHp;
+      R.allies.push({ def, key:'skeleton', x: p.x + rnd(-30, 30), y: p.y + rnd(-30, 30),
+        maxHp: hp, hp, dmg: def.dmg, speed: st.speed,
+        atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false, slot: undefined });
+      assignSlot(R.allies[R.allies.length - 1]);
+      popup(p.x, p.y - 30, '骸骨を召喚!', '#e6edf3');
+      Sfx.recruit();
+    }
     const cf = Skills.stat('confuse');
     if (cf && (R.cd['confuse'] || 0) <= R.time) {
       const cands = R.enemies.filter(e => !e.dead && !e.boss && !e.def.isReaper &&
