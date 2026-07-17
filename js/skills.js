@@ -54,13 +54,14 @@ const Skills = (() => {
 
   function cap(){ return Math.min(DATA.SKILL_CAP_MAX, DATA.SKILL_BASE_CAP + SaveSys.metaLv('lib_cap')); }
   function lv(id){ return owned[id] || 0; }
-  // スキル効果量の増幅(しに戻り後の「秘術の増幅」)。範囲(area)・CD・個数は対象外で、
-  // 回復量・弱体量・持続時間・吸収量・倍率のボーナス部分などの「効果量」だけ増幅する
-  let pow = 1;
-  function setPow(p){ pow = p || 1; return pow; }
+  // スキル効果量の増幅(しに戻り後の基地パワーアップ、スキルごと)。範囲・CD・個数は
+  // 対象外で、回復量・弱体量・持続時間・吸収量・倍率のボーナス部分などだけ増幅する
+  let powMap = null;
+  function setPow(map){ powMap = map || null; return map; }
   function stat(id){
     const l = lv(id); if (l <= 0) return null;
     const st = DATA.SKILLS[id].stats(l);
+    const pow = powMap ? (powMap[id] || 1) : 1;
     if (pow !== 1) {
       if (st.hps) st.hps *= pow;                                   // サンクチュアリ回復
       if (st.burst) st.burst *= pow;                               // シールド爆発

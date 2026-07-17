@@ -43,7 +43,6 @@ const Run = (() => {
       allyDeathBlast: 30*m('g_grave_blast'),
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
-      skillPow: Skills.setPow(1 + 0.03*m('g_east_potency')),   // スキル効果量の増幅(秘術の増幅)
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
       recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
       allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
@@ -93,7 +92,21 @@ const Run = (() => {
     const mg = Skills.stat('magnetSk'); if (mg) s.magnet *= mg.mult;
     const ch = Skills.stat('charisma'); if (ch) { s.recruit += ch.recruit; s.allyHp *= ch.allyMul; s.allyAtk *= ch.allyMul; }
     const va = Skills.stat('vampire');  if (va) { s.killHeal = va.killHeal; s.lifesteal = va.lifesteal; }
-    Skills.setPow(s.skillPow);   // スキル効果量の増幅を反映(以降のstat()読み取り全てに効く)
+    // スキルごとの効果量増幅(各基地のパワーアップ)。以降のstat()読み取り全てに効く
+    {
+      const mv = (id) => SaveSys.metaLv(id);
+      const pm = {
+        sanctuary: 1 + 0.04*mv('g_south_sanct'),  fear:      1 + 0.04*mv('g_north_fear'),
+        vampire:   1 + 0.04*mv('g_black_vamp'),   confuse:   1 + 0.04*mv('g_mist_confuse'),
+        curse:     1 + 0.04*mv('g_grave_curse'),  sands:     1 + 0.04*mv('g_star_sands'),
+        charisma:  1 + 0.04*mv('g_green_charisma'), warbanner: 1 + 0.04*mv('g_forge_banner'),
+        magnetSk:  1 + 0.04*mv('g_white_magnet'), boots:     1 + 0.03*mv('g_storm_boots'),
+        shield:    1 + 0.05*mv('g_west_shield'),
+      };
+      const kk = 1 + 0.04*mv('g_dragon_kokoroe');   // 心得はまとめて増幅
+      for (const id in DATA.SKILLS) if (id.startsWith('p_') || id === 'oath') pm[id] = kk;
+      Skills.setPow(pm);
+    }
     // 「心得」パッシブスキル群
     for (const id in Skills.owned) {
       const stt = Skills.stat(id);
