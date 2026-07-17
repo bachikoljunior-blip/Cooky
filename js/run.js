@@ -441,16 +441,21 @@ const Run = (() => {
     return Math.min(4, Math.max(byTime, byRing));
   }
   // 敵の強さは「種類+色違いランク」で固定。時間・危険度で個体は強くならず、
-  // 進行に応じて強い別種(ティア)や色違いのランク個体が出るようになる。
-  // 色違い: rank1=金(HP4倍/攻撃1.7倍)、rank2=紅(HP16倍/攻撃2.9倍)。同じ種類+ランクなら常に同じ強さ。
-  const RANK_HP = [1, 4, 16], RANK_DMG = [1, 1.7, 2.9];
+  // 色違いのランク個体がラダー式に出る: 各段は初期から「かなり小さい割合(3%)」で存在し、
+  // 時間・危険度と共に割合が育つ。前の段が育つ頃、次の段がまた小さい割合で現れる…のループ。
+  // rank1=金(HP4倍) rank2=紅(16倍) rank3=紫(64倍) rank4=青白(256倍)。同じ種類+ランクなら常に同じ強さ。
+  const RANK_HP = [1, 4, 16, 64, 256], RANK_DMG = [1, 1.7, 2.9, 4.9, 8.3];
+  const RANK_MAX = 4;
   function pickRank(){
     const min = R.time / 60;
     const ring = World.ringOf(R.player.x, R.player.y);
     const escal = (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig);   // 星読みの加護で緩和
     let rank = 0;
-    if (Math.random() < Math.min(0.6, Math.max(0, (escal - 1) * 0.25))) rank = 1;
-    if (rank === 1 && Math.random() < Math.min(0.5, Math.max(0, (escal - 3) * 0.2))) rank = 2;
+    for (let k = 1; k <= RANK_MAX; k++) {
+      // 段kの通過率: 初期3%、進行(escal)が段の高さを越えるごとに+22%/段、最大55%
+      const p = Math.min(0.55, 0.03 + Math.max(0, escal - (k - 1)) * 0.22);
+      if (Math.random() < p) rank = k; else break;
+    }
     return rank;
   }
 
@@ -1915,7 +1920,7 @@ const Run = (() => {
     g.globalAlpha = 1;
   }
 
-  const RANK_COLORS = [null, '#ffd766', '#f85149'];   // 色違い: 金 / 紅
+  const RANK_COLORS = [null, '#ffd766', '#f85149', '#c084fc', '#a5f3fc'];   // 色違い: 金/紅/紫/青白
   function drawEnemyUnit(g, e){
     const p = R.player;
     const sz = e.def.r * 2.6 * (e.sizeMul || 1);
