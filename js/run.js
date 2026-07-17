@@ -2092,17 +2092,13 @@ const Run = (() => {
       Sprites.draw(g, 'sk_turret', t.x, t.y, 30);
     }
 
-    // 仲間・敵・主人公はYソートで一括描画: 手前(画面の下)にいるキャラほど上に重なる
-    const zList = [];
-    for (const a of R.allies) zList.push({ y: a.y, k: 0, u: a });
-    for (const e of R.enemies) zList.push({ y: e.y, k: 1, u: e });
-    zList.push({ y: p.y, k: 2, u: p });
-    zList.sort((A, B) => A.y - B.y);
-    for (const q of zList) {
-      if (q.k === 0) drawAllyUnit(g, q.u);
-      else if (q.k === 1) drawEnemyUnit(g, q.u);
-      else drawPlayerUnit(g, p);
-    }
+    // レイヤー順は 仲間 → 敵 → 主人公 のまま。各レイヤーの中だけYソートして、
+    // 同じ陣営同士では手前(画面の下)にいるキャラが上に重なるようにする
+    const allySorted = R.allies.slice().sort((A, B) => A.y - B.y);
+    for (const a of allySorted) drawAllyUnit(g, a);
+    const enemySorted = R.enemies.slice().sort((A, B) => A.y - B.y);
+    for (const e of enemySorted) drawEnemyUnit(g, e);
+    drawPlayerUnit(g, p);
 
     // オービット描画
     const ob = wstat('orbit');
