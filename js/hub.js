@@ -110,7 +110,10 @@ const Hub = (() => {
       const fac = s.fac && DATA.BASE_FACS[s.fac];
       const b = DATA.BASES.find(b => b.id === s.st);
       const name = st ? st.name : (b ? b.name + 'の' : '') + (fac ? fac.name : '特別強化');
-      if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) return name + '(眠っている ― 村の依頼で目覚める)';
+      if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) {
+        const fs = (DATA.FAC_STATE || {})[s.st];
+        return name + '(' + (fs ? fs.tag : '力を失っている') + ')';
+      }
       if (H.fromRun) return name + '(周回中は強化できない)';
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
@@ -126,9 +129,11 @@ const Hub = (() => {
     const s = H.interact;
     if (!s) return;
     if (s.kind === 'meta') {
-      // 基地の施設は「施設解放クエスト」(ゲート解放後にNPCから)を果たすまで眠っている
+      // 基地の施設は施設クエスト(ゲート解放後にNPCから)を果たすまで使えない。
+      // 調べた時は説明書きではなく、施設の状態そのものを描写する(直し方は村人の話から分かる)
       if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) {
-        Game.dialog('', null, ['この施設はまだ眠っている…', '村の人の依頼を果たせば、目を覚ますだろう。'], null); return;
+        const fs = (DATA.FAC_STATE || {})[s.st] || { look:['施設は静まり返り、なんの力も感じられない…'] };
+        Game.dialog('', null, fs.look, null); return;
       }
       if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は しに戻ってから 落ち着いて行おう。'], null); return; }
       openMetaPanel(s.st, s.fac);
@@ -388,8 +393,6 @@ const Hub = (() => {
           return `<p style="opacity:${done ? 1 : .5}">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}<br>
             <span class="small">報酬: ${a.reward}</span></p>`;
         }).join('')}
-        <div class="sec-head">🕯 世界の記憶(この世界の理)</div>
-        ${(DATA.LORE || []).map(l => `<p><b>${l.t}</b><br><span class="small">${l.b}</span></p>`).join('')}
       </div>`;
   }
 
