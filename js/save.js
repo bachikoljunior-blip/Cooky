@@ -29,6 +29,7 @@ const SaveSys = (() => {
       explored: [],   // 行ったことのある場所(霧マップ用セル)
       settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
       seenHelp: false,
+      introSeen: false,   // プロローグ(最初の印の基地を目指す)を見たか
     };
   }
 

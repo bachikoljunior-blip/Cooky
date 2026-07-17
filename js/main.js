@@ -37,6 +37,16 @@ const Game = (() => {
     Sfx.setScene('hub');
   }
   function startRun(pos){
+    // プロローグ: 最初の周回で、地図に印の付いた基地を目指すよう導く
+    if (!SaveSys.data.introSeen && Object.keys(SaveSys.data.bases).length === 0) {
+      SaveSys.data.introSeen = true; SaveSys.save();
+      setTimeout(() => dialog('', null, [
+        '…気がつくと、見知らぬ草原に立っていた。',
+        'ポケットには古びた地図の切れ端。「北の砦」とだけ記され、印が打たれている。',
+        '(🗺 マップに「?」の印がある。まずはそこを目指そう)',
+        '(この世界では、死は終わりではない…らしい)',
+      ], null), 400);
+    }
     state = 'run'; overlay = null;
     document.body.classList.remove('in-title');
     hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');

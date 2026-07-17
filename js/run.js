@@ -1846,9 +1846,21 @@ const Run = (() => {
   }
 
   // ---------------- 港・基地・船 ----------------
-  // 基地の住民NPC(サイドクエスト持ち)の定位置。i番目の住民のオフセット
-  const SIDE_NPC_POS = [ { x:-64, y:22 }, { x:60, y:44 }, { x:-28, y:-56 } ];
-  function sideNpcPos(b, i){ const o = SIDE_NPC_POS[i % SIDE_NPC_POS.length]; return { x:b.x + o.x, y:b.y + o.y }; }
+  // 基地の中に用事があるか(未解放の解放依頼・報告待ち・受けられる住民の依頼)
+  function baseHasBusiness(b){
+    const un = SaveSys.data.bases[b.id];
+    if (!un) { const a = Quest.activeFor('base', b.id); if (!a || a.phase === 'return') return true; }
+    const q2a = Quest.activeFor('base2', b.id);
+    if (q2a && q2a.phase === 'return') return true;
+    if (un && DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !q2a) return true;
+    for (const sq of (DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) || []) {
+      const a = Quest.activeFor('side', sq.id);
+      if (a && a.phase === 'return') return true;
+      if (!a && !(SaveSys.data.sideDone || {})[sq.id] &&
+          (!sq.requiresStory || (SaveSys.data.story || {})[sq.requiresStory])) return true;
+    }
+    return false;
+  }
 
   function updateInteractions(dt){
     const p = R.player;
@@ -1856,38 +1868,15 @@ const Run = (() => {
     // クエスト帰還直後は少しの間インタラクト無効(勝手に話しかけない)
     if (R.noInteractT > 0) { R.noInteractT -= dt; return; }
 
-    // 基地: 未解放ならクエストへ(E)。解放済みはNPCと再会話でき、安全地帯(微回復)
+    // 基地(村・街): 転移シンボルから中に入る。依頼も住民も全て中にある
     for (const b of World.bases) {
       const d = Math.hypot(p.x - b.x, p.y - b.y);
-      if (d < 90 && !SaveSys.data.bases[b.id]) {
-        const qa = Quest.activeFor('base', b.id);
-        const lbl = qa && qa.phase === 'return' ? 'E: 報告する ❗'
-                  : qa ? 'E: ' + DATA.QUESTS[b.id].npcName + 'と話す(依頼進行中)'
-                  : 'E: 「' + b.name + '」を調べる';
-        R.interact = { type:'basequest', base:b, label:lbl };
-      } else if (d < 90 && SaveSys.data.bases[b.id]) {
-        // 解放済みの基地: 拠点マップへ転移する(NPC・施設のあるマップ、周回中は強化不可)
-        const q2a = Quest.activeFor('base2', b.id);
-        const q2ret = q2a && q2a.phase === 'return';
-        const q2left = DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id]) && !q2a;
+      if (d < 90) {
         R.interact = { type:'enterbase', base:b,
-          label: 'E: 「' + b.name + '」に入る' + (q2ret ? ' ❗報告' : (q2left ? ' ❗依頼あり' : '')) };
+          label: 'E: 「' + b.name + '」に入る' + (baseHasBusiness(b) ? ' ❗' : '') };
       }
       if (d < 150 && SaveSys.data.bases[b.id]) {
-        p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);
-      }
-      // 住民(サイドクエストNPC): 基地の近くに暮らしていて、近い方を優先して話せる
-      if (d < 160 && DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) {
-        DATA.SIDEQUESTS[b.id].forEach((sq, i) => {
-          const np = sideNpcPos(b, i);
-          if (Math.hypot(p.x - np.x, p.y - np.y) < 42) {
-            const a = Quest.activeFor('side', sq.id);
-            const mark = a && a.phase === 'return' ? ' ❗報告'
-                       : a ? '(依頼進行中)'
-                       : (SaveSys.data.sideDone || {})[sq.id] ? '' : ' ❕';
-            R.interact = { type:'sidequest', id: sq.id, label: 'E: ' + sq.npcName + 'と話す' + mark };
-          }
-        });
+        p.hp = Math.min(R.stats.maxHp, p.hp + 3 * dt);   // 解放済みの村の近くは安全地帯
       }
     }
 
@@ -1919,8 +1908,6 @@ const Run = (() => {
     const it = R.interact;
     if (!it) return;
     if (it.type === 'portquest') Quest.offer('port', it.port.id);
-    else if (it.type === 'basequest') Quest.offer('base', it.base.id);
-    else if (it.type === 'sidequest') Quest.offer('side', it.id);
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
@@ -2262,35 +2249,21 @@ const Run = (() => {
     }
     for (const b of World.bases) {
       const un = SaveSys.data.bases[b.id];
-      // 集落: 街・村・城などの特色。家々と住民が暮らしている
-      Sprites.draw(g, 'ob_house', b.x - 96, b.y - 30, 52);
-      Sprites.draw(g, 'ob_house2', b.x + 92, b.y - 44, 46);
-      if (DATA.SIDEQUESTS && DATA.SIDEQUESTS[b.id]) {
-        DATA.SIDEQUESTS[b.id].forEach((sq, i) => {
-          const np = sideNpcPos(b, i);
-          const bob = Math.sin(R.time * 2 + i * 2.1) * 1.5;   // その場の生活感(ゆれ)
-          Sprites.draw(g, sq.npc, np.x, np.y + bob, 30);
-          const a = Quest.activeFor('side', sq.id);
-          const mk = a && a.phase === 'return' ? '❗' : (!a && !(SaveSys.data.sideDone || {})[sq.id] &&
-            (!sq.requiresStory || (SaveSys.data.story || {})[sq.requiresStory])) ? '❕' : '';
-          if (mk) { g.fillStyle = '#ffd766'; g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
-            g.fillText(mk, np.x, np.y - 22); }
-        });
-      }
-      Sprites.draw(g, 'ob_flag', b.x, b.y, 48);
-      if (un && DATA.QUESTS[b.id]) {
-        Sprites.draw(g, DATA.QUESTS[b.id].npc, b.x + 42, b.y + 8, 34);
-        if (DATA.QUESTS2[b.id] && !(SaveSys.data.quests2 && SaveSys.data.quests2[b.id])) {
-          g.fillStyle = '#ffd766'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
-          g.fillText('❗', b.x + 42, b.y - 16);
-        }
-      }
+      // 周回マップ上の基地は「特色に合わせた転移シンボル」だけ。
+      // 村の暮らし・住民・依頼は、転移した先の基地マップにある。
+      Sprites.draw(g, 'st_warp', b.x, b.y, 60);
+      if (b.sym) { g.font = '26px sans-serif'; g.textAlign = 'center'; g.fillText(b.sym, b.x, b.y - 34); }
       if (un) {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();
       }
-      g.fillStyle = un ? '#7ee787' : '#8b949e'; g.font = '11px sans-serif'; g.textAlign = 'center';
-      g.fillText((un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''), b.x, b.y - 32);
+      g.fillStyle = un ? '#7ee787' : '#c9d1d9'; g.font = '11px sans-serif'; g.textAlign = 'center';
+      g.fillText((un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''), b.x, b.y - 54);
+      // 中に用事(未解放クエスト・報告・住民の依頼)があれば ❗
+      if (baseHasBusiness(b)) {
+        g.fillStyle = '#ffd766'; g.font = 'bold 15px sans-serif';
+        g.fillText('❗', b.x + 30, b.y - 30);
+      }
     }
     if (p.boatAnchor) Sprites.draw(g, 'boat', p.boatAnchor.x, p.boatAnchor.y, 44);
 

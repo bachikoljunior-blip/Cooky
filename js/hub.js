@@ -125,7 +125,10 @@ const Hub = (() => {
       if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は しに戻ってから 落ち着いて行おう。'], null); return; }
       openMetaPanel(s.st, s.fac);
     }
-    else if (s.kind === 'npc') Game.npcTalk(s.base);
+    else if (s.kind === 'npc') {
+      if (!SaveSys.data.bases[s.base]) Quest.offer('base', s.base);   // 未解放: 解放依頼(受注/報告)
+      else Game.npcTalk(s.base);
+    }
     else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
     else if (s.kind === 'armory') openArmoryPanel();
     else if (s.kind === 'gate') openGatePanel();
