@@ -603,10 +603,9 @@ const Run = (() => {
     if (placed > 0) { R.warnMsg = '⚔ 敵の大群が押し寄せてくる!'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde(); }
   }
   // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる。
-  // 1波目は控えめ(以前の約1/10)。以降も同じ伸び方で1/10スケールに揃えてある。
   function startHordeEvent(){
     const min = R.time / 60;
-    const total = Math.round(4 * (1 + min * 0.25));   // 1波目は最小、時間経過で増える(全体1/10)
+    const total = Math.round(20 * (1 + min));   // 初回~45体、時間経過(分×1)でどんどん増える
     const waves = Math.min(14, 1 + Math.floor(min / 4));   // 最初は一波のみ、時間経過で波数が増える
     const perWave = Math.ceil(total / waves);
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
@@ -619,11 +618,12 @@ const Run = (() => {
   // 1波ぶんを、すぐ画面外から一斉に(rushで猛スピード突撃)
   function spawnHordeWave(wave){
     if (R.enemies.length > 1400) return;   // 安全: 過多なら間引く
-    const base = (R.offscreenR || 950) + rnd(10, 90);
+    // 回り込みのしきい値(offR+180)より内側に湧かせる(湧いた直後に再配置されない)
+    const base = (R.offscreenR || 950) + rnd(10, 80);
     let placed = 0;
     for (let i = 0; i < wave.count * 2 && placed < wave.count; i++) {
       const a = wave.dir + rnd(-0.7, 0.7);
-      const d = base + rnd(0, 140);
+      const d = base + rnd(0, 80);
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
       const key = pickEnemyKey(); if (!key) break;
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
@@ -751,10 +751,14 @@ const Run = (() => {
       // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
+      // 大群は消えず、完全に画面外へ出た(見えなくなった)瞬間に前方へ回り込む。
+      // しきい値は回り込み先(offR+30〜160)より外なので、回り込み直後に再発動しない
+      if (e.fromHorde && pd > (R.offscreenR || 500) + 180) {
+        if (relocateOffscreen(e)) continue;
+      }
       const despawnR = e.mad ? 3200 : ((R.offscreenR || 500) + 260);
       if (!e.boss && !e.def.isReaper && pd > despawnR) {
-        // 時間ごとの大群は消えず、プレイヤーの近くの画面外へ回り込んで襲い続ける
-        if (e.fromHorde && relocateOffscreen(e)) continue;
+        if (e.fromHorde && relocateOffscreen(e)) continue;   // 回り込み先が見つからなくても粘る
         if (!e.fromHorde) stampFoe(e);   // 間引く前に最後の位置をマップ情報として残す
         R.enemies.splice(i, 1); continue;
       }
@@ -1874,6 +1878,89 @@ const Run = (() => {
     return (h % 1000) / 1000;
   }
   let vignette = null;
+
+  // ---- キャラ1体ぶんの描画(Yソート描画から呼ばれる) ----
+  function drawAllyUnit(g, a){
+    if (a.waitAt) g.globalAlpha = 0.7;
+    // 攻撃モーション: 斬りかかる時は的へ踏み込み、射撃時はのけぞる反動(sinで出て戻る)
+    let ax = a.x, ay = a.y;
+    if (a.atkAnim > 0) {
+      const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
+      ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
+    }
+    // 味方は元の色を残しつつ、うっすら青みを乗せて敵と少しだけ違って見えるように(リングなし)
+    Sprites.drawTinted(g, a.def.sprite, ax, ay, a.def.r * 2.6, false, '#3d7bff', 0.3);
+    if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
+    if (a.waitAt) {
+      g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
+      g.fillText('待機中', a.x, a.y - a.def.r - 16);
+    }
+    g.globalAlpha = 1;
+  }
+
+  const RANK_COLORS = [null, '#c9d1d9', '#ffd766', '#f85149', '#c084fc'];
+  function drawEnemyUnit(g, e){
+    const p = R.player;
+    const sz = e.def.r * 2.6 * (e.sizeMul || 1);
+    // 強化ランクのオーラ(強い個体ほど禍々しい)
+    if (e.rank > 0) {
+      const rc = RANK_COLORS[e.rank];
+      g.strokeStyle = rc; g.globalAlpha = 0.55; g.lineWidth = 1.5 + e.rank;
+      g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 5, 0, 7); g.stroke();
+      if (e.rank >= 3) {
+        g.globalAlpha = 0.18; g.fillStyle = rc;
+        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 9, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
+    }
+    if (e.def.rare) {   // レアモンスターは虹色に輝く
+      g.strokeStyle = 'hsl(' + ((R.time * 240) % 360) + ',95%,65%)';
+      g.globalAlpha = 0.8; g.lineWidth = 3;
+      g.beginPath(); g.arc(e.x, e.y + 3, e.def.r + 7 + Math.sin(R.time * 6) * 2, 0, 7); g.stroke();
+      g.globalAlpha = 1;
+    }
+    if (e.flash > 0) { g.globalAlpha = 0.6; }
+    Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
+    g.globalAlpha = 1;
+    if (R.time < e.frozenUntil) {
+      g.fillStyle = 'rgba(118,227,234,.4)';
+      g.beginPath(); g.arc(e.x, e.y, e.def.r + 4, 0, 7); g.fill();
+    }
+    // HPゲージはボスも含め全モンスター共通仕様(頭上に表示。通常敵は一定幅、ボスは体の大きさぶん)
+    if (e.hp < e.maxHp) {
+      const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
+      drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12, bw, e.hp / e.maxHp, '#f85149');
+    }
+    // ボスは名前を頭上に表示
+    if (e.boss) {
+      g.fillStyle = '#ffd766'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
+      g.fillText(e.bossName || 'BOSS', e.x, e.y - e.def.r * (e.sizeMul || 1) - 18);
+    }
+    if (e.def.heal) {
+      g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
+      g.fillText('✚', e.x, e.y - e.def.r - 12);
+    }
+    if (R.time < (e.confusedUntil || 0)) {
+      g.fillStyle = '#c084fc'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
+      g.fillText('?', e.x, e.y - e.def.r - 14);
+    } else if (R.time < (e.cursedUntil || 0)) {
+      g.fillStyle = '#a78bfa'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
+      g.fillText('†', e.x, e.y - e.def.r - 14);
+    }
+  }
+
+  function drawPlayerUnit(g, p){
+    if (p.invuln > 0 && Math.floor(R.time * 12) % 2 === 0) g.globalAlpha = 0.4;
+    if (p.onBoat) Sprites.draw(g, 'boat', p.x, p.y, 52, p.dir < 0);
+    else Sprites.draw(g, 'player', p.x, p.y, 36, p.dir < 0);
+    g.globalAlpha = 1;
+    // シールド表示
+    if (R.shield.stocks > 0) {
+      g.strokeStyle = 'rgba(88,166,255,.7)'; g.lineWidth = 2 + R.shield.stocks;
+      g.beginPath(); g.arc(p.x, p.y, 24, 0, 7); g.stroke();
+    }
+  }
+
   function draw(g, W, H){
     const p = R.player;
     R.viewMin = Math.min(W, H);
@@ -2005,85 +2092,16 @@ const Run = (() => {
       Sprites.draw(g, 'sk_turret', t.x, t.y, 30);
     }
 
-    // 仲間
-    for (const a of R.allies) {
-      if (a.waitAt) g.globalAlpha = 0.7;
-      // 攻撃モーション: 斬りかかる時は的へ踏み込み、射撃時はのけぞる反動(sinで出て戻る)
-      let ax = a.x, ay = a.y;
-      if (a.atkAnim > 0) {
-        const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
-        ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
-      }
-      // 味方は元の色を残しつつ、うっすら青みを乗せて敵と少しだけ違って見えるように(リングなし)
-      Sprites.drawTinted(g, a.def.sprite, ax, ay, a.def.r * 2.6, false, '#3d7bff', 0.3);
-      if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
-      if (a.waitAt) {
-        g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
-        g.fillText('待機中', a.x, a.y - a.def.r - 16);
-      }
-      g.globalAlpha = 1;
-    }
-
-    // 敵
-    const RANK_COLORS = [null, '#c9d1d9', '#ffd766', '#f85149', '#c084fc'];
-    for (const e of R.enemies) {
-      const sz = e.def.r * 2.6 * (e.sizeMul || 1);
-      // 強化ランクのオーラ(強い個体ほど禍々しい)
-      if (e.rank > 0) {
-        const rc = RANK_COLORS[e.rank];
-        g.strokeStyle = rc; g.globalAlpha = 0.55; g.lineWidth = 1.5 + e.rank;
-        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 5, 0, 7); g.stroke();
-        if (e.rank >= 3) {
-          g.globalAlpha = 0.18; g.fillStyle = rc;
-          g.beginPath(); g.arc(e.x, e.y + 3, e.def.r * (e.sizeMul || 1) + 9, 0, 7); g.fill();
-        }
-        g.globalAlpha = 1;
-      }
-      if (e.def.rare) {   // レアモンスターは虹色に輝く
-        g.strokeStyle = 'hsl(' + ((R.time * 240) % 360) + ',95%,65%)';
-        g.globalAlpha = 0.8; g.lineWidth = 3;
-        g.beginPath(); g.arc(e.x, e.y + 3, e.def.r + 7 + Math.sin(R.time * 6) * 2, 0, 7); g.stroke();
-        g.globalAlpha = 1;
-      }
-      if (e.flash > 0) { g.globalAlpha = 0.6; }
-      Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
-      g.globalAlpha = 1;
-      if (R.time < e.frozenUntil) {
-        g.fillStyle = 'rgba(118,227,234,.4)';
-        g.beginPath(); g.arc(e.x, e.y, e.def.r + 4, 0, 7); g.fill();
-      }
-      // HPゲージはボスも含め全モンスター共通仕様(頭上に表示。通常敵は一定幅、ボスは体の大きさぶん)
-      if (e.hp < e.maxHp) {
-        const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
-        drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12, bw, e.hp / e.maxHp, '#f85149');
-      }
-      // ボスは名前を頭上に表示
-      if (e.boss) {
-        g.fillStyle = '#ffd766'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
-        g.fillText(e.bossName || 'BOSS', e.x, e.y - e.def.r * (e.sizeMul || 1) - 18);
-      }
-      if (e.def.heal) {
-        g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
-        g.fillText('✚', e.x, e.y - e.def.r - 12);
-      }
-      if (R.time < (e.confusedUntil || 0)) {
-        g.fillStyle = '#c084fc'; g.font = 'bold 14px sans-serif'; g.textAlign = 'center';
-        g.fillText('?', e.x, e.y - e.def.r - 14);
-      } else if (R.time < (e.cursedUntil || 0)) {
-        g.fillStyle = '#a78bfa'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
-        g.fillText('†', e.x, e.y - e.def.r - 14);
-      }
-    }
-
-    // プレイヤー
-    if (p.invuln > 0 && Math.floor(R.time * 12) % 2 === 0) g.globalAlpha = 0.4;
-    if (p.onBoat) Sprites.draw(g, 'boat', p.x, p.y, 52, p.dir < 0);
-    else Sprites.draw(g, 'player', p.x, p.y, 36, p.dir < 0);
-    g.globalAlpha = 1;
-    // シールド表示
-    if (R.shield.stocks > 0) {
-      g.strokeStyle = 'rgba(88,166,255,.7)'; g.lineWidth = 2 + R.shield.stocks;
-      g.beginPath(); g.arc(p.x, p.y, 24, 0, 7); g.stroke();
+    // 仲間・敵・主人公はYソートで一括描画: 手前(画面の下)にいるキャラほど上に重なる
+    const zList = [];
+    for (const a of R.allies) zList.push({ y: a.y, k: 0, u: a });
+    for (const e of R.enemies) zList.push({ y: e.y, k: 1, u: e });
+    zList.push({ y: p.y, k: 2, u: p });
+    zList.sort((A, B) => A.y - B.y);
+    for (const q of zList) {
+      if (q.k === 0) drawAllyUnit(g, q.u);
+      else if (q.k === 1) drawEnemyUnit(g, q.u);
+      else drawPlayerUnit(g, p);
     }
 
     // オービット描画
