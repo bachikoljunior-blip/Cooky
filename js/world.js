@@ -40,8 +40,8 @@ const World = (() => {
   }
 
   // ---- バイオドーム: 約5分歩くごと(≈12600px)に別のバイオドームへ入る ----
-  // 広い領域ごとに見た目のバイオームが変わり、原点から遠いバイオドームほど手に入る
-  // 素材のティアが上がる(先のバイオドームまで行かないと上位素材が採れない)。
+  // 広い領域ごとに見た目のバイオームと敵の顔ぶれ(BIOME_FAUNA)が変わる。素材の違いは
+  // 敵ごとのドロップテーブルから自然に生まれる(場所によるドロップ率の細工はしない)。
   // 境界は画一的な直線ではなく、座標をノイズでゆがめて自然な曲線にする(ドメインワープ)。
   const BIODOME_W = 12600;
   // 穏やか→過酷の順に並べたバイオーム。隣り合うバイオドームはこの並びで近いものになり、
@@ -100,18 +100,7 @@ const World = (() => {
     const c = domeCellAt(x, y);
     // 初期(原点シード)のバイオドームは必ず草原
     const biome = c.cx === ORIGIN_CX ? 'grass' : BIO_ORDER[biomeIndex(c.cx, c.cy)];
-    // 遠いバイオドームほど素材ティアが上がる(1バイオドームごとに+1、最大4)。距離は実座標基準
-    const matTier = Math.min(4, Math.floor(Math.hypot(x, y) / BIODOME_W));
-    return { biome, matTier, cx: c.cx, cy: c.cy };
-  }
-  // その場所で手に入る素材: そのバイオドームの得意素材のうち、距離ティア以下のものだけ。
-  // 空になる内側では基本素材にフォールバック(何も採れない土地を作らない)。
-  const BASE_MATS = ['jelly', 'wood', 'bone', 'hide'];
-  function biodomeMats(x, y){
-    const b = biodomeAt(x, y);
-    const bio = DATA.BIOMES[b.biome] || DATA.BIOMES.grass;
-    const out = (bio.mats || []).filter(m => (DATA.MATERIALS[m].tier || 0) <= b.matTier);
-    return out.length ? out : BASE_MATS.slice(0, 2);
+    return { biome, cx: c.cx, cy: c.cy };
   }
 
   // タイル情報: 地形タイプ + バイオーム(描画用)。バイオームはバイオドームで決まる
@@ -364,5 +353,5 @@ const World = (() => {
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
-           biodomeAt, biodomeMats };
+           biodomeAt };
 })();

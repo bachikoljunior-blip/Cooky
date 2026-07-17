@@ -261,20 +261,14 @@ const Run = (() => {
     const valueMul = (e.boss || e.def.isReaper) ? 0.9 : (0.55 + Math.random() * 0.25) * glut;
     const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * valueMul));
     dropPickup(e.x, e.y, { type:'coin', value:c });
-    // 素材ドロップ(エリアの得意素材は2倍出やすい)
-    const bmats = areaMats(e.x, e.y);
+    // 素材ドロップ: その敵自身のドロップテーブルのみ。バイオドームごとの素材の違いは
+    // 敵の顔ぶれ(BIOME_FAUNA)から自然に生まれる ― 場所によるドロップ率の細工はしない
     for (const dr of e.def.drops || []) {
       if (!Skills.matUnlocked(dr.m)) continue;
-      const boost = bmats.includes(dr.m) ? 2 : 1;
-      if (Math.random() < dr.c * st.dropMul * boost) {
+      if (Math.random() < dr.c * st.dropMul) {
         const n = Math.random() < st.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14), { type:'mat', mat:dr.m });
       }
-    }
-    // エリア固有のボーナスドロップ(欲しい素材のエリアへ遠征する価値)
-    const bpool = bmats.filter(m => Skills.matUnlocked(m));
-    if (bpool.length && Math.random() < 0.10 * st.dropMul) {
-      dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14), { type:'mat', mat: bpool[Math.floor(Math.random() * bpool.length)] });
     }
     // ポーション
     if (Math.random() < st.potion) dropPickup(e.x, e.y, { type:'potion' });
@@ -382,14 +376,6 @@ const Run = (() => {
   }
 
   function rnd(a, b){ return a + Math.random() * (b - a); }
-
-  // その座標のエリアで「よく採れる」素材リスト(海は貝殻・珊瑚)
-  // 陸はバイオドームで決まる ― 遠いバイオドームほど上位素材が採れる
-  function areaMats(x, y){
-    const ti = World.tileAt(x, y);
-    if (ti.t === 'sea' || ti.t === 'deep') return ['shell', 'coral'];
-    return World.biodomeMats(x, y);
-  }
 
   function effect(type, x, y, opt){
     if (R.effects.length > 120) R.effects.shift();
@@ -1550,8 +1536,6 @@ const Run = (() => {
       R.objsDestroyed++;
       const drops = World.objectDrops(o.type, Skills.matUnlocked);
       if (drops.length && Math.random() < R.stats.salvage) drops.push(drops[0]);   // 解体術: 追加素材
-      const opool = areaMats(o.x, o.y).filter(m => Skills.matUnlocked(m));
-      if (opool.length && Math.random() < 0.3) drops.push(opool[Math.floor(Math.random() * opool.length)]);
       for (const m of drops) {
         if (Math.random() >= R.stats.dropMul) continue;   // オブジェクトのドロップ率も dropMul(初期1/5)を反映
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
@@ -1821,12 +1805,16 @@ const Run = (() => {
       R.curBiome = L ? bd.biome : 'sea';
       if (cid !== R.curCont) {
         R.curCont = cid;
+        // 表示する素材はその土地の敵(fauna)のドロップテーブル由来 ― 実際に出るものだけ
+        const faunaMats = (keys) => [...new Set(keys.flatMap(k => (DATA.ENEMIES[k].drops || []).map(d => d.m)))]
+          .filter(m => Skills.matUnlocked(m)).slice(0, 4).map(m => DATA.MATERIALS[m].name).join('・');
         if (L) {
           const bio = DATA.BIOMES[bd.biome] || DATA.BIOMES.grass;
-          const mm = World.biodomeMats(p.x, p.y).filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
-          R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' よく採れる: ' + mm : '');
+          const mm = faunaMats(DATA.BIOME_FAUNA[bd.biome] || []);
+          R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
         } else {
-          R.warnMsg = '― 海域 ― よく採れる: ' + ['shell','coral'].filter(m => Skills.matUnlocked(m)).map(m => DATA.MATERIALS[m].name).join('・');
+          const mm = faunaMats(DATA.SEA_FAUNA || []);
+          R.warnMsg = '― 海域 ―' + (mm ? ' 出る素材: ' + mm : '');
         }
         R.warnColor = '#a5d8ff';
         R.warnT = 4;
