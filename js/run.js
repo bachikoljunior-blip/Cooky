@@ -555,8 +555,12 @@ const Run = (() => {
     let r = Math.random() * tw, pick = pool[0].k;
     for (const q of pool) { r -= q.w; if (r <= 0) { pick = q.k; break; } }
     if (Math.random() < 0.006) return 'rainbow';   // レアモンスター
-    const qe = Quest.wantSpawn();   // 討伐クエスト中は対象が湧きやすい
-    if (qe && Math.random() < 0.35 && R.enemies.filter(e => e.defKey === qe).length < 6) return qe;
+    // 討伐クエスト中は対象が湧きやすい(全対象からランダム。土地の顔ぶれに無い敵でも必ず出る)
+    const qts = Quest.wantSpawn();
+    if (qts && Math.random() < 0.35) {
+      const qe = qts[Math.floor(Math.random() * qts.length)];
+      if (R.enemies.filter(e => e.defKey === qe).length < 6) return qe;
+    }
     return pick;
   }
   // 画面の外(確実に見えない位置)を返す
@@ -718,14 +722,14 @@ const Run = (() => {
       if (tot > 0) nearTarget = Math.round(nearTarget * (1 - clr / tot));
     }
     R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
-    const questTgt = Quest.wantSpawn();   // 討伐依頼中の対象は向かってくる(達成しやすく)
+    const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (nearN >= nearTarget || R.enemies.length >= 900) break;
       if (Math.random() < 0.12) { spawnHerd(false); nearN += 5; }   // 時々、群れ(まとまってうろつく)
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
-      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: k === questTgt, dist: offR + rnd(15, 240), ambient: true })) nearN++; }
+      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: questTgts.includes(k), dist: offR + rnd(15, 240), ambient: true })) nearN++; }
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 

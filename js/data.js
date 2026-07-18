@@ -549,29 +549,23 @@ DATA.BOSSES = [
 //   → 第2環(~26,000) → 第3環(~52,000) → 最果て(~80,000)
 // 遠環は死に戻り強化(健脚・帆・ワープゲート)を重ねないと到達できない距離
 // biome=見た目, lobes=岬の数, amp=海岸線の凹凸, sx/sy=伸縮(多様な形)
+// 陸地は大小さまざま。大きな大陸には複数の拠点があり、
+// 一つしか拠点のない陸地(小島・遠環の特別な地)は例外的な存在。
+// バイオドーム(約1分ごとの環境変化)と危険度(距離リング)は大陸と独立に保たれる。
 DATA.CONTINENTS = [
   { id:'main',  x:0,       y:0,       r:26000, seed:11,  name:'始まりの大陸', biome:'grass',  lobes:5, amp:0.22, sx:1.15, sy:0.95 },
-  // --- 第1環 ---
-  { id:'east',  x:105000,  y:8000,    r:21000, seed:23,  name:'竜骨の大陸',   biome:'volcano', lobes:7, amp:0.30, sx:1.5,  sy:0.75 },
-  { id:'west',  x:-102000, y:-9000,   r:21000, seed:37,  name:'黄昏の大陸',   biome:'twilight',lobes:4, amp:0.28, sx:0.8,  sy:1.35 },
-  { id:'north', x:9000,    y:-106000, r:20000, seed:41,  name:'星降りの大陸', biome:'frost',   lobes:6, amp:0.33, sx:1.2,  sy:1.0 },
-  { id:'south', x:-7000,   y:104000,  r:20000, seed:53,  name:'深緑の大陸',   biome:'jungle',  lobes:8, amp:0.26, sx:1.0,  sy:1.25 },
-  { id:'ne',    x:78000,   y:-76000,  r:15000, seed:67,  name:'白亜の島',     biome:'chalk',   lobes:3, amp:0.35, sx:1.3,  sy:0.8 },
-  { id:'sw',    x:-75000,  y:79000,   r:15000, seed:71,  name:'黒曜の島',     biome:'obsidian',lobes:5, amp:0.38, sx:0.85, sy:1.2 },
-  // --- 中間の小島(航海の中継地) ---
-  { id:'i_mist',  x:170000,  y:-52000,  r:10000, seed:83,  name:'霧の小島',       biome:'mist',   lobes:4, amp:0.3 },
-  { id:'i_bones', x:-166000, y:63000,   r:10000, seed:89,  name:'骨の小島',       biome:'bones',  lobes:6, amp:0.35 },
-  { id:'i_ember', x:56000,   y:174000,  r:10000, seed:97,  name:'燃えさしの小島', biome:'volcano',lobes:5, amp:0.32 },
-  { id:'i_frost', x:-61000,  y:-168000, r:10000, seed:101, name:'霜の小島',       biome:'frost',  lobes:4, amp:0.3 },
-  // --- 第2環(初期大陸から2つ離れた大陸) ---
-  { id:'r2_forge', x:265000,  y:40000,   r:24000, seed:103, name:'鍛冶神の大陸', biome:'magma',  lobes:9, amp:0.34, sx:1.4, sy:0.85 },
-  { id:'r2_moon',  x:-258000, y:-50000,  r:24000, seed:107, name:'月影の大陸',   biome:'moon',   lobes:5, amp:0.3,  sx:0.9, sy:1.3 },
-  { id:'r2_storm', x:46000,   y:-266000, r:23000, seed:109, name:'嵐の大陸',     biome:'storm',  lobes:7, amp:0.36, sx:1.25, sy:0.9 },
-  { id:'r2_grave', x:-42000,  y:262000,  r:23000, seed:113, name:'墓標の大陸',   biome:'makai',  lobes:6, amp:0.33, sx:1.1, sy:1.1 },
-  // --- 第3環 ---
-  { id:'r3_sun',  x:525000,  y:-80000, r:28000, seed:127, name:'太陽の大陸', biome:'desert', lobes:4, amp:0.3, sx:1.6, sy:0.8 },
-  { id:'r3_void', x:-516000, y:90000,  r:28000, seed:131, name:'虚無の大陸', biome:'void',   lobes:8, amp:0.4, sx:0.9, sy:1.4 },
-  // --- 最果て ---
+  // --- 大きな大陸(拠点が複数ある) ---
+  { id:'east',  x:190000,  y:-10000,  r:72000, seed:23,  name:'竜骨の大陸',   biome:'volcano', lobes:8, amp:0.24, sx:1.45, sy:0.9 },
+  { id:'west',  x:-160000, y:10000,   r:62000, seed:37,  name:'黄昏の大陸',   biome:'twilight',lobes:7, amp:0.26, sx:1.5,  sy:0.85 },
+  { id:'north', x:25000,   y:-170000, r:64000, seed:41,  name:'星嵐の大陸',   biome:'frost',   lobes:6, amp:0.28, sx:0.95, sy:1.5 },
+  { id:'south', x:-30000,  y:175000,  r:60000, seed:53,  name:'深緑の大陸',   biome:'jungle',  lobes:9, amp:0.26, sx:1.05, sy:1.4 },
+  // --- 小島(一拠点だけの特別な土地) ---
+  { id:'i_mist',  x:140000, y:-115000, r:10000, seed:83,  name:'霧の小島',       biome:'mist',   lobes:4, amp:0.3 },
+  { id:'i_ember', x:70000,  y:170000,  r:11000, seed:97,  name:'燃えさしの小島', biome:'volcano',lobes:5, amp:0.32 },
+  { id:'i_frost', x:-70000, y:-155000, r:9000,  seed:101, name:'霜の小島',       biome:'frost',  lobes:4, amp:0.3 },
+  // --- 遠環の大陸(一つの拠点だけが立つ、特別な地) ---
+  { id:'r3_sun',  x:525000,  y:-80000, r:38000, seed:127, name:'太陽の大陸', biome:'desert', lobes:4, amp:0.3, sx:1.6, sy:0.8 },
+  { id:'r3_void', x:-516000, y:90000,  r:34000, seed:131, name:'虚無の大陸', biome:'void',   lobes:8, amp:0.4, sx:0.9, sy:1.4 },
   { id:'r4_end',  x:2000, y:-805000, r:32000, seed:137, name:'最果ての大陸', biome:'end', lobes:10, amp:0.42, sx:1.2, sy:1.0 },
 ];
 
@@ -597,29 +591,31 @@ DATA.BIOMES = {
 
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
-  // 初期大陸(最初の目標。足が遅いうちはここまでも命がけ)
+  // 始まりの大陸(最初の目標。足が遅いうちはここまでも命がけ)
   { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村', spr:'base_fort' },
   { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy' },
   { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring' },
   { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge' },
-  // 第1環
-  { id:'b_dragon',name:'竜骨の前哨', x:105000,  y:8000,    cont:'east', kind:'狩人の集落', spr:'base_lodge' },
-  { id:'b_dusk',  name:'黄昏の前哨', x:-102000, y:-9000,   cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
-  { id:'b_star',  name:'星降りの祭壇', x:9000,  y:-106000, cont:'north', kind:'星見の村', spr:'base_star' },
-  { id:'b_green', name:'深緑の社',   x:-7000,   y:104000,  cont:'south', kind:'森の集落', spr:'base_grove' },
-  { id:'b_white', name:'白亜の灯台', x:78000,   y:-76000,  cont:'ne', kind:'港街', spr:'base_port' },
-  { id:'b_black', name:'黒曜の祠',   x:-75000,  y:79000,   cont:'sw', kind:'祠の村', spr:'base_shrine' },
-  // 中間の小島
-  { id:'b_mist',  name:'霧の観測所', x:170000,  y:-52000,  cont:'i_mist', kind:'観測の村', spr:'base_mist' },
-  { id:'b_bones', name:'骨の祭場',   x:-166000, y:63000,   cont:'i_bones', kind:'野営地', spr:'base_camp' },
-  { id:'b_ember', name:'燃えさしの炉', x:56000, y:174000,  cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
-  { id:'b_frost', name:'霜の祠',     x:-61000,  y:-168000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
-  // 第2環
-  { id:'b_forge', name:'鍛冶神の工房', x:265000,  y:40000,   cont:'r2_forge', kind:'工房都市', spr:'base_factory' },
-  { id:'b_moon',  name:'月影の社',   x:-258000, y:-50000,  cont:'r2_moon', kind:'月の修道院', spr:'base_abbey' },
-  { id:'b_storm', name:'嵐の塔',     x:46000,   y:-266000, cont:'r2_storm', kind:'塔の街', spr:'base_tower' },
-  { id:'b_grave', name:'墓標の祭壇', x:-42000,  y:262000,  cont:'r2_grave', kind:'弔いの村', spr:'base_grave' },
-  // 第3環
+  // 竜骨の大陸(東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
+  { id:'b_dragon',name:'竜骨の前哨', x:120000,  y:-5000,  cont:'east', kind:'狩人の集落', spr:'base_lodge' },
+  { id:'b_white', name:'白亜の灯台', x:180000,  y:-50000, cont:'east', kind:'港街', spr:'base_port' },
+  { id:'b_forge', name:'鍛冶神の工房', x:260000, y:-5000,  cont:'east', kind:'工房都市', spr:'base_factory' },
+  // 黄昏の大陸(西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
+  { id:'b_dusk',  name:'黄昏の前哨', x:-105000, y:5000,   cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
+  { id:'b_black', name:'黒曜の祠',   x:-130000, y:38000,  cont:'west', kind:'祠の村', spr:'base_shrine' },
+  { id:'b_bones', name:'骨の祭場',   x:-190000, y:30000,  cont:'west', kind:'野営地', spr:'base_camp' },
+  { id:'b_moon',  name:'月影の社',   x:-220000, y:5000,   cont:'west', kind:'月の修道院', spr:'base_abbey' },
+  // 星嵐の大陸(北の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
+  { id:'b_star',  name:'星降りの祭壇', x:15000, y:-110000, cont:'north', kind:'星見の村', spr:'base_star' },
+  { id:'b_storm', name:'嵐の塔',     x:30000,   y:-230000, cont:'north', kind:'塔の街', spr:'base_tower' },
+  // 深緑の大陸(南の縦長の大陸): 北岸の社から南端の弔いの村まで
+  { id:'b_green', name:'深緑の社',   x:-15000,  y:120000,  cont:'south', kind:'森の集落', spr:'base_grove' },
+  { id:'b_grave', name:'墓標の祭壇', x:-45000,  y:230000,  cont:'south', kind:'弔いの村', spr:'base_grave' },
+  // 小島(一拠点だけの特別な土地)
+  { id:'b_mist',  name:'霧の観測所', x:140000,  y:-115000, cont:'i_mist', kind:'観測の村', spr:'base_mist' },
+  { id:'b_ember', name:'燃えさしの炉', x:70000, y:170000,  cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
+  { id:'b_frost', name:'霜の祠',     x:-70000,  y:-155000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
+  // 遠環の特別な地(一拠点のみ)
   { id:'b_sun',   name:'太陽の神殿', x:525000,  y:-80000,  cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
   { id:'b_void',  name:'虚無の門',   x:-516000, y:90000,   cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
   // 最果て
@@ -928,7 +924,7 @@ DATA.SIDEQUESTS = {
     { id:'sq_ryu', npc:'npc_sage', npcName:'語り部リュウ', type:'hunt', enemy:'lizard', count:8,
       requiresStory:'east_engine', lockedLine:'…よそ者に語る話はない。東の遺跡のゲートに導かれて来たのなら、話は別じゃがな。',
       intro:['東の遺跡のゲートが、この大陸を指し示したのじゃろう?ならば語ろう…この大陸の竜は、霧の彼方から来た。','だがリザードマンどもが語りの場を荒らす。8体、鎮めてくれ。'],
-      done:['静けさが戻った…では約束の続きを。竜が来た「霧の彼方」――','北東の海に霧に包まれた小島がある。「霧の観測所」という村があると聞く。地図に記そう。'],
+      done:['静けさが戻った…では約束の続きを。竜が来た「霧の彼方」――','北の海に霧に包まれた小島がある。「霧の観測所」という村があると聞く。地図に記そう。'],
       reward:{ coins:150, hintBase:'b_mist', story:'dragon_tale' } },
     { id:'sq_gai', npc:'npc_miner', npcName:'狩人ガイ', type:'hunt', enemy:'lizard', count:3, minRank:1,
       intro:['狩人の掟を教えてやる。「金は挑め、紅は退け、紫は語るな」。','長く生きて土地の力を吸った魔物は色を変える。姿は同じでも、中身は別物だ。相棒は紅鱗にやられた。','だが集落を守るにゃ、誰かが狩らなきゃならん。色付きのリザードマンを3体だ。','言っとくが、普通の鱗は数に入らんぞ。色を変えた奴だけだ。'],
@@ -939,34 +935,34 @@ DATA.SIDEQUESTS = {
     { id:'sq_mio', npc:'npc_scholar', npcName:'観測手ミオ', type:'hunt', enemy:'wisp', count:10,
       requiresStory:'dragon_tale', lockedLine:'…霧が濃くてね。竜の伝承を知る人にしか、観測結果は渡せない決まりなの。',
       intro:['ここは霧を観測する村。最近、霧の向こうに光が見えるの。','でもウィスプが観測器に群がって…10体お願い。'],
-      done:['観測できた!あの光は北東の「白亜の灯台」…港街の灯りよ。','地図に描いておくわね。'],
+      done:['観測できた!南東に見えるあの灯り…「白亜の灯台」。竜骨の大陸の港街の灯りよ。','地図に描いておくわね。'],
       reward:{ coins:180, hintBase:'b_white', story:'mist_light' } },
   ],
   b_white: [
     { id:'sq_jiji', npc:'npc_sailor', npcName:'灯台守ジジ', type:'delivery', need:{ mats:{ shell:8 } },
       requiresStory:'mist_light', lockedLine:'灯りを見たって?…ふん、観測の村の紹介がなけりゃ話すことはねえ。',
       intro:['この港街の灯台はワシが守っとる。レンズ磨きに貝殻の粉がいるんじゃ。','貝殻8つ、持ってきてくれんか。'],
-      done:['よし、灯りが強くなった。東の沖まで照らせるぞ。','…見えるか?あの水平線の炎。ありゃ「鍛冶神の工房都市」の炉の火じゃ。地図に記す。'],
+      done:['よし、灯りが強くなった。沖の果てまで照らせるぞ。','…見えるか?東の地平に赤く揺れる明かり。ありゃ「鍛冶神の工房都市」の炉の火じゃ。','この大陸の東の果てにある。地図に記す。'],
       reward:{ coins:250, hintBase:'b_forge', story:'white_beam' } },
   ],
   b_dusk: [
     { id:'sq_sora', npc:'npc_girl', npcName:'吟遊詩人ソラ', type:'hunt', enemy:'bat', count:10,
       intro:['この里は詩人の隠れ里。でもコウモリがうるさくて歌えないの。','10体しずめて。歌でお礼するから。'],
-      done:['ありがとう。お礼に、歌をひとつ。「南の海の黒曜の祠は、扉を開く詩を待つ」…','祠の扉を開ける合言葉の詩よ。祠の場所、地図に描いておくね。'],
+      done:['ありがとう。お礼に、歌をひとつ。「南西の岬の黒曜の祠は、扉を開く詩を待つ」…','祠の扉を開ける合言葉の詩よ。祠の場所、地図に描いておくね。'],
       reward:{ coins:150, hintBase:'b_black', story:'dusk_song' } },
   ],
   b_black: [
     { id:'sq_kage', npc:'npc_sage', npcName:'祠守カゲ', type:'delivery', need:{ mats:{ scrap:12 } },
       requiresStory:'dusk_song', lockedLine:'…扉を開く詩を知らぬ者に、祠は開かれぬ。黄昏の里の詩人なら、知っておろうがな。',
       intro:['詩を聞いてきたか。ならば手伝え。祠を守る魔物よけの囲い…結界が破れておる。','芯に使う鉄クズを12、持ってきてくれ。'],
-      done:['結界は戻った。礼に祠の記録を見せよう。','…西の海の彼方、「骨の祭場」。死者の民が集う野営地だ。地図に記した。'],
+      done:['結界は戻った。礼に祠の記録を見せよう。','…ここから西へ、荒野を越えた先の「骨の祭場」。死者の民が集う野営地だ。地図に記した。'],
       reward:{ coins:200, hintBase:'b_bones', story:'black_rite' } },
   ],
   b_bones: [
     { id:'sq_garga', npc:'npc_miner', npcName:'族長ガルガ', type:'hunt', enemy:'skeleton', count:12,
       requiresStory:'black_rite', lockedLine:'よそ者に骨の掟は語らん。黒曜の祠の結界を直した者なら、別だがな。',
       intro:['ここは骨の民の野営地。だが最近、掟を破った骸骨どもが暴れる。','12体、眠らせてやってくれ。'],
-      done:['これで祖霊も静かになる。礼だ、北の空を見ろ。','…月だ。月影の大陸に「月影の社」…月の修道院がある。地図に描いた。'],
+      done:['これで祖霊も静かになる。礼だ、北西の空を見ろ。','…月だ。あの月の真下に「月影の社」…月の修道院がある。地図に描いた。'],
       reward:{ coins:280, hintBase:'b_moon', story:'bones_rite' } },
   ],
   b_green: [
@@ -979,21 +975,21 @@ DATA.SIDEQUESTS = {
     { id:'sq_popo', npc:'npc_boy', npcName:'火の子ポポ', type:'hunt', enemy:'lavaslime', count:8,
       requiresStory:'green_seed', lockedLine:'よそのひとには話しちゃだめって長老が言ってた。森の社のひとならいいけど…',
       intro:['ぼくたち火の民!でもラヴァスライムが炉に飛び込んで火が汚れるの。','8体おねがい!'],
-      done:['やった〜!長老がね、西の大陸の「墓標の祭壇」の話をしてたよ。','弔いの村があるんだって。地図にかいてあげる!'],
+      done:['やった〜!長老がね、南西の大陸の「墓標の祭壇」の話をしてたよ。','深緑の大陸のいちばん南にある、弔いの村なんだって。地図にかいてあげる!'],
       reward:{ coins:220, hintBase:'b_grave', story:'ember_flame' } },
   ],
   b_star: [
     { id:'sq_nono', npc:'npc_boy', npcName:'星見の子ノノ', type:'hunt', enemy:'wisp', count:8,
       requiresStory:'east_astro', lockedLine:'星の話は、学術都市の天文資料を読んだ人としかしないんだ。',
       intro:['星がきれいでしょ、ここは星見の村。','でもウィスプの光が邪魔で星が見えない…8体消して?'],
-      done:['星が戻った!見て、あの南西の白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。氷の隠れ里だよ。地図にかくね。'],
+      done:['星が戻った!見て、あの北西の沖に光る白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。小島の氷の隠れ里だよ。地図にかくね。'],
       reward:{ coins:180, hintBase:'b_frost', story:'star_sign' } },
   ],
   b_frost: [
     { id:'sq_fuyu', npc:'npc_elder', npcName:'長老フユ', type:'hunt', enemy:'iceslime', count:10,
       requiresStory:'star_sign', lockedLine:'…氷の里は星の導きで来た者だけを客と認める。',
       intro:['星の導きで来たか。ならば頼みがある。氷が汚れておっての。','アイススライムを10体、清めてくれ。'],
-      done:['氷が澄んだ…礼に古い言い伝えを。「北の海の雷鳴は嵐の塔の鐘の音」。','塔の街が嵐の大陸にある。地図に記そう。'],
+      done:['氷が澄んだ…礼に古い言い伝えを。「北東の海の雷鳴は嵐の塔の鐘の音」。','星嵐の大陸の北の果てに、塔の街がある。地図に記そう。'],
       reward:{ coins:260, hintBase:'b_storm', story:'frost_gate' } },
   ],
   b_forge: [
@@ -1007,14 +1003,14 @@ DATA.SIDEQUESTS = {
     { id:'sq_luna', npc:'npc_miko', npcName:'修道女ルナ', type:'hunt', enemy:'shade', count:10,
       requiresStory:'bones_rite', lockedLine:'…骨の民の祈りを知らぬ方に、月の祈りは届きません。',
       intro:['ここは月の修道院。夜ごとシェイドが祈りを乱すのです。','10体、鎮めていただけますか。'],
-      done:['月光が戻りました…祈りの中で視えたのです。','南の大陸の「墓標の祭壇」に、大きな悲しみが集っている、と。','…それと、これは修道院からの忠告です。書庫の写本の中には、私たちが「禁じ手」と呼ぶ危うい術も混ざっています。','力を求めすぎた魂は、色が変わってしまう。長く生きて色を変えた魔物と、同じように。','使うなとは申しません。ただ…呑まれませぬよう。'],
+      done:['月光が戻りました…祈りの中で視えたのです。','遥か南東の「墓標の祭壇」に、大きな悲しみが集っている、と。','…それと、これは修道院からの忠告です。書庫の写本の中には、私たちが「禁じ手」と呼ぶ危うい術も混ざっています。','力を求めすぎた魂は、色が変わってしまう。長く生きて色を変えた魔物と、同じように。','使うなとは申しません。ただ…呑まれませぬよう。'],
       reward:{ coins:350, story:'moon_prayer' } },
   ],
   b_storm: [
     { id:'sq_rai', npc:'npc_smith', npcName:'塔守ライ', type:'delivery', need:{ mats:{ scrap:15 } },
       requiresStory:'frost_gate', lockedLine:'嵐の塔は氷の里の客人しか入れん決まりだ。',
       intro:['この塔は嵐を鎮める鐘楼だ。避雷針が折れちまってな。','鉄クズ15、頼めるか。'],
-      done:['鐘が鳴る…嵐が晴れるぞ。晴れた空の南、遥か彼方に見えるだろう。','「太陽の神殿都市」だ。地図に記す。'],
+      done:['鐘が鳴る…嵐が晴れるぞ。晴れた空の東、遥か彼方に見えるだろう。','「太陽の神殿都市」だ。地図に記す。'],
       reward:{ coins:500, hintBase:'b_sun', story:'storm_key' } },
   ],
   b_grave: [

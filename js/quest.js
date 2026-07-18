@@ -313,10 +313,12 @@ const Quest = (() => {
     if (persistNeeded) persist();
   }
 
-  // 討伐依頼中は対象の敵が近くに湧きやすくなる(進行中の討伐依頼の対象)
+  // 討伐依頼中は対象の敵が近くに湧きやすくなる。
+  // 進行中の「全ての」討伐対象を返す ― どの土地でも対象が出現しない事態を防ぐ
+  // (通常の湧きはバイオドームの顔ぶれだが、依頼対象はそれを飛び越えて混ざる)。
   function wantSpawn(){
-    const a = actives.find(a => a.phase === 'go' && a.def.type === 'hunt');
-    return a ? a.def.enemy : null;
+    const list = actives.filter(a => a.phase === 'go' && a.def.type === 'hunt').map(a => a.def.enemy);
+    return list.length ? list : null;
   }
 
   function _forceReturn(kind, id){ const a = kind ? activeFor(kind, id) : actives[0]; if (a) { a.phase = 'return'; persist(); } }
