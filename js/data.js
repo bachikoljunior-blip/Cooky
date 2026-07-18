@@ -552,37 +552,45 @@ DATA.BOSSES = [
 // 陸地は大小さまざま。大きな大陸には複数の拠点があり、
 // 一つしか拠点のない陸地(小島・遠環の特別な地)は例外的な存在。
 // バイオドーム(約1分ごとの環境変化)と危険度(距離リング)は大陸と独立に保たれる。
+// 実際の大陸のパターンを模す: 質量の偏り(taper)+大きなうねり+フラクタルな細部、
+// 配置は対称な十字ではなく風車状にずらす。始まりの大陸は世界地図のど真ん中でも端でもない。
 DATA.CONTINENTS = [
   // 南に泉の入り江、北西に岬を持つ五葉の島
   { id:'main',  x:0, y:0, r:26000, seed:11, name:'始まりの大陸', biome:'grass', lobes:5, amp:0.22, sx:1.15, sy:0.95,
+    taper:{ a:1.7, d:0.08 },
     coast:[{ a:1.72, w:0.4, d:-0.24 }, { a:-2.2, w:0.35, d:0.2 }] },
   // --- 大きな大陸(拠点が複数ある) ---
-  // 竜骨: 北東へ傾いた竜のような形。東端に尻尾の岬、南に大きく抉れた湾
-  { id:'east',  x:185000, y:-30000, r:70000, seed:23, name:'竜骨の大陸', biome:'volcano', lobes:8, amp:0.24, sx:1.4, sy:0.85, rot:-0.25,
-    coast:[{ a:1.6, w:0.5, d:-0.3 }, { a:0.1, w:0.25, d:0.3 }, { a:-1.9, w:0.3, d:0.18 }] },
-  // 黄昏: 北に深い湾が食い込む三日月寄りの形。南に黒曜の岬
-  { id:'west',  x:-165000, y:25000, r:58000, seed:37, name:'黄昏の大陸', biome:'twilight', lobes:7, amp:0.26, sx:1.5, sy:0.9, rot:0.2,
-    coast:[{ a:-1.4, w:0.5, d:-0.32 }, { a:1.2, w:0.3, d:0.2 }] },
-  // 星嵐: 縦に長く、北端に嵐の塔が立つ半島が突き出す。西は霜の小島側へ湾
-  { id:'north', x:35000, y:-175000, r:62000, seed:41, name:'星嵐の大陸', biome:'frost', lobes:6, amp:0.28, sx:0.95, sy:1.5, rot:0.15,
-    coast:[{ a:-1.45, w:0.4, d:0.22 }, { a:2.9, w:0.5, d:-0.3 }] },
-  // 深緑: 東に河口のような深い湾、南西へ膨らむ広葉の形
-  { id:'south', x:-40000, y:180000, r:58000, seed:53, name:'深緑の大陸', biome:'jungle', lobes:9, amp:0.26, sx:1.05, sy:1.45, rot:-0.15,
-    coast:[{ a:-0.1, w:0.4, d:-0.3 }, { a:2.3, w:0.35, d:0.2 }] },
+  // 竜骨: 東北東に浮かぶ。西が広く、東へ尻尾のように細く伸びる竜の形
+  { id:'east',  x:185000, y:-55000, r:70000, seed:23, name:'竜骨の大陸', biome:'volcano', lobes:8, amp:0.22, sx:1.4, sy:0.8, rot:-0.35,
+    taper:{ a:Math.PI, d:0.12 },
+    coast:[{ a:1.6, w:0.5, d:-0.28 }, { a:0.1, w:0.22, d:0.34 }, { a:-1.9, w:0.3, d:0.16 }] },
+  // 黄昏: 西南西に浮かぶ。北に深い湾が食い込む三日月寄りの形。南に黒曜の岬
+  { id:'west',  x:-150000, y:38000, r:58000, seed:37, name:'黄昏の大陸', biome:'twilight', lobes:7, amp:0.24, sx:1.5, sy:0.85, rot:0.3,
+    taper:{ a:0.3, d:0.1 },
+    coast:[{ a:-1.4, w:0.5, d:-0.3 }, { a:1.2, w:0.25, d:0.1 }] },
+  // 星嵐: 北北東に浮かぶ縦長の大陸。北が広く南へ細り、北端の半島に嵐の塔
+  { id:'north', x:50000, y:-178000, r:62000, seed:41, name:'星嵐の大陸', biome:'frost', lobes:6, amp:0.26, sx:0.9, sy:1.5, rot:0.1,
+    taper:{ a:-1.5, d:0.11 },
+    coast:[{ a:-1.45, w:0.4, d:0.22 }, { a:2.9, w:0.5, d:-0.28 }] },
+  // 深緑: 南南西に浮かぶ。東に河口のような深い湾、南西へ膨らむ広葉の形
+  { id:'south', x:-45000, y:192000, r:58000, seed:53, name:'深緑の大陸', biome:'jungle', lobes:9, amp:0.24, sx:1.1, sy:1.4, rot:-0.25,
+    taper:{ a:2.0, d:0.1 },
+    coast:[{ a:0.75, w:0.35, d:-0.28 }, { a:2.3, w:0.35, d:0.2 }] },
   // --- 小島(一拠点だけの特別な土地) ---
-  { id:'i_mist',  x:145000, y:-120000, r:10000, seed:83,  name:'霧の小島',       biome:'mist',    lobes:3, amp:0.45, sx:1.3, sy:0.7, rot:0.6 },
-  { id:'i_ember', x:72000,  y:168000,  r:11000, seed:97,  name:'燃えさしの小島', biome:'volcano', lobes:6, amp:0.2,
+  { id:'i_mist',  x:150000, y:-135000, r:10000, seed:83,  name:'霧の小島',       biome:'mist',    lobes:3, amp:0.45, sx:1.3, sy:0.7, rot:0.6 },
+  { id:'i_ember', x:58000,  y:200000,  r:11000, seed:97,  name:'燃えさしの小島', biome:'volcano', lobes:6, amp:0.2,
     coast:[{ a:1.5, w:0.4, d:0.3 }] },   // 南へ溶岩流の舌
-  { id:'i_frost', x:-65000, y:-150000, r:9000,  seed:101, name:'霜の小島',       biome:'frost',   lobes:5, amp:0.3, sx:0.55, sy:1.5, rot:-0.5 },
+  { id:'i_frost', x:-48000, y:-158000, r:9000,  seed:101, name:'霜の小島',       biome:'frost',   lobes:5, amp:0.3, sx:0.55, sy:1.5, rot:-0.5 },
   // --- 遠環の大陸(一つの拠点だけが立つ、特別な地) ---
-  // 太陽: 横に広い平らな砂の大地。北に湾
-  { id:'r3_sun',  x:530000, y:-95000, r:38000, seed:127, name:'太陽の大陸', biome:'desert', lobes:3, amp:0.18, sx:1.9, sy:0.55,
+  // 太陽: 横に広い平らな砂の大地。北に湾、西へ細る
+  { id:'r3_sun',  x:565000, y:-130000, r:38000, seed:127, name:'太陽の大陸', biome:'desert', lobes:3, amp:0.16, sx:1.9, sy:0.55,
+    taper:{ a:0, d:0.1 },
     coast:[{ a:-1.57, w:0.5, d:-0.25 }] },
   // 虚無: 対角に深い湾が食い込む、砕けかけた砂時計のような形
-  { id:'r3_void', x:-520000, y:70000, r:34000, seed:131, name:'虚無の大陸', biome:'void', lobes:9, amp:0.5, sx:0.9, sy:1.4, rot:0.8,
+  { id:'r3_void', x:-470000, y:155000, r:34000, seed:131, name:'虚無の大陸', biome:'void', lobes:9, amp:0.5, sx:0.9, sy:1.4, rot:0.8,
     coast:[{ a:0.4, w:0.35, d:-0.4 }, { a:0.4 + Math.PI, w:0.35, d:-0.4 }] },
   // 最果て: 牙のように尖った海岸線
-  { id:'r4_end',  x:12000, y:-800000, r:32000, seed:137, name:'最果ての大陸', biome:'end', lobes:12, amp:0.5, sx:1.2, sy:1.0,
+  { id:'r4_end',  x:62000, y:-783000, r:32000, seed:137, name:'最果ての大陸', biome:'end', lobes:12, amp:0.5, sx:1.2, sy:1.0,
     coast:[{ a:-1.57, w:0.3, d:0.3 }] },
 ];
 
@@ -613,30 +621,30 @@ DATA.BASES = [
   { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy' },
   { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring' },
   { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge' },
-  // 竜骨の大陸(東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
-  { id:'b_dragon',name:'竜骨の前哨', x:115000,  y:-12000, cont:'east', kind:'狩人の集落', spr:'base_lodge' },
-  { id:'b_white', name:'白亜の灯台', x:190000,  y:-55000, cont:'east', kind:'港街', spr:'base_port' },
-  { id:'b_forge', name:'鍛冶神の工房', x:250000, y:-35000, cont:'east', kind:'工房都市', spr:'base_factory' },
-  // 黄昏の大陸(西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
-  { id:'b_dusk',  name:'黄昏の前哨', x:-108000, y:8000,   cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
-  { id:'b_black', name:'黒曜の祠',   x:-138000, y:52000,  cont:'west', kind:'祠の村', spr:'base_shrine' },
-  { id:'b_bones', name:'骨の祭場',   x:-195000, y:40000,  cont:'west', kind:'野営地', spr:'base_camp' },
-  { id:'b_moon',  name:'月影の社',   x:-225000, y:8000,   cont:'west', kind:'月の修道院', spr:'base_abbey' },
-  // 星嵐の大陸(北の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
-  { id:'b_star',  name:'星降りの祭壇', x:20000, y:-112000, cont:'north', kind:'星見の村', spr:'base_star' },
-  { id:'b_storm', name:'嵐の塔',     x:45000,   y:-235000, cont:'north', kind:'塔の街', spr:'base_tower' },
-  // 深緑の大陸(南の縦長の大陸): 北岸の社から南端の弔いの村まで
-  { id:'b_green', name:'深緑の社',   x:-18000,  y:122000,  cont:'south', kind:'森の集落', spr:'base_grove' },
-  { id:'b_grave', name:'墓標の祭壇', x:-60000,  y:238000,  cont:'south', kind:'弔いの村', spr:'base_grave' },
+  // 竜骨の大陸(東北東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
+  { id:'b_dragon',name:'竜骨の前哨', x:130000,  y:-38000, cont:'east', kind:'狩人の集落', spr:'base_lodge' },
+  { id:'b_white', name:'白亜の灯台', x:190000,  y:-88000, cont:'east', kind:'港街', spr:'base_port' },
+  { id:'b_forge', name:'鍛冶神の工房', x:247000, y:-52000, cont:'east', kind:'工房都市', spr:'base_factory' },
+  // 黄昏の大陸(西南西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
+  { id:'b_dusk',  name:'黄昏の前哨', x:-100000, y:20000,  cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
+  { id:'b_black', name:'黒曜の祠',   x:-126000, y:58000,  cont:'west', kind:'祠の村', spr:'base_shrine' },
+  { id:'b_bones', name:'骨の祭場',   x:-178000, y:48000,  cont:'west', kind:'野営地', spr:'base_camp' },
+  { id:'b_moon',  name:'月影の社',   x:-203000, y:20000,  cont:'west', kind:'月の修道院', spr:'base_abbey' },
+  // 星嵐の大陸(北北東の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
+  { id:'b_star',  name:'星降りの祭壇', x:32000, y:-116000, cont:'north', kind:'星見の村', spr:'base_star' },
+  { id:'b_storm', name:'嵐の塔',     x:65000,   y:-235000, cont:'north', kind:'塔の街', spr:'base_tower' },
+  // 深緑の大陸(南南西の縦長の大陸): 北岸の社から南端の弔いの村まで
+  { id:'b_green', name:'深緑の社',   x:-72000,  y:132000,  cont:'south', kind:'森の集落', spr:'base_grove' },
+  { id:'b_grave', name:'墓標の祭壇', x:-95000,  y:233000,  cont:'south', kind:'弔いの村', spr:'base_grave' },
   // 小島(一拠点だけの特別な土地)
-  { id:'b_mist',  name:'霧の観測所', x:145000,  y:-120000, cont:'i_mist', kind:'観測の村', spr:'base_mist' },
-  { id:'b_ember', name:'燃えさしの炉', x:72000, y:168000,  cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
-  { id:'b_frost', name:'霜の祠',     x:-65000,  y:-150000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
+  { id:'b_mist',  name:'霧の観測所', x:150000,  y:-135000, cont:'i_mist', kind:'観測の村', spr:'base_mist' },
+  { id:'b_ember', name:'燃えさしの炉', x:58000, y:200000,  cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
+  { id:'b_frost', name:'霜の祠',     x:-48000,  y:-158000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
   // 遠環の特別な地(一拠点のみ)
-  { id:'b_sun',   name:'太陽の神殿', x:528000,  y:-93000,  cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
-  { id:'b_void',  name:'虚無の門',   x:-517000, y:69000,   cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
+  { id:'b_sun',   name:'太陽の神殿', x:560000,  y:-126000, cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
+  { id:'b_void',  name:'虚無の門',   x:-464000, y:150000,  cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
   // 最果て
-  { id:'b_end',   name:'最果ての碑', x:12000,   y:-800000, cont:'r4_end', kind:'最果ての城', spr:'base_castle' },
+  { id:'b_end',   name:'最果ての碑', x:60000,   y:-778000, cont:'r4_end', kind:'最果ての城', spr:'base_castle' },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる

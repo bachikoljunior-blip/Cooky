@@ -6,12 +6,17 @@
 
 const World = (() => {
 
-  // 疑似ノイズ(角度ベースの海岸線ゆらぎ)。lobesで岬の数、ampで凹凸の激しさが変わる
+  // 疑似ノイズ(角度ベースの海岸線ゆらぎ)。lobesで岬の数、ampで凹凸の激しさが変わる。
+  // 実際の大陸のように、大きなうねりの上に細かいギザギザ(フラクタルな海岸線)を重ねる
   function wob(a, s, lobes){
-    return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.3 + Math.sin(a * 13 + s * 4.1) * 0.2;
+    return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.3
+         + Math.sin(a * 13 + s * 4.1) * 0.2
+         + Math.sin(a * 19 + s * 1.7) * 0.13 + Math.sin(a * 29 + s * 3.3) * 0.08;
   }
   function edgeR(cont, angle){
     let r = cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
+    // 質量の偏り(taper): 実際の大陸のように、片側が広く反対側へ細く伸びる
+    if (cont.taper) r *= 1 + cont.taper.d * Math.cos(angle - cont.taper.a);
     // 大陸ごとの個性: coast=[{a:方角, w:幅rad, d:深さ}] 負dで湾(入り江)、正dで岬(半島)
     if (cont.coast) for (const f of cont.coast) {
       let da = angle - f.a;
@@ -41,16 +46,31 @@ const World = (() => {
   }
   function isLand(x, y){ return landAt(x, y) !== null; }
 
+  // 海の種別: 浅瀬(sea)は円ではなく実際の海岸線に沿った帯にする
+  function seaKind(x, y){
+    let gap = 1e9;
+    for (const c of DATA.CONTINENTS) {
+      let dx = x - c.x, dy = y - c.y;
+      if (c.rot) {
+        const co = Math.cos(-c.rot), si = Math.sin(-c.rot);
+        const rx = dx * co - dy * si, ry = dx * si + dy * co;
+        dx = rx; dy = ry;
+      }
+      dx /= (c.sx || 1); dy /= (c.sy || 1);
+      const d = Math.hypot(dx, dy);
+      if (d > c.r * 2.6) continue;
+      const e = edgeR(c, Math.atan2(dy, dx));
+      const g = (d - e) * Math.min(c.sx || 1, c.sy || 1);
+      if (g < gap) gap = g;
+    }
+    return gap > 2600 ? 'deep' : 'sea';
+  }
+
   // 'grass' | 'sand' | 'sea' | 'deep'
   function terrainAt(x, y){
     const L = landAt(x, y);
     if (L) return (L.d > L.edge - 90) ? 'sand' : 'grass';
-    let minGap = 1e9;
-    for (const c of DATA.CONTINENTS) {
-      const d = Math.hypot(x - c.x, y - c.y) - c.r * Math.max(c.sx || 1, c.sy || 1);
-      if (d < minGap) minGap = d;
-    }
-    return minGap > 2200 ? 'deep' : 'sea';
+    return seaKind(x, y);
   }
 
   // ---- バイオドーム: 約1分歩くごと(≈2600px)に別のバイオドームへ入る ----
@@ -121,12 +141,7 @@ const World = (() => {
   function tileAt(x, y){
     const L = landAt(x, y);
     if (L) return { t: (L.d > L.edge - 90) ? 'sand' : 'grass', biome: biodomeAt(x, y).biome };
-    let minGap = 1e9;
-    for (const c of DATA.CONTINENTS) {
-      const d = Math.hypot(x - c.x, y - c.y) - c.r * Math.max(c.sx || 1, c.sy || 1);
-      if (d < minGap) minGap = d;
-    }
-    return { t: minGap > 2200 ? 'deep' : 'sea', biome: 'grass' };
+    return { t: seaKind(x, y), biome: 'grass' };
   }
 
   // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
@@ -244,22 +259,39 @@ const World = (() => {
 
   // ---- ミニマップ(全世界を一度だけプリレンダし、切り抜いて使う) ----
   const MM_SIZE = 180;                    // 画面上の表示サイズ
-  const MM_EXTENT = DATA.WORLD_EXTENT;    // 世界の半径
   const WM_RES = 1536;                    // 全世界画像の解像度
   const LOCAL_EXTENT = 22000;             // ローカルモードの表示半径
   let wmCanvas = null;
 
-  // 全世界画像(1024x1024、1px≈168ユニット)。起動時に一度だけ生成
+  // 世界の描画範囲: 陸地の実際の広がりから求める(始まりの大陸は世界の中心ではない)
+  let WB = null;
+  function bounds(){
+    if (WB) return WB;
+    let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
+    for (const c of DATA.CONTINENTS) {
+      const m = c.r * (1 + (c.amp || 0.13) * 1.3 + 0.35) * Math.max(c.sx || 1, c.sy || 1);
+      x0 = Math.min(x0, c.x - m); x1 = Math.max(x1, c.x + m);
+      y0 = Math.min(y0, c.y - m); y1 = Math.max(y1, c.y + m);
+    }
+    const pad = 25000;
+    x0 -= pad; x1 += pad; y0 -= pad; y1 += pad;
+    const side = Math.max(x1 - x0, y1 - y0);
+    WB = { x0: (x0 + x1) / 2 - side / 2, y0: (y0 + y1) / 2 - side / 2, w: side };
+    return WB;
+  }
+
+  // 全世界画像。起動時に一度だけ生成(範囲は陸地のバウンディングボックス)
   function worldImage(){
     if (wmCanvas) return wmCanvas;
+    const B = bounds();
     wmCanvas = document.createElement('canvas');
     wmCanvas.width = WM_RES; wmCanvas.height = WM_RES;
     const g = wmCanvas.getContext('2d');
     const img = g.createImageData(WM_RES, WM_RES);
     for (let py = 0; py < WM_RES; py++){
       for (let px = 0; px < WM_RES; px++){
-        const wx = (px / WM_RES * 2 - 1) * MM_EXTENT;
-        const wy = (py / WM_RES * 2 - 1) * MM_EXTENT;
+        const wx = B.x0 + (px + 0.5) / WM_RES * B.w;
+        const wy = B.y0 + (py + 0.5) / WM_RES * B.w;
         const ti = tileAt(wx, wy);
         const i = (py * WM_RES + px) * 4;
         let c;
@@ -275,46 +307,50 @@ const World = (() => {
     return wmCanvas;
   }
 
-  // ミニマップ描画情報: mode 'local'(周辺13,000) / 'world'(全体)
+  // ミニマップ描画情報: mode 'local'(周辺) / 'world'(全体)
   // 戻り値: {img, sx, sy, sw} = worldImage内の切り抜き範囲、toMM(wx,wy)=表示座標変換
   function minimapView(cx, cy, mode){
     const img = worldImage();
+    const B = bounds();
+    const scale = WM_RES / B.w;   // world→画像px
     if (mode === 'world') {
-      // 全体図は「知っている世界」の広さに合わせてズーム(序盤は初期の島が大きく映り、
-      // 発見が広がるほど地図も広がる)
-      let ext = 30000;
+      // 全体図は「知っている世界」のバウンディングボックスに合わせてズーム
+      // (序盤は初期の大陸が大きく映り、発見が広がるほど地図も広がる)
+      let x0 = -34000, x1 = 34000, y0 = -34000, y1 = 34000;   // 始まりの大陸は常に収める
       const seen = SaveSys.data.seen || {};
-      const consider = (x, y) => { ext = Math.max(ext, Math.abs(x) * 1.2, Math.abs(y) * 1.2); };
+      const consider = (x, y) => {
+        x0 = Math.min(x0, x - 15000); x1 = Math.max(x1, x + 15000);
+        y0 = Math.min(y0, y - 15000); y1 = Math.max(y1, y + 15000);
+      };
       for (const b of bases) if (SaveSys.data.bases[b.id] || seen[b.id]) consider(b.x, b.y);
       for (const p of ports) if (SaveSys.data.ports[p.id] || seen[p.id]) consider(p.x, p.y);
       consider(cx, cy);
       // 次の拠点ヒントも必ず地図に収まるように
       const wh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
       if (wh) consider(wh.x, wh.y);
-      ext = Math.min(ext, MM_EXTENT);
-      const wScale = WM_RES / (MM_EXTENT * 2);
-      const sw = ext * 2 * wScale;
-      const sx = (MM_EXTENT - ext) * wScale;
+      let side = Math.min(B.w, Math.max(x1 - x0, y1 - y0) * 1.08);
+      let bx0 = (x0 + x1) / 2 - side / 2, by0 = (y0 + y1) / 2 - side / 2;
+      bx0 = Math.max(B.x0, Math.min(B.x0 + B.w - side, bx0));
+      by0 = Math.max(B.y0, Math.min(B.y0 + B.w - side, by0));
       return {
-        img, sx, sy: sx, sw,
-        toMM(x, y){ return { x: (x / ext + 1) / 2 * MM_SIZE, y: (y / ext + 1) / 2 * MM_SIZE }; },
-        inView(x, y){ return Math.abs(x) < ext && Math.abs(y) < ext; },
+        img, sx: (bx0 - B.x0) * scale, sy: (by0 - B.y0) * scale, sw: side * scale,
+        toMM(x, y){ return { x: (x - bx0) / side * MM_SIZE, y: (y - by0) / side * MM_SIZE }; },
+        inView(x, y){ return x > bx0 && x < bx0 + side && y > by0 && y < by0 + side; },
       };
     }
     // 周辺図: プレイヤー中心。次の拠点ヒントがあれば、それが必ず収まるまで範囲を広げる
     let ext = LOCAL_EXTENT;
     const lh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
     if (lh) ext = Math.max(ext, Math.hypot(lh.x - cx, lh.y - cy) * 1.15);
-    ext = Math.min(ext, MM_EXTENT);
-    const scale = WM_RES / (MM_EXTENT * 2);           // world→画像px
-    const sw = ext * 2 * scale;
-    const sx = Math.max(0, Math.min(WM_RES - sw, (cx + MM_EXTENT) * scale - sw / 2));
-    const sy = Math.max(0, Math.min(WM_RES - sw, (cy + MM_EXTENT) * scale - sw / 2));
+    ext = Math.min(ext, B.w / 2);
+    const sw = Math.min(WM_RES, ext * 2 * scale);
+    const sx = Math.max(0, Math.min(WM_RES - sw, (cx - B.x0) * scale - sw / 2));
+    const sy = Math.max(0, Math.min(WM_RES - sw, (cy - B.y0) * scale - sw / 2));
     return {
       img, sx, sy, sw,
       toMM(x, y){
-        return { x: ((x + MM_EXTENT) * scale - sx) / sw * MM_SIZE,
-                 y: ((y + MM_EXTENT) * scale - sy) / sw * MM_SIZE };
+        return { x: ((x - B.x0) * scale - sx) / sw * MM_SIZE,
+                 y: ((y - B.y0) * scale - sy) / sw * MM_SIZE };
       },
       inView(x, y){
         return Math.abs(x - cx) < ext * 1.2 && Math.abs(y - cy) < ext * 1.2;
@@ -328,9 +364,10 @@ const World = (() => {
   function initExplored(arr){ exSet = new Set(arr || []); fogCv = null; }
   function punch(k){
     const parts = k.split(',');
-    const scale = WM_RES / (MM_EXTENT * 2);
-    const x = (parts[0] * EX_CELL + MM_EXTENT) * scale;
-    const y = (parts[1] * EX_CELL + MM_EXTENT) * scale;
+    const B = bounds();
+    const scale = WM_RES / B.w;
+    const x = (parts[0] * EX_CELL - B.x0) * scale;
+    const y = (parts[1] * EX_CELL - B.y0) * scale;
     const w = EX_CELL * scale;
     fogG.clearRect(x - 0.5, y - 0.5, w + 1, w + 1);
   }
@@ -365,7 +402,7 @@ const World = (() => {
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops,
-           worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK,
+           worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt };
 })();
