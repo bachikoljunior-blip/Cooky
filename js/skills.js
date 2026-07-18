@@ -58,27 +58,36 @@ const Skills = (() => {
   // 対象外で、回復量・弱体量・持続時間・吸収量・倍率のボーナス部分などだけ増幅する
   let powMap = null;
   function setPow(map){ powMap = map || null; return map; }
+  // 全スキル共通の効果量倍率(範囲・射程・CD・個数・押し出し距離は対象外)
+  const EFFECT_AMP = 2;
   function stat(id){
     const l = lv(id); if (l <= 0) return null;
     const st = DATA.SKILLS[id].stats(l);
-    const pow = powMap ? (powMap[id] || 1) : 1;
-    if (pow !== 1) {
-      if (st.hps) st.hps *= pow;                                   // サンクチュアリ回復
-      if (st.burst) st.burst *= pow;                               // シールド爆発
-      if (st.reduce) st.reduce = Math.min(0.9, st.reduce * pow);   // 威圧の弱体
-      if (st.killHeal) st.killHeal *= pow;                         // 吸血
-      if (st.lifesteal) st.lifesteal *= pow;
-      if (st.dur) st.dur *= pow;                                   // 混乱・呪い・砂の持続
-      if (st.shred) st.shred *= pow;                               // 呪印の被ダメ増
-      if (st.slow) st.slow = Math.min(0.95, st.slow * pow);        // 減速率
-      if (st.recruit) st.recruit *= pow;                           // カリスマ
-      if (st.trail) st.trail *= pow;                               // 靴の残像ダメージ
-      if (st.mult) st.mult = 1 + (st.mult - 1) * pow;              // 倍率系はボーナス部分だけ
-      if (st.atk) st.atk = 1 + (st.atk - 1) * pow;                 // ウォーバナー
-      if (st.hp) st.hp = 1 + (st.hp - 1) * pow;
-      if (st.allyMul) st.allyMul = 1 + (st.allyMul - 1) * pow;
-      if (st.passive) st.passive = { key: st.passive.key, value: st.passive.value * pow };   // 心得
-    }
+    // 基地ポテンシー(powMap) × 全体倍率。範囲/射程系のフィールドには掛けない
+    const amp = EFFECT_AMP * (powMap ? (powMap[id] || 1) : 1);
+    if (st.hps) st.hps *= amp;                                   // サンクチュアリ回復
+    if (st.burst) st.burst *= amp;                               // シールド爆発
+    if (st.reduce) st.reduce = Math.min(0.9, st.reduce * amp);   // 威圧の弱体
+    if (st.killHeal) st.killHeal *= amp;                         // 吸血
+    if (st.lifesteal) st.lifesteal *= amp;
+    if (st.dur) st.dur *= amp;                                   // 混乱・呪い・砂の持続
+    if (st.shred) st.shred *= amp;                               // 呪印の被ダメ増
+    if (st.slow) st.slow = Math.min(0.95, st.slow * amp);        // 減速率
+    if (st.recruit) st.recruit *= amp;                           // カリスマ
+    if (st.trail) st.trail *= amp;                               // 靴の残像ダメージ
+    if (st.freeze) st.freeze *= amp;                             // パルスの凍結時間
+    if (st.heal) st.heal *= amp;                                 // 妖精の泉の回復量
+    if (st.burn) st.burn *= amp;                                 // 炎上ダメージ
+    if (st.chance) st.chance = Math.min(1, st.chance * amp);     // 鍛冶の心火の発動率
+    if (st.res) st.res = Math.min(0.8, st.res * amp);            // 竜鱗の被ダメ軽減
+    // 倍率系はボーナス部分だけ。magnetSkのmultは「範囲」なので全体倍率の対象外
+    if (st.mult) st.mult = 1 + (st.mult - 1) * (id === 'magnetSk' ? (powMap ? (powMap[id] || 1) : 1) : amp);
+    if (st.atk) st.atk = 1 + (st.atk - 1) * amp;                 // ウォーバナー
+    if (st.hp) st.hp = 1 + (st.hp - 1) * amp;
+    if (st.spd) st.spd = 1 + (st.spd - 1) * amp;
+    if (st.hpMul) st.hpMul = 1 + (st.hpMul - 1) * amp;           // 骨の壁のHP
+    if (st.allyMul) st.allyMul = 1 + (st.allyMul - 1) * amp;
+    if (st.passive) st.passive = { key: st.passive.key, value: st.passive.value * amp };   // 心得
     return st;
   }
   function matCount(m){ return mats[m] || 0; }
