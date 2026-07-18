@@ -120,6 +120,7 @@ const Sprites = (() => {
     base_sunken:  { kind:'settlement', c:'#2dd4bf', a:'#76e3ea', opt:{v:'spring'} },
     ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
     ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
+    ob_well:    { kind:'building',c:'#8fa8b5', a:'#76e3ea', opt:{sym:'⛲'} },
     st_altar:   { kind:'building',c:'#f0883e', a:'#ffd766', opt:{sym:'⚔'} },
     st_lab:     { kind:'building',c:'#3fb950', a:'#7ee787', opt:{sym:'⚗'} },
     st_camp:    { kind:'building',c:'#58a6ff', a:'#a5d8ff', opt:{sym:'🏕'} },

@@ -18,6 +18,9 @@ const Input = (() => {
     if (['ArrowUp','ArrowDown','ArrowLeft','ArrowRight','Tab','Space'].includes(e.code)) e.preventDefault();
   });
   window.addEventListener('keyup', e => { keys[e.code] = false; });
+  // Space: 突撃の号令(押した瞬間だけ拾う)
+  let sigQueued = false;
+  window.addEventListener('keydown', e => { if (e.code === 'Space' && !e.repeat) sigQueued = true; });
   window.addEventListener('blur', () => { for (const k in keys) keys[k] = false; });
 
   // ---- 固定仮想パッド ----
@@ -98,5 +101,5 @@ const Input = (() => {
   function endFrame(){ for (const k in pressedOnce) pressedOnce[k] = false; }
 
   refreshPad();
-  return { axis, once, endFrame, keys, setPadMode, getPadMode };
+  return { takeSig(){ const q = sigQueued; sigQueued = false; return q; }, axis, once, endFrame, keys, setPadMode, getPadMode };
 })();

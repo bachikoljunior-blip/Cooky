@@ -45,6 +45,7 @@ const Hub = (() => {
     (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).filter(sq => Quest.sideVisible(sq)).forEach((sq, i) => {
       list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:(i + 1) * 240 - 480, y:-250 });
     });
+    list.push({ kind:'board', x:-320, y:260 });   // 依頼板(周回ごとに変わる小口の依頼)
     list.push({ kind:'gate', x:0, y:260 });
     return list;
   }
@@ -91,9 +92,18 @@ const Hub = (() => {
     p.y = Math.max(b.y0 + 40, Math.min(b.y1 - 40, p.y));
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
+    // 住民は定位置のまわりを行き来する(作業している感)
+    H.time = (H.time || 0) + dt;
+    for (const s of H.list) {
+      if (s.kind === 'npc' || s.kind === 'sidenpc') {
+        const ph = (s.x * 13 + s.y * 7) % 10;
+        s.ox = Math.sin(H.time * 0.5 + ph) * 34;
+        s.oy = Math.sin(H.time * 1.7 + ph * 2) * 2;   // 作業の上下ゆれ
+      }
+    }
     H.interact = null;
     for (const s of H.list) {
-      if (Math.hypot(p.x - s.x, p.y - s.y) < 75) { H.interact = s; break; }
+      if (Math.hypot(p.x - (s.x + (s.ox || 0)), p.y - (s.y + (s.oy || 0))) < 75) { H.interact = s; break; }
     }
     const hint = document.getElementById('interact-hint');
     const actBtn = document.getElementById('btn-act');
@@ -119,6 +129,7 @@ const Hub = (() => {
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
     if (s.kind === 'sidenpc') return s.name + 'と話す';
+    if (s.kind === 'board') return (Run.state.boardDone || {})[H.area] ? '依頼板(今日の依頼は達成済み)' : '依頼板を見る';
     if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
     if (s.kind === 'gate') return H.fromRun ? '転送ゲート(周回に戻る)' : '転送ゲート(出撃 / 基地へ移動)';
     if (s.kind === 'stats') return '記録の石碑を見る';
@@ -143,6 +154,10 @@ const Hub = (() => {
       else Game.npcTalk(s.base);
     }
     else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
+    else if (s.kind === 'board') {
+      if ((Run.state.boardDone || {})[H.area]) Game.dialog('', null, ['(今日の依頼は済んでいる。また次の周回で新しい依頼が貼り出されるだろう)'], null);
+      else Quest.offer('board', H.area);
+    }
     else if (s.kind === 'armory') openArmoryPanel();
     else if (s.kind === 'gate') openGatePanel();
     else if (s.kind === 'stats') openStatsPanel();
@@ -294,6 +309,16 @@ const Hub = (() => {
     const body = document.getElementById('station-body');
     let h = '';
     if (fac && DATA.BASE_FACS[fac]) h += `<p class="small">${DATA.BASE_FACS[fac].desc}。施設は基地ごとに品揃えが違う。</p>`;
+    if (stKey === 'lib') {
+      // スキル系統図: 前提の連なり(どれを育てればどの道が開くか)
+      const chains = Object.keys(DATA.SKILLS).filter(id => DATA.SKILLS[id].requires && DATA.SKILLS[id].requires.skill)
+        .map(id => {
+          const rq = DATA.SKILLS[id].requires;
+          const from = DATA.SKILLS[rq.skill];
+          return `${from ? from.name : rq.skill} Lv${rq.lv} → ${DATA.SKILLS[id].name}`;
+        });
+      if (chains.length) h += `<div class="sec-head">🌿 スキル系統図</div><p class="small">${chains.join('<br>')}</p>`;
+    }
     for (const id in DATA.META) {
       const def = DATA.META[id];
       if (def.st !== stKey) continue;
@@ -387,13 +412,70 @@ const Hub = (() => {
         <p>解放した基地: <b>${basesN} / ${DATA.BASES.length}</b></p>
         <p>修理した港: <b>${portsN} / ${DATA.PORTS.length}</b></p>
         <p>素材収集: <b>${fmtNum(s.matsCollected||0)}</b> / オブジェクト破壊: <b>${fmtNum(s.objectsDestroyed||0)}</b> / スキル取得: <b>${s.skillsAcquired||0}回</b></p>
-        <div class="sec-head">🏆 実績 (${Object.keys(SaveSys.data.ach).length}/${DATA.ACHIEVEMENTS.length})</div>
-        ${DATA.ACHIEVEMENTS.map(a => {
-          const done = SaveSys.data.ach[a.id];
-          return `<p style="opacity:${done ? 1 : .5}">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}<br>
-            <span class="small">報酬: ${a.reward}</span></p>`;
-        }).join('')}
+        ${(SaveSys.data.story || {}).end_throne ? '<p style="color:#ffd766">👑 終焉の刻の、その先の物語を見届けた</p>' : ''}
+        <div class="sec-head">🏆 実績 (${Object.keys(SaveSys.data.ach).length}/${DATA.ACHIEVEMENTS.length} ― 達成率 ${Math.round(Object.keys(SaveSys.data.ach).length / DATA.ACHIEVEMENTS.length * 100)}%)</div>
+        ${achievementsHtml()}
+        <div class="sec-head">📖 図鑑 (出会った魔物 ${Object.keys(SaveSys.data.dex || {}).length} 種)</div>
+        ${dexHtml()}
       </div>`;
+  }
+
+  // 実績: カテゴリごとにまとめ、未達成は進捗つきで表示
+  function achievementsHtml(){
+    const CATS = [
+      ['⚔ 戦い', ['ach_kill1','ach_kill2','ach_boss1','ach_reaper1','ach_die10','ach_time1','ach_time2']],
+      ['🧭 探索', ['ach_dist1','ach_bases','ach_ports']],
+      ['🎒 収集と成長', ['ach_mats1','ach_obj1','ach_coins','ach_skills','ach_recruit1','ach_allies20','ach_rare']],
+    ];
+    const st = SaveSys.data;
+    const prog = (a) => {
+      const P = {
+        ach_kill1:[st.stats.kills,1000], ach_kill2:[st.stats.kills,10000], ach_boss1:[st.stats.bossKills,10],
+        ach_reaper1:[st.stats.reaperKills,1], ach_die10:[st.stats.deaths||0,10],
+        ach_time1:[Math.floor(st.stats.bestTime),1200], ach_time2:[Math.floor(st.stats.bestTime),1800],
+        ach_dist1:[st.stats.maxDist,10000], ach_bases:[Object.keys(st.bases).length,5], ach_ports:[Object.keys(st.ports).length,3],
+        ach_mats1:[st.stats.matsCollected||0,500], ach_obj1:[st.stats.objectsDestroyed||0,500],
+        ach_coins:[st.stats.totalCoins,100000], ach_skills:[st.stats.skillsAcquired||0,50],
+        ach_recruit1:[st.stats.recruits,100], ach_allies20:[st.stats.maxAlliesEver||0,20], ach_rare:[st.stats.rareKills||0,1],
+      }[a.id];
+      return P ? Math.min(100, Math.floor(P[0] / P[1] * 100)) + '%(' + fmtNum(P[0]) + '/' + fmtNum(P[1]) + ')' : '';
+    };
+    let h = '';
+    for (const [cat, ids] of CATS) {
+      h += `<p><b>${cat}</b></p>`;
+      const items = ids.map(id => DATA.ACHIEVEMENTS.find(a => a.id === id)).filter(Boolean)
+        .sort((a, b) => (SaveSys.data.ach[a.id] ? 1 : 0) - (SaveSys.data.ach[b.id] ? 1 : 0));
+      for (const a of items) {
+        const done = SaveSys.data.ach[a.id];
+        h += `<p style="opacity:${done ? 1 : .55};margin-left:8px">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}
+          ${done ? '' : `<span class="small"> 進捗 ${prog(a)}</span>`}<br><span class="small">報酬: ${a.reward}</span></p>`;
+      }
+    }
+    return h;
+  }
+
+  // 図鑑: 倒した魔物とそのドロップ+素材からの逆引き
+  function dexHtml(){
+    const dex = SaveSys.data.dex || {};
+    const seen = Object.keys(DATA.ENEMIES).filter(k => dex[k]);
+    if (!seen.length) return '<p class="small">まだ記録がない。魔物を倒すとここに刻まれていく。</p>';
+    let h = seen.map(k => {
+      const d = DATA.ENEMIES[k];
+      const drops = (d.drops || []).filter(dr => Skills.matUnlocked(dr.m)).map(dr => DATA.MATERIALS[dr.m].name).join('・');
+      return `<p style="margin-left:8px"><b>${d.name}</b> ×${fmtNum(dex[k])}<span class="small">${drops ? ' ― 落とす素材: ' + drops : ''}</span></p>`;
+    }).join('');
+    // 素材からの逆引き(欲しい素材をどの魔物が落とすか)
+    const rev = {};
+    for (const k of seen) for (const dr of DATA.ENEMIES[k].drops || []) {
+      if (!Skills.matUnlocked(dr.m)) continue;
+      (rev[dr.m] = rev[dr.m] || []).push(DATA.ENEMIES[k].name);
+    }
+    const revKeys = Object.keys(rev);
+    if (revKeys.length) {
+      h += '<p><b>素材の逆引き</b><span class="small">(出会った魔物のみ)</span></p>';
+      h += revKeys.map(m => `<p class="small" style="margin-left:8px">${DATA.MATERIALS[m].name} ← ${[...new Set(rev[m])].join('・')}</p>`).join('');
+    }
+    return h;
   }
 
   // ---------------- 描画 ----------------
@@ -407,6 +489,7 @@ const Hub = (() => {
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
     if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
+    if (s.kind === 'board') return { spr:'ob_house2', label:'依頼板', short:'依頼' };
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
     if (s.kind === 'stats') return { spr:'ob_rock', label:'記録の石碑', short:'石碑' };
@@ -468,15 +551,16 @@ const Hub = (() => {
     for (const s of H.list) {
       const v = stationVisual(s);
       const glow = H.interact === s;
-      const gg = g.createRadialGradient(s.x, s.y + 20, 4, s.x, s.y + 20, 66);
+      const sx = s.x + (s.ox || 0), sy = s.y + (s.oy || 0);
+      const gg = g.createRadialGradient(sx, sy + 20, 4, sx, sy + 20, 66);
       gg.addColorStop(0, glow ? 'rgba(255,215,102,.30)' : 'rgba(118,227,234,.12)');
       gg.addColorStop(1, 'rgba(0,0,0,0)');
       g.fillStyle = gg;
-      g.beginPath(); g.arc(s.x, s.y + 20, 66, 0, 7); g.fill();
-      Sprites.draw(g, v.spr, s.x, s.y, 84);
+      g.beginPath(); g.arc(sx, sy + 20, 66, 0, 7); g.fill();
+      Sprites.draw(g, v.spr, sx, sy, 84);
       g.fillStyle = glow ? '#ffd766' : '#c9d1d9';
       g.font = '13px sans-serif'; g.textAlign = 'center';
-      g.fillText(v.label, s.x, s.y + 60);
+      g.fillText(v.label, sx, sy + 60);
     }
 
     // プレイヤー(魂verは少し透ける)

@@ -213,7 +213,7 @@ const World = (() => {
       let type = null, rare = false;
       if (t === 'grass') type = roll < 0.5 ? 'tree' : (roll < 0.8 ? 'rock' : 'crate');
       else if (t === 'sand') type = roll < 0.5 ? 'rock' : 'crate';
-      else if (t === 'sea') type = roll < 0.6 ? 'coral' : 'wreck';
+      else if (t === 'sea') type = roll < 0.5 ? 'coral' : (roll < 0.8 ? 'wreck' : 'crate');   // 浅瀬には漂流する木箱も
       else if (t === 'deep') { if (roll < 0.3) type = 'wreck'; }
       // レアオブジェクト: 琥珀の古木(陸) / 真珠貝(海) ― 専用素材の唯一の入手源
       if (rareRoll < 0.022) {
@@ -414,6 +414,39 @@ const World = (() => {
   function exploredArray(){ return Array.from(exSet); }
   function isExplored(x, y){ return exSet.has(Math.floor(x / EX_CELL) + ',' + Math.floor(y / EX_CELL)); }
 
+  // ---- 基地から延びる小道と、その先の名所(井戸・祠などの目印) ----
+  // 基地間を結ぶ道は作らない(場所の発見は物語で行う)。基地から「どこか」への短い道だけ。
+  const roadCache = new Map();
+  function roadOf(baseId){
+    if (roadCache.has(baseId)) return roadCache.get(baseId);
+    const b = bases.find(bb => bb.id === baseId);
+    if (!b) return null;
+    let h = 0; for (let i = 0; i < baseId.length; i++) h = (h * 31 + baseId.charCodeAt(i)) | 0;
+    let road = null;
+    for (let k = 0; k < 8 && !road; k++) {
+      const a = ((Math.abs(h) % 100) / 100 + k / 8) * Math.PI * 2;
+      const ex = b.x + Math.cos(a) * 3400, ey = b.y + Math.sin(a) * 3400;
+      const mx = b.x + Math.cos(a) * 1700, my = b.y + Math.sin(a) * 1700;
+      if (terrainAt(ex, ey) === 'grass' && terrainAt(mx, my) === 'grass')
+        road = { x1: b.x + Math.cos(a) * 220, y1: b.y + Math.sin(a) * 220, x2: ex, y2: ey, a };
+    }
+    roadCache.set(baseId, road);
+    return road;
+  }
+  // 点と道(線分)の距離
+  function roadDist(road, x, y){
+    const dx = road.x2 - road.x1, dy = road.y2 - road.y1;
+    const t = Math.max(0, Math.min(1, ((x - road.x1) * dx + (y - road.y1) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(x - (road.x1 + dx * t), y - (road.y1 + dy * t));
+  }
+
+  // ---- 海流: 帯状に流れる速い潮(乗ると船が速い)。凪の日はさらに速い ----
+  function currentAt(x, y){
+    const v = Math.sin(x / 26000 + y / 41000) + Math.sin(x / 9000 - y / 13000 + 2.1)
+            + 0.5 * Math.sin((x + y) / 6500 + 4.4);
+    return Math.max(0, (Math.abs(v) - 1.35)) / 1.15;   // 0(流れなし)〜1(強い潮)
+  }
+
   // 距離リング(敵の強さ)
   function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
 
@@ -421,5 +454,5 @@ const World = (() => {
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
-           biodomeAt, seaBiomeAt };
+           biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt };
 })();

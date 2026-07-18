@@ -22,7 +22,10 @@ const Quest = (() => {
              timer: (s.timer != null ? s.timer : (def.time || 0)), near:false };
   }
   // 周回開始時: 進行中クエストをセーブから復元(達成度は周回を跨いで保持)
-  function reset(){ actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean); }
+  function reset(){
+    actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean)
+      .filter(a => a.def.type !== 'escort' && a.kind !== 'board');   // 護送と依頼板は周回内で完結
+  }
   function activeFor(kind, id){ return actives.find(a => a.kind === kind && a.id === id) || null; }
   function hasActive(){ return actives.length > 0; }
   function removeActive(kind, id){ actives = actives.filter(a => !(a.kind === kind && a.id === id)); persist(); }
@@ -51,7 +54,24 @@ const Quest = (() => {
   }
   function defOf(kind, id){
     if (kind === 'side') { const s = sideOf(id); return s ? s.def : null; }
+    if (kind === 'board') return makeBoard(id);
     return kind === 'base2' ? DATA.QUESTS2[id] : DATA.QUESTS[id];
+  }
+  // 依頼板: 村ごとの小口の反復依頼。内容は周回ごとに変わる(使い捨てにならない村の生計)
+  function makeBoard(baseId){
+    const b = DATA.BASES.find(x => x.id === baseId);
+    if (!b) return null;
+    let h = (SaveSys.data.stats.runs + 1) * 131;
+    for (let i = 0; i < baseId.length; i++) h = (h * 31 + baseId.charCodeAt(i)) | 0;
+    h = Math.abs(h);
+    const pool = ['slime','bat','goblin','wolf','boar','skeleton'];
+    const enemy = pool[h % pool.length];
+    const count = 6 + (h >> 3) % 5;
+    const ring = Math.floor(Math.hypot(b.x, b.y) / DATA.DIST_RING);
+    const coins = Math.round((50 + ring * 4) / 10) * 10;
+    return { npcName:'依頼板', type:'hunt', enemy, count, board:true, reward:{ coins },
+      intro:['(村の依頼板。今日の依頼が貼り出されている)','「' + DATA.ENEMIES[enemy].name + 'を' + count + '体退治。報酬🪙' + coins + '。村のみんなより」'],
+      done:['(討伐を報告した。張り紙の裏に報酬が挟んであった)'] };
   }
   // visit型の目的地(座標指定 or 港指定)
   function visitLoc(def){
@@ -65,6 +85,8 @@ const Quest = (() => {
   }
 
   function objSummary(def){
+    if (def.type === 'mark') return '「' + def.markName + '」を討つ(マップに📍)';
+    if (def.type === 'escort') return '「' + (def.dest.label || '目的地') + '」まで護衛する(📍)';
     if (def.type === 'hunt') return (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
     if (def.type === 'survive') return 'この場所の近くで' + def.time + '秒間守り抜く';
     if (def.type === 'delivery') return '素材とコインを届ける';
@@ -80,6 +102,8 @@ const Quest = (() => {
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
     }
     if (d.type === 'visit') return '📜 目的地へ: ' + (d.visit.label || '') + '(マップの📍)';
+    if (d.type === 'mark') return '📜 討伐: 「' + d.markName + '」(マップの📍)';
+    if (d.type === 'escort') return '📜 護衛中: 「' + (d.dest.label || '目的地') + '」へ(📍)';
     return '📜 ' + objSummary(d);
   }
   function objText(){ return actives.map(oneObjText).join('\n'); }
@@ -120,8 +144,10 @@ const Quest = (() => {
   }
 
   function startActive(kind, id, def){
-    actives.push({ kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
-                   phase:'go', killed:0, timer: def.time || 0, near:false });
+    const a = { kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
+                phase:'go', killed:0, timer: def.time || 0, near:false };
+    actives.push(a);
+    if (def.type === 'escort') Run.startEscort(tagOf(a), a.loc, def);
     persist();
     const R = Run.state;
     R.warnMsg = '📜 依頼開始: ' + objSummary(def);
@@ -175,7 +201,15 @@ const Quest = (() => {
   // ---------------- 完了処理 ----------------
   function complete(kind, id, def){
     const face = faceOf(kind, id, def);
-    Game.dialog(def.npcName, face, def.done.slice(), () => finalize(kind, id, def));
+    Game.dialog(def.npcName, face, def.done.slice(), () => {
+      if (def.doneChoice) {
+        // 締めの一言を選べる(返す言葉で相手の返答が変わる)
+        Game.dialogChoice(def.npcName, face, def.doneChoice.text,
+          def.doneChoice.options.map(o => ({ label:o.label, cb(){
+            Game.dialog(def.npcName, face, [o.line], () => finalize(kind, id, def));
+          } })));
+      } else finalize(kind, id, def);
+    });
   }
 
   function finalize(kind, id, def){
@@ -208,6 +242,11 @@ const Quest = (() => {
         if (cur < md.max) { SaveSys.data.meta[mid] = cur + rw.metaLv[mid]; txt.push('✨「' + md.name + '」+' + rw.metaLv[mid]); }
       }
       R.warnMsg = '🎁 依頼達成! ' + (txt.length ? '報酬: ' + txt.join('・') : '');
+    } else if (kind === 'board') {
+      R.coins += (def.reward || {}).coins || 0;
+      R.boardDone = R.boardDone || {};
+      R.boardDone[id] = true;
+      R.warnMsg = '📋 依頼板の依頼を果たした! 🪙' + ((def.reward || {}).coins || 0);
     } else if (kind === 'base2') {
       // 2段階目: 報酬
       SaveSys.data.quests2 = SaveSys.data.quests2 || {};
@@ -268,9 +307,19 @@ const Quest = (() => {
   }
 
   // ---------------- 周回からのフック ----------------
-  function notifyKill(defKey, rank){
+  function tagOf(a){ return a.kind + ':' + a.id; }
+  function notifyKill(defKey, rank, markId){
     let changed = false;
     for (const a of actives) {
+      // 指名討伐: 印の魔物を討ったら達成
+      if (markId && a.phase === 'go' && a.def.type === 'mark' && tagOf(a) === markId) {
+        a.phase = 'return'; changed = true;
+        const R = Run.state;
+        R.warnMsg = '📜 「' + a.def.markName + '」を討った!' + a.def.npcName + 'に報告しよう';
+        R.warnColor = '#ffd766'; R.warnT = 4;
+        Sfx.skill();
+        continue;
+      }
       if (a.phase !== 'go' || a.def.type !== 'hunt' || a.def.enemy !== defKey) continue;
       if (a.def.minRank && (rank || 0) < a.def.minRank) continue;   // 色違い指定の依頼は通常個体を数えない
       a.killed++; changed = true;
@@ -298,6 +347,29 @@ const Quest = (() => {
           R.warnColor = '#ffd766'; R.warnT = 4;
           Sfx.skill();
           persist();
+        }
+        continue;
+      }
+      // 指名討伐: 印の場所に近づくと対象が現れる(消えていたら出し直す)
+      if (a.phase === 'go' && a.def.type === 'mark') {
+        const ml = a.def.mark;
+        if (ml && Math.hypot(R.player.x - ml.x, R.player.y - ml.y) < 1100 && !Run.hasMark(tagOf(a))) {
+          Run.spawnMark(tagOf(a), a.def);
+        }
+        continue;
+      }
+      // 護送: 対象の到着/力尽きを監視(本体の移動はRun側)
+      if (a.phase === 'go' && a.def.type === 'escort') {
+        const st2 = Run.escortState(tagOf(a));
+        if (st2 === 'arrived') {
+          a.phase = 'return';
+          R.warnMsg = '📜 送り届けた!' + a.def.npcName + 'に報告しよう';
+          R.warnColor = '#ffd766'; R.warnT = 4;
+          Sfx.skill(); persist();
+        } else if (st2 === 'dead') {
+          removeActive(a.kind, a.id);
+          R.warnMsg = '…護衛に失敗した。また頼まれるところからやり直せる';
+          R.warnColor = '#f85149'; R.warnT = 4;
         }
         continue;
       }
@@ -332,9 +404,15 @@ const Quest = (() => {
   function visitTargets(){
     const out = [];
     for (const a of actives) {
-      if (a.phase !== 'go' || a.def.type !== 'visit') continue;
-      const vl = visitLoc(a.def);
-      if (vl) out.push({ x:vl.x, y:vl.y, label:a.def.visit.label || '' });
+      if (a.phase !== 'go') continue;
+      if (a.def.type === 'visit') {
+        const vl = visitLoc(a.def);
+        if (vl) out.push({ x:vl.x, y:vl.y, label:a.def.visit.label || '' });
+      } else if (a.def.type === 'mark' && a.def.mark) {
+        out.push({ x:a.def.mark.x, y:a.def.mark.y, label:a.def.markName });
+      } else if (a.def.type === 'escort' && a.def.dest) {
+        out.push({ x:a.def.dest.x, y:a.def.dest.y, label:a.def.dest.label || '' });
+      }
     }
     return out;
   }

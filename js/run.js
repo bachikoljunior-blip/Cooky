@@ -62,6 +62,8 @@ const Run = (() => {
       timeMitig: Math.min(0.6, 0.03*m('g_star_time') + 0.02*m('g_end_beyond')),
       potion: 0.004*m('g_south_potion'),
       revives: m('altar_revive'),
+      cheatDeath: m('altar_hp') >= 15,   // 節目Lv15: 周回ごとに一度、致死ダメージをHP1で耐える
+      morale: m('camp_atk') >= 15,       // 節目Lv15: 仲間が10体以上いると仲間攻撃+10%
       salvage: 0.08*m('m_salvage'),
       deathBonus: 1 + 0.10*m('m_deathlearn'),
       exploreRad: 1 + (m('m_cartography') >= 1 ? 1 : 0) + (m('m_cartography') >= 3 ? 1 : 0),
@@ -154,6 +156,11 @@ const Run = (() => {
   // ---------------- 周回開始 ----------------
   function start(startPos){
     Skills.reset();
+    // 保管庫: 前の周回から持ち越した素材を受け取る(研究所のパワーアップで枠が増える)
+    if (SaveSys.data.stash) {
+      for (const m in SaveSys.data.stash) Skills.addMat(m, SaveSys.data.stash[m]);
+      SaveSys.data.stash = null; SaveSys.save();
+    }
     World.resetRun();
     Quest.reset();
     // 拠点を一つでも解放済みなら、次の拠点ヒントを常に一つ表示(既存セーブ救済)
@@ -166,12 +173,32 @@ const Run = (() => {
     R.player.hp = R.stats.maxHp;
     R.coins = 0; R.kills = 0; R.recruits = 0; R.bossKills = 0; R.reaperKills = 0;
     R.rareKills = 0; R.matsGot = 0; R.objsDestroyed = 0; R.peakAllies = 0;
-    R.usedRevives = 0;
+    R.usedRevives = 0; R.usedCheatDeath = false;
     R.enemies = []; R.allies = []; R.projs = []; R.eprojs = []; R.pickups = [];
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
     R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
+    R.dmgLog = []; R.hitFlashT = 0; R.hitDir = null; R.traitBursts = [];
+    R.sigCd = 0; R.sigUntil = 0; R.bioFxT = 0; R.bioFxColors = null; R.boardDone = {}; R.escort = null;
+    // 周回ごとの世界イベント: 世界の様子が毎回少し違う(開始時に告知される)
+    {
+      const roll = Math.random();
+      if (roll < 0.25) R.worldEvent = 'none';
+      else if (roll < 0.5) {
+        R.worldEvent = 'migration';
+        const cand = ['wolf','boar','skeleton','goblin','orc','bat'];
+        R.evSpecies = cand[Math.floor(Math.random() * cand.length)];
+      }
+      else if (roll < 0.75) R.worldEvent = 'variant';
+      else R.worldEvent = 'calm';
+      const evMsg = {
+        migration: () => '🌍 今日の世界: 魔物の大移動 ― ' + DATA.ENEMIES[R.evSpecies].name + 'の群れが多い',
+        variant:   () => '🌍 今日の世界: 色違いの活性 ― 色を変えた魔物が現れやすい',
+        calm:      () => '🌍 今日の世界: 凪 ― 海が穏やかで、潮の流れが速い',
+      }[R.worldEvent];
+      if (evMsg) setTimeout(() => { if (!R.over) { R.warnMsg = evMsg(); R.warnColor = '#a5d8ff'; R.warnT = 5; } }, 2500);
+    }
     R.foeMap = new Map();         // マップ用の敵目撃情報 cellKey -> {x,y,t,boss}(離れて消えても保持)
     R.foeScanT = 0;
     R.interact = null;
@@ -232,7 +259,7 @@ const Run = (() => {
     if (e.boss) d *= st.bossDmg;
     if (e.def.isReaper) d *= st.reaperDmg;
     if (e.shred) d *= (1 + e.shred);
-    const armor = (e.def.armor || 0);
+    const armor = Math.min(0.75, (e.def.armor || 0) + (e.traitArmor || 0));
     d *= (1 - armor);
     e.hp -= d;
     e.flash = 0.08;
@@ -267,7 +294,7 @@ const Run = (() => {
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
     if (e.def.rare) { R.rareKills++; R.warnMsg = '✨ レアモンスターを倒した!'; R.warnT = 3; }
-    Quest.notifyKill(e.defKey, e.rank || 0);   // 討伐クエストの進行(色違い指定の依頼はランクも見る)
+    Quest.notifyKill(e.defKey, e.rank || 0, e.markId);   // 討伐クエストの進行(色違い/指名討伐にも対応)
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
@@ -296,6 +323,19 @@ const Run = (() => {
       recruitAlly(e);
     }
     effect('burst', e.x, e.y, { color:e.def.isReaper ? '#f85149' : '#ffd766', r:e.def.r + 8 });
+    // 図鑑: 倒した魔物と回数を記録(ドロップの逆引きに使う)
+    SaveSys.data.dex = SaveSys.data.dex || {};
+    SaveSys.data.dex[e.defKey] = (SaveSys.data.dex[e.defKey] || 0) + 1;
+    // 色違いの特性(死亡時): 弾ける(予兆つき爆発)/仲間を呼んで果てる
+    if (e.trait === 'burst') {
+      R.traitBursts = R.traitBursts || [];
+      R.traitBursts.push({ x:e.x, y:e.y, t:0.55, r:46 + 26 * e.rank, dmg:e.dmg * 1.4 });
+      effect('ring', e.x, e.y, { color:'#f85149', r:46 + 26 * e.rank });
+    }
+    if (e.trait === 'summon' && R.enemies.length < 850) {
+      for (let i = 0; i < Math.min(3, 1 + e.rank); i++)
+        spawnEnemy(e.defKey, { x:e.x + rnd(-26,26), y:e.y + rnd(-26,26), rank:0, mad:true });
+    }
   }
 
   function recruitAlly(e){
@@ -355,12 +395,26 @@ const Run = (() => {
     p.hp -= d;
     p.invuln = 0.35 + st.invulnPlus; // 影歩き: 被弾後の無敵延長
     Sfx.hurt();
+    // 被弾の記録(死因リキャップ用)と、被弾方向の画面フラッシュ
+    R.dmgLog = R.dmgLog || [];
+    R.dmgLog.push({ t:R.time, name: src ? (src.bossName || (src.def && src.def.name) || '???') : '???', d:Math.round(d) });
+    while (R.dmgLog.length > 60) R.dmgLog.shift();
+    R.hitFlashT = 0.35;
+    R.hitDir = (src && src.x !== undefined) ? Math.atan2(src.y - p.y, src.x - p.x) : null;
     // 茨の鎧
     if (st.thorns > 0 && src && !src.dead && src.hp !== undefined) {
       src.hp -= st.thorns * st.atk;
       if (src.hp <= 0) killEnemy(src);
     }
     if (p.hp <= 0) {
+      // 節目の護り(生命力Lv15): 周回ごとに一度だけ、致死ダメージをHP1で踏みとどまる
+      if (st.cheatDeath && !R.usedCheatDeath) {
+        R.usedCheatDeath = true;
+        p.hp = 1; p.invuln = 1.6;
+        effect('ring', p.x, p.y, { color:'#7ee787', r:120 });
+        popup(p.x, p.y - 30, '死線の護り!', '#7ee787');
+        return;
+      }
       if (R.usedRevives < st.revives) {
         R.usedRevives++;
         p.hp = st.maxHp * 0.5;
@@ -374,6 +428,20 @@ const Run = (() => {
       }
     }
   }
+
+  // 突撃の号令: 手動発動(CD25秒)。4秒間、武器の連射と軍勢の攻撃・足が速まる
+  function warcry(){
+    if (R.over) return;
+    if ((R.sigCd || 0) > R.time) return;
+    R.sigCd = R.time + 25;
+    R.sigUntil = R.time + 4;
+    effect('ring', R.player.x, R.player.y, { color:'#ffd766', r:220 });
+    popup(R.player.x, R.player.y - 34, '突撃の号令!', '#ffd766');
+    Sfx.skill();
+    // 周囲の敵は一瞬ひるむ
+    knockback(R.player.x, R.player.y, 160, 180);
+  }
+  function sigActive(){ return (R.sigUntil || 0) > R.time; }
 
   function knockback(x, y, radius, force){
     for (const e of R.enemies) {
@@ -465,7 +533,7 @@ const Run = (() => {
   function pickRank(){
     const min = R.time / 60;
     const ring = World.ringOf(R.player.x, R.player.y);
-    const escal = (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig);   // 星読みの加護で緩和
+    const escal = (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig) + (R.worldEvent === 'variant' ? 0.4 : 0);   // 星読みの加護で緩和/色違いの活性
     let rank = 0;
     for (let k = 1; k <= RANK_MAX; k++) {
       // 段kの通過率: 初期3%、進行(escal)が段の高さを越えるごとに+22%/段、最大55%
@@ -515,9 +583,30 @@ const Run = (() => {
     e.hp = e.maxHp;
     e.rank = rank;   // 色違いランク(見た目は色+大きさで表現)
     e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.2);   // 色違いは大きさでも見分く(金1.2倍/紅1.4倍)
+    // 色違いの特性: 種類×色×大きさの組み合わせで決まる(同じ組は常に同じ特性)。
+    // 「金のウルフは疾いが、金のゴーレムは弾ける」― 出会いながら覚えられる
+    if (rank > 0 && !opts.boss && !def.isReaper) {
+      e.trait = variantTrait(defKey, rank, def);
+      if (e.trait === 'swift') e.spdMul = 1 + Math.min(0.6, 0.12 * rank);
+      if (e.trait === 'tough') e.traitArmor = Math.min(0.6, (0.10 + def.r * 0.004) * rank);
+      if (e.trait === 'regen') e.traitRegen = 0.006 * rank;
+    }
     if (opts.boss) R.bossAlive = e;
     R.enemies.push(e);
     return e;
+  }
+
+  // 色違いの特性テーブル: 小柄な種は機動系、大柄な種は重厚系に寄る
+  const TRAITS_SMALL = ['swift','regen','summon'];
+  const TRAITS_BIG   = ['tough','burst','regen'];
+  function traitHash(str, rank){
+    let h = rank * 131;
+    for (let i = 0; i < str.length; i++) h = (h * 31 + str.charCodeAt(i)) | 0;
+    return Math.abs(h);
+  }
+  function variantTrait(key, rank, def){
+    const pool = def.r >= 15 ? TRAITS_BIG : TRAITS_SMALL;
+    return pool[traitHash(key, rank) % pool.length];
   }
 
   // その時・その場所に湧く敵の種類を1体ぶん抽選する
@@ -614,9 +703,12 @@ const Run = (() => {
     const a = Math.random() * Math.PI * 2, hd = offR + rnd(30, 200);   // 画面外だが近く(退場圏内)
     const c = { x: R.player.x + Math.cos(a) * hd, y: R.player.y + Math.sin(a) * hd };
     const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5), alerted: !!mad };
-    const n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4);   // 低ティアほど大所帯
+    const mig = R.worldEvent === 'migration' && R.evSpecies &&
+                (DATA.ENEMIES[R.evSpecies].tier || 0) === tier && !onSea;
+    const n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4) + (mig ? 3 : 0);   // 低ティアほど大所帯/大移動は+3
     for (let i = 0; i < n; i++) {
-      const key = keys[Math.floor(Math.random() * keys.length)];   // 同ティア内の種で構成
+      const key = (mig && Math.random() < 0.7) ? R.evSpecies
+        : keys[Math.floor(Math.random() * keys.length)];   // 同ティア内の種で構成
       const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       spawnEnemy(key, { x: ex, y: ey, herd, mad });
@@ -721,13 +813,14 @@ const Run = (() => {
       }
       if (tot > 0) nearTarget = Math.round(nearTarget * (1 - clr / tot));
     }
-    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1);
+    const calmMul = (R.worldEvent === 'calm' && !World.isLand(p.x, p.y)) ? 0.65 : 1;
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul;
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (nearN >= nearTarget || R.enemies.length >= 900) break;
-      if (Math.random() < 0.12) { spawnHerd(false); nearN += 5; }   // 時々、群れ(まとまってうろつく)
+      if (Math.random() < (R.worldEvent === 'migration' ? 0.22 : 0.12)) { spawnHerd(false); nearN += 5; }   // 時々、群れ
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
       else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: questTgts.includes(k), dist: offR + rnd(15, 240), ambient: true })) nearN++; }
     }
@@ -803,7 +896,7 @@ const Run = (() => {
       // 燃焼・時間系
       if (e.burn > 0) { e.burnT -= dt; e.hp -= e.burn * dt * R.stats.atk; if (e.burnT <= 0) e.burn = 0;
         if (e.hp <= 0) { killEnemy(e); continue; } }
-      let spd = e.def.speed * (e.fromHorde ? 1.4 : 1);   // 大群は少しだけ速い
+      let spd = e.def.speed * (e.fromHorde ? 1.4 : 1) * (e.spdMul || 1);   // 大群は少し速い/疾風の色違いも速い
       if (R.time < e.slowUntil) spd *= (1 - e.slowMul);
       if (R.time < e.frozenUntil) spd = 0;
       // 時の砂
@@ -1043,7 +1136,7 @@ const Run = (() => {
   function updateAllies(dt){
     const p = R.player;
     const wb = Skills.stat('warbanner');
-    const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1);
+    const atkMul = R.stats.allyAtk * (wb ? wb.atk : 1) * (R.stats.morale && R.allies.length >= 10 ? 1.1 : 1);   // 士気(節目)
     const spdMul = (wb ? wb.spd : 1) * (R.stats.allySpeed || 1) *
       ((R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1);   // 月光の疾走
     const n = R.allies.length;
@@ -1109,7 +1202,7 @@ const Run = (() => {
           if ((dx * ax2.x + dy * ax2.y) / (dl * al) < -0.15) tgt = null;
         }
       }
-      let dest, spd = a.speed * spdMul;
+      let dest, spd = a.speed * spdMul * (sigActive() ? 1.3 : 1);   // 突撃の号令: 足も速まる
       if (tgt && a.def.ranged) {
         // 弓兵は敵を追いかけず、陣形へ戻りながら(移動しながら)撃つ。destは決めない=陣形追従
         a.shootCd -= dt;
@@ -1126,8 +1219,8 @@ const Run = (() => {
         a.atkCd -= dt;
         if (td < a.def.r + 4) {
           if (a.atkCd <= 0) {
-            a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd);   // 鬨の声: 攻撃間隔短縮
-            dealDamage(tgt, a.dmg * atkMul / R.stats.atk); // dealDamage内でatk倍されるため相殺
+            a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd) * (sigActive() ? 0.55 : 1);   // 鬨の声/突撃の号令
+            dealDamage(tgt, a.dmg * atkMul * (sigActive() ? 1.3 : 1) / R.stats.atk); // dealDamage内でatk倍されるため相殺
             const ff = Skills.stat('forgefire');   // 鍛冶の心火: 確率で炎上
             if (ff && Math.random() < ff.chance) { tgt.burn = Math.max(tgt.burn, ff.burn); tgt.burnT = 3; }
             a.atkAnim = 0.24; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = false;   // 斬りかかるモーション
@@ -1264,6 +1357,7 @@ const Run = (() => {
   }
 
   function cdReady(id, base){
+    if ((R.sigUntil || 0) > R.time && DATA.WEAPONS[id]) base *= 0.4;   // 突撃の号令: 連射強化
     const cd = base * (1 - R.stats.cdr);
     if ((R.cd[id] || 0) <= R.time) { R.cd[id] = R.time + cd; return true; }
     return false;
@@ -1922,6 +2016,27 @@ const Run = (() => {
           break;
         }
       }
+      // 港の貿易商(修理済みの港町に立つ。素材⇄コインの相場は周回ごとに変わる)
+      if (!R.interact) {
+        for (const port of World.ports) {
+          if (!SaveSys.data.ports[port.id]) continue;
+          if (Math.hypot(p.x - (port.x - 52), p.y - (port.y + 18)) < 55) {
+            R.interact = { type:'trader', port, label:'E: 貿易商と取引(' + port.name + ')' };
+            break;
+          }
+        }
+      }
+      // 基地の小道を歩く行商人
+      if (!R.interact) {
+        for (const b of World.bases) {
+          if (Math.abs(p.x - b.x) > 4200 || Math.abs(p.y - b.y) > 4200) continue;
+          const pp = peddlerPos(b);
+          if (pp && Math.hypot(p.x - pp.x, p.y - pp.y) < 60) {
+            R.interact = { type:'peddler', base:b, label:'E: 行商人と取引' };
+            break;
+          }
+        }
+      }
       // 停泊中のボート
       if (!R.interact && p.boatAnchor) {
         const d = Math.hypot(p.x - p.boatAnchor.x, p.y - p.boatAnchor.y);
@@ -1937,9 +2052,43 @@ const Run = (() => {
     const it = R.interact;
     if (!it) return;
     if (it.type === 'portquest') Quest.offer('port', it.port.id);
+    else if (it.type === 'trader') openTrade('port_' + it.port.id);
+    else if (it.type === 'peddler') openTrade('ped_' + it.base.id);
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
+  }
+
+  // 素材⇄コインの取引(港の貿易商/小道の行商人)。相場は周回と場所で変わる
+  function openTrade(seedKey){
+    let h = SaveSys.data.stats.runs * 97;
+    for (let i = 0; i < seedKey.length; i++) h = (h * 31 + seedKey.charCodeAt(i)) | 0;
+    h = Math.abs(h);
+    const pool = Object.keys(DATA.MATERIALS).filter(m => Skills.matUnlocked(m) && (DATA.MATERIALS[m].tier || 0) <= 3);
+    if (!pool.length) return;
+    const buyMat = pool[h % pool.length];
+    const bt = DATA.MATERIALS[buyMat].tier || 0;
+    const buyPrice = Math.round((bt + 1) * 45 * (0.8 + (h % 5) * 0.1));   // 相場: ±20%
+    // 売り: いま一番持っている素材を10個
+    const mats = Skills.mats();
+    let sellMat = null, most = 9;
+    for (const m in mats) if (mats[m] > most) { most = mats[m]; sellMat = m; }
+    const sellPrice = sellMat ? Math.round(((DATA.MATERIALS[sellMat].tier || 0) + 1) * 4 * 10 * (0.8 + ((h >> 3) % 5) * 0.1)) : 0;
+    const wallet = SaveSys.data.coins + R.coins;
+    const opts = [
+      { label:'買う: ' + DATA.MATERIALS[buyMat].name + '×5(🪙' + buyPrice + ')', disabled: wallet < buyPrice,
+        cb(){
+          const fromRun = Math.min(R.coins, buyPrice);
+          R.coins -= fromRun; SaveSys.data.coins -= (buyPrice - fromRun); SaveSys.save();
+          Skills.addMat(buyMat, 5); Sfx.buy();
+          popup(R.player.x, R.player.y - 30, DATA.MATERIALS[buyMat].name + '×5を仕入れた', '#7ee787');
+        } },
+    ];
+    if (sellMat) opts.push({ label:'売る: ' + DATA.MATERIALS[sellMat].name + '×10(🪙' + sellPrice + ')',
+      cb(){ Skills.mats()[sellMat] -= 10; R.coins += sellPrice; Sfx.buy();
+            popup(R.player.x, R.player.y - 30, '🪙' + sellPrice + 'で売れた', '#ffd766'); } });
+    opts.push({ label:'やめる', sub:true });
+    Game.dialogChoice('貿易商', 'npc_scholar', '見ての通り、相場は日々変わる。今日の取引はこれだ。', opts);
   }
 
   function boardBoat(x, y, port){
@@ -1979,7 +2128,76 @@ const Run = (() => {
   }
 
   // ---------------- 更新メイン ----------------
+  // ---- 指名討伐: 印の場所に「名前つきの色違い」が現れる ----
+  function hasMark(tag){ return R.enemies.some(e => e.markId === tag && !e.dead); }
+  function spawnMark(tag, def){
+    const e = spawnEnemy(def.enemy, { x:def.mark.x + rnd(-60, 60), y:def.mark.y + rnd(-60, 60),
+      rank: def.rank || 1, aggro: 260 });
+    if (e) { e.markId = tag; e.bossName = def.markName; e.sizeMul *= 1.15; }
+    return !!e;
+  }
+
+  // ---- 護送: 依頼主の元から目的地まで歩くNPCを守る ----
+  function startEscort(tag, from, def){
+    R.escort = { tag, x:(from ? from.x : R.player.x) + 40, y:(from ? from.y : R.player.y) + 40,
+      hp: def.ehp || 260, maxHp: def.ehp || 260,
+      dest: def.dest, spr: def.escortSpr || 'npc_girl', state:'go' };
+  }
+  function escortState(tag){
+    if (!R.escort || R.escort.tag !== tag) return 'gone';
+    return R.escort.state;
+  }
+  function updateEscort(dt){
+    const es = R.escort;
+    if (!es || es.state !== 'go') return;
+    const d = Math.hypot(es.dest.x - es.x, es.dest.y - es.y);
+    if (d < 90) { es.state = 'arrived'; popup(es.x, es.y - 26, '着いた!ありがとう!', '#7ee787'); setTimeout(() => { if (R.escort === es) R.escort = null; }, 50); return; }
+    // プレイヤーが離れすぎていたら待つ(置き去りにしない)
+    const pd = Math.hypot(R.player.x - es.x, R.player.y - es.y);
+    if (pd < 420) { es.x += (es.dest.x - es.x) / d * 58 * dt; es.y += (es.dest.y - es.y) / d * 58 * dt; }
+    // 触れている敵から削られる(守り甲斐)
+    for (const e of R.enemies) {
+      if (e.dead) continue;
+      if (Math.hypot(e.x - es.x, e.y - es.y) < e.def.r * (e.sizeMul || 1) + 16) es.hp -= e.dmg * 0.45 * dt;
+    }
+    if (es.hp <= 0) { es.state = 'dead'; effect('burst', es.x, es.y, { color:'#f85149', r:20 }); setTimeout(() => { if (R.escort === es) R.escort = null; }, 50); }
+  }
+
+  // プレイヤーが今いる小道(近くの基地の道で40px以内)を返す
+  function nearestRoadBase(x, y){
+    for (const b of World.bases) {
+      if (Math.abs(x - b.x) > 4200 || Math.abs(y - b.y) > 4200) continue;
+      const rd = World.roadOf(b.id);
+      if (rd && World.roadDist(rd, x, y) < 40) return b;
+    }
+    return null;
+  }
+  // 行商人の現在位置(基地の小道を行ったり来たりしている)
+  function peddlerPos(b){
+    const rd = World.roadOf(b.id);
+    if (!rd) return null;
+    const t = 0.5 + 0.45 * Math.sin(R.time * 0.11 + b.x * 0.001);
+    return { x: rd.x1 + (rd.x2 - rd.x1) * t, y: rd.y1 + (rd.y2 - rd.y1) * t, rd };
+  }
+
   function update(dt){
+    // 突撃の号令(Space / ボタン)
+    if (Input.takeSig && Input.takeSig()) warcry();
+    // 被弾フラッシュ・色違いの爆発予兆・越境の演出タイマー
+    if (R.hitFlashT > 0) R.hitFlashT -= dt;
+    if (R.bioFxT > 0) R.bioFxT -= dt;
+    updateEscort(dt);
+    if (R.traitBursts && R.traitBursts.length) {
+      for (const tb of R.traitBursts) {
+        tb.t -= dt;
+        if (tb.t <= 0) {
+          effect('burst', tb.x, tb.y, { color:'#f85149', r:tb.r });
+          const p0 = R.player;
+          if (Math.hypot(p0.x - tb.x, p0.y - tb.y) < tb.r + 10) damagePlayer(tb.dmg, { x:tb.x, y:tb.y, def:{ name:'弾ける色違いの爆発' } });
+        }
+      }
+      R.traitBursts = R.traitBursts.filter(tb => tb.t > 0);
+    }
     if (R.over) return;
     R.time += dt;
     R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
@@ -1990,7 +2208,17 @@ const Run = (() => {
     const ax = R.botAxis || Input.axis();
     // 主人公は敵をすり抜ける。対敵中でも速度は落とさない(常にステータス速度で動ける)
     const rushMul = (R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1;   // 月光の疾走
-    const spd = (p.onBoat ? st.boatSpeed : st.speed) * rushMul;
+    let terrMul = 1;
+    if (p.onBoat) {
+      // 海流: 帯状の速い潮に乗ると船が速い(凪の日はさらに)
+      const cur = World.currentAt(p.x, p.y);
+      if (cur > 0) terrMul = 1 + cur * (R.worldEvent === 'calm' ? 0.65 : 0.45);
+    } else {
+      // 基地から延びる小道の上は歩きやすい
+      const nb = nearestRoadBase(p.x, p.y);
+      if (nb) terrMul = 1.1;
+    }
+    const spd = (p.onBoat ? st.boatSpeed : st.speed) * rushMul * terrMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
@@ -2050,10 +2278,12 @@ const Run = (() => {
           const bio = DATA.BIOMES[bd.biome] || DATA.BIOMES.grass;
           const mm = faunaMats(DATA.BIOME_FAUNA[bd.biome] || []);
           R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          R.bioFxT = 2.4; R.bioFxColors = bio.deco;   // 越境の演出(その土地の色の粒子)
         } else {
           const sb = DATA.SEA_BIOMES[seaKey] || { name:'海', fauna: DATA.SEA_FAUNA };
           const mm = faunaMats(sb.fauna || []);
           R.warnMsg = '― 海域 <' + sb.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          R.bioFxT = 2.4; R.bioFxColors = ['#e6edf3', sb.c1 || '#58a6ff', '#76e3ea'];
         }
         R.warnColor = '#a5d8ff';
         R.warnT = 4;
@@ -2206,7 +2436,8 @@ const Run = (() => {
         if (ti.t === 'grass') c = chk ? bio.g1 : bio.g2;
         else if (ti.t === 'sand') c = chk ? bio.s1 : bio.s2;
         else if (ti.t === 'sea') { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
-          c = (chk !== (waveT === 1)) ? sb.c1 : sb.c2; }
+          c = (chk !== (waveT === 1)) ? sb.c1 : sb.c2;
+          if (chk && World.currentAt(wx, wy) > 0.45) decoList.push({ x:wx + 6, y:wy + 10, cur:true }); }
         else { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
           c = (chk !== (waveT === 1)) ? sb.d1 : sb.d2; }
         g.fillStyle = c;
@@ -2222,6 +2453,12 @@ const Run = (() => {
     g.translate(-camX, -camY);
     // 装飾を描く
     for (const d of decoList) {
+      if (d.cur) {   // 海流の筋(流れの向きに走る白い線)
+        g.strokeStyle = 'rgba(230,237,243,0.28)'; g.lineWidth = 1.5;
+        const fx = Math.sin(d.y * 0.0007) * 8;
+        g.beginPath(); g.moveTo(d.x, d.y); g.lineTo(d.x + 18 + fx, d.y + 6); g.stroke();
+        continue;
+      }
       g.fillStyle = d.c;
       g.globalAlpha = 0.5;
       if (d.big) { g.beginPath(); g.arc(d.x, d.y, 3, 0, 7); g.fill(); }
@@ -2269,6 +2506,41 @@ const Run = (() => {
       }
       Sprites.draw(g, o.sprite, o.x, o.y, 40);
       if (o.hp < o.maxHp) drawBar(g, o.x, o.y - 26, 28, o.hp / o.maxHp, '#b08968');
+    }
+
+    // 基地から延びる小道と名所(井戸)。道の上を行商人が歩いている
+    for (const b of World.bases) {
+      if (Math.abs(R.player.x - b.x) > 5200 || Math.abs(R.player.y - b.y) > 5200) continue;
+      const rd = World.roadOf(b.id);
+      if (!rd) continue;
+      g.fillStyle = 'rgba(139,115,85,0.42)';
+      const segs = 26;
+      for (let i = 0; i <= segs; i++) {
+        const t = i / segs;
+        const rx = rd.x1 + (rd.x2 - rd.x1) * t + Math.sin(t * 9 + b.x) * 22;
+        const ry = rd.y1 + (rd.y2 - rd.y1) * t + Math.cos(t * 7 + b.y) * 22;
+        g.beginPath(); g.ellipse(rx, ry, 26, 18, 0, 0, 7); g.fill();
+      }
+      Sprites.draw(g, 'ob_well', rd.x2, rd.y2, 40);
+      const pp = peddlerPos(b);
+      if (pp) {
+        Sprites.draw(g, 'npc_scholar', pp.x, pp.y - 6, 30);
+        g.fillStyle = '#e6edf3'; g.font = '10px sans-serif'; g.textAlign = 'center';
+        g.fillText('行商人', pp.x, pp.y - 28);
+      }
+    }
+    // 護送中のNPC
+    if (R.escort && R.escort.state === 'go') {
+      Sprites.draw(g, R.escort.spr, R.escort.x, R.escort.y, 30);
+      drawBar(g, R.escort.x, R.escort.y - 26, 30, R.escort.hp / R.escort.maxHp, '#7ee787');
+      g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
+      g.fillText('護衛中', R.escort.x, R.escort.y - 32);
+    }
+    // 色違い(弾ける)の爆発予兆
+    for (const tb of (R.traitBursts || [])) {
+      g.strokeStyle = 'rgba(248,81,73,' + (0.4 + 0.5 * Math.sin(R.time * 20)) + ')';
+      g.lineWidth = 2.5;
+      g.beginPath(); g.arc(tb.x, tb.y, tb.r, 0, 7); g.stroke();
     }
 
     // 港町・基地・停泊船
@@ -2392,6 +2664,35 @@ const Run = (() => {
     } else if (R.time >= DATA.REAPER_AT - 120) {
       g.fillStyle = `rgba(110,0,30,${0.10 * (1 - (DATA.REAPER_AT - R.time) / 120)})`;
       g.fillRect(0, 0, W, H);
+    }
+
+    // 被弾方向のフラッシュ(どっちから殴られたかが分かる)
+    if (R.hitFlashT > 0) {
+      const a = Math.min(0.4, R.hitFlashT * 1.3);
+      if (R.hitDir === null) {
+        g.fillStyle = `rgba(248,81,73,${a * 0.5})`;
+        g.fillRect(0, 0, W, H);
+      } else {
+        const cx2 = W / 2 + Math.cos(R.hitDir) * W * 0.55, cy2 = H / 2 + Math.sin(R.hitDir) * H * 0.55;
+        const gr = g.createRadialGradient(cx2, cy2, 40, cx2, cy2, Math.max(W, H) * 0.6);
+        gr.addColorStop(0, `rgba(248,81,73,${a})`);
+        gr.addColorStop(1, 'rgba(248,81,73,0)');
+        g.fillStyle = gr;
+        g.fillRect(0, 0, W, H);
+      }
+    }
+    // 越境の演出: その土地の色の粒子が画面を流れる
+    if (R.bioFxT > 0 && R.bioFxColors) {
+      const life = R.bioFxT / 2.4;
+      for (let i = 0; i < 26; i++) {
+        const sd = (i * 137.5) % 1;
+        const px2 = ((sd * 7919 + R.time * (30 + sd * 60)) % (W + 40)) - 20;
+        const py2 = ((sd * 104729) % H + Math.sin(R.time * 2 + i) * 30 + H) % H;
+        g.globalAlpha = Math.min(0.7, life) * (0.4 + sd * 0.6);
+        g.fillStyle = R.bioFxColors[i % R.bioFxColors.length];
+        g.beginPath(); g.arc(px2, py2, 1.5 + sd * 2.5, 0, 7); g.fill();
+      }
+      g.globalAlpha = 1;
     }
 
     // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
@@ -2655,9 +2956,23 @@ const Run = (() => {
   // 周回結果を確定して銀行へ
   function finishRun(retired){
     const s = SaveSys.data;
+    // 保管庫(研究所): 高ティアの素材から次の周回へ持ち越す。残りは換金
+    const mats = Skills.mats();
+    const stashCap = SaveSys.metaLv('m_stash') * 4;
+    if (stashCap > 0) {
+      const keep = {};
+      let left = stashCap;
+      const order = Object.keys(mats).filter(m => mats[m] > 0)
+        .sort((a, b) => (DATA.MATERIALS[b].tier || 0) - (DATA.MATERIALS[a].tier || 0));
+      for (const m of order) {
+        if (!left) break;
+        const k = Math.min(mats[m], left);
+        keep[m] = k; mats[m] -= k; left -= k;
+      }
+      s.stash = keep;
+    }
     // 余り素材はお金に変換
     let matBonus = 0;
-    const mats = Skills.mats();
     for (const m in mats) {
       matBonus += (mats[m] || 0) * (DATA.MATERIALS[m].tier + 1);
     }
@@ -2682,10 +2997,20 @@ const Run = (() => {
     const newAchs = SaveSys.checkAchievements();
     if (newAchs.length) Sfx.unlock();
     SaveSys.save();
+    // 死因リキャップ: 直前10秒に受けたダメージの内訳(何にやられたか分かるように)
+    let recap = null;
+    if (!retired && (R.dmgLog || []).length) {
+      const recent = R.dmgLog.filter(l => R.time - l.t < 10);
+      const by = {};
+      for (const l of recent) by[l.name] = (by[l.name] || 0) + l.d;
+      recap = { killer: R.dmgLog[R.dmgLog.length - 1].name,
+                list: Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3) };
+    }
     return { coins:R.coins, matBonus, total, time:R.time, kills:R.kills,
-             recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs };
+             recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs, recap };
   }
 
   return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap,
+           warcry, startEscort, escortState, hasMark, spawnMark,
            get state(){ return R; } };
 })();

@@ -259,6 +259,7 @@ DATA.SKILLS = {
     stats:(lv)=>({ passive:{ key:'allyHpMul', value:0.05*lv } }),
   },
   moonrush: {
+    requires:{ skill:'boots', lv:2 },
     name:'月光の疾走', cat:'sup', icon:'sk_moonrush', unlock:'g_moon_sk',
     desc:'一定間隔で短時間、自分と仲間が加速する。【要解放】',
     cost:(lv)=>matCost(lv,{crystal:4,hide:4},[{from:2,mat:'stardust',qty:2}]),
@@ -267,6 +268,7 @@ DATA.SKILLS = {
       dur:3+(lv>=2?1:0)+(lv>=5?1.5:0), cd:18*(lv>=4?0.75:1) }),
   },
   stormcall: {
+    requires:{ skill:'wildcall', lv:2 },
     name:'雷雲の呼び声', cat:'foe', icon:'sk_stormcall', unlock:'g_storm_sk',
     desc:'一定間隔で周囲の敵を感電させ、短時間動きを止める。【要解放】',
     cost:(lv)=>matCost(lv,{scrap:4,crystal:4},[{from:2,mat:'stardust',qty:2}]),
@@ -282,6 +284,7 @@ DATA.SKILLS = {
     stats:(lv)=>({ passive:{ key:'allyReviveAdd', value:0.03*lv } }),
   },
   sunburst: {
+    requires:{ skill:'ember', lv:2 },
     name:'太陽の熱波', cat:'foe', icon:'sk_sunburst', unlock:'g_sun_sk',
     desc:'一定間隔で広範囲の敵をまとめて炎上させる。【要解放】',
     cost:(lv)=>matCost(lv,{bone:5,crystal:5},[{from:2,mat:'sunstone',qty:3}]),
@@ -296,6 +299,13 @@ DATA.SKILLS = {
     lvText:['範囲拡大','再発動-15%','引きが強く','範囲拡大','再発動-25%'],
     stats:(lv)=>({ radius:260+(lv>=2?80:0)+(lv>=5?80:0), cd:13*(lv>=3?0.85:1)*(lv>=6?0.75:1),
       pull:0.35-(lv>=4?0.1:0) }),
+  },
+  tidebless: {
+    name:'潮汐の恵み', cat:'sup', icon:'sk_spring', unlock:'g_sea_sk',
+    desc:'沈み都の潮の力を身に宿し、自然回復が増す。【要解放】',
+    cost:(lv)=>matCost(lv,{shell:6,coral:4},[{from:2,mat:'pearl',qty:1}]),
+    lvText:Array.from({length:9},(_,i)=>`自然回復+0.5/秒(累計${((i+2)*0.5).toFixed(1)})`),
+    stats:(lv)=>({ passive:{ key:'regenAdd', value:0.5*lv } }),
   },
   endpact: {
     name:'終焉の誓い', cat:'ally', icon:'sk_endpact', unlock:'g_end_sk',
@@ -728,7 +738,7 @@ function gcost(base, growth){ return (lv)=>Math.floor(base*Math.pow(growth,lv));
 
 DATA.META = {
   // --- 強化の祭壇(戦闘) ---
-  altar_hp:     { st:'altar', name:'生命力',       desc:'最大HP +20',            max:40, cost:gcost(15,1.32),  },
+  altar_hp:     { st:'altar', name:'生命力',       desc:'最大HP +20(Lv15で「死線の護り」: 周回1回、致死をHP1で耐える)',            max:40, cost:gcost(15,1.32),  },
   altar_atk:    { st:'altar', name:'攻撃力',       desc:'全ダメージ +8%',        max:40, cost:gcost(20,1.34),  },
   altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +4%', max:25, cost:gcost(30,1.42), },
   altar_regen:  { st:'altar', name:'自然治癒',     desc:'HP自動回復 +0.5/秒',    max:20, cost:gcost(40,1.42),  },
@@ -752,7 +762,7 @@ DATA.META = {
   camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +0.2%(基本20%)', max:20, cost:gcost(40,1.38) },
   camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +1.5%',          max:30, cost:gcost(30,1.35) },
-  camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +1.2%',      max:30, cost:gcost(30,1.35) },
+  camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +1.2%(Lv15で「士気」: 仲間10体以上で攻撃+10%)',      max:30, cost:gcost(30,1.35) },
   camp_heal:    { st:'camp', name:'仲間介抱',      desc:'仲間HP自動回復 +1%/秒', max:10, cost:gcost(120,1.6) },
   camp_swift:   { st:'camp', name:'仲間の俊足',    desc:'仲間の移動速度 +5%', max:15, cost:gcost(80,1.45) },
   camp_revive:  { st:'camp', name:'魂の絆',        desc:'倒れた仲間が30%で踏みとどまる(HP1)', max:5, cost:gcost(500,2.2) },
@@ -896,6 +906,7 @@ DATA.META = {
   m_salvage:   { st:'lab',   name:'解体術',   desc:'オブジェクトが追加素材を落とす確率 +8%', max:10, cost:gcost(900,1.45), unlockAch:'ach_obj1' },
   m_shipwright:{ st:'lab',   name:'造船学',   desc:'船の速度 +5%',              max:10, cost:gcost(2000,1.45), unlockAch:'ach_ports' },
   m_invest:    { st:'lab',   name:'投資',     desc:'コイン獲得 +8%',            max:10, cost:gcost(5000,1.5),  unlockAch:'ach_coins' },
+  m_stash:     { st:'lab',   name:'保管庫',   desc:'周回終了時、高ティアの素材から4個/Lvまで次の周回へ持ち越す', max:8, cost:gcost(800,1.6) },
   // --- 最果て ---
   g_end_beyond:  { st:'b_end',   fac:'war',  name:'終焉超越',   desc:'色違いの敵の出現をさらに2%緩和 / 全ダメージ+8%', max:20, cost:gcost(150000,1.55) },
   g_end_vessel:  { st:'b_end',   fac:'life', name:'終焉の器',   desc:'最大HP +4%', max:15, cost:gcost(140000,1.55), effMul:{maxHp:.04} },
@@ -905,6 +916,7 @@ DATA.META = {
   g_sea_tide:    { st:'b_sea', fac:'war',  name:'潮流の型',     desc:'クリティカル率 +1%',  max:10, cost:gcost(2800,1.45), effMul:{critAdd:.01} },
   g_sea_breath:  { st:'b_sea', fac:'life', name:'潮の息継ぎ',   desc:'自然回復 +0.2/秒',    max:10, cost:gcost(2600,1.45), effMul:{regenAdd:.2} },
   g_sea_pearl:   { st:'b_sea', fac:'lore', name:'真珠の目利き', desc:'コイン獲得 +4%',      max:15, cost:gcost(2400,1.45), effMul:{coinMul:.04} },
+  g_sea_sk:      { st:'b_sea', fac:'war',  name:'【解放】潮汐の恵み', desc:'スキル「潮汐の恵み」を習得可能に', max:1, cost:gcost(2600,1) },
 };
 
 // 基地マップの施設(基地ごとの特別強化は3種類の施設に分かれている)
@@ -961,6 +973,10 @@ DATA.SIDEQUESTS = {
       appearStory:'south_inn',   // 宿屋の女将の口伝てで広場へ巡礼に来る
       intro:['あなたが…「死に戻り」の御方ですね。巡礼者のヨネと申します。','息子は兵士でした。北の荒野で死に…そして、還りませんでした。','普通の魂は還らない。だからこそ人は、還るあなたを畏れ、あるいは崇めるのです。','荒野に息子の墓標があります。この祈り石を、供えてきていただけませんか。'],
       done:['…ありがとうございます。これであの子の魂も、一度は広場に還れた気がします。','あなたが死んで、歩いて戻ってくるたび…それだけで救われる者がいること、忘れないでくださいね。'],
+      doneChoice:{ text:'ヨネに何と伝える?', options:[
+        { label:'「息子さんは、確かに還っていましたよ」', line:'…そう。そうですか。…優しい嘘でも、嬉しいものですね。' },
+        { label:'(黙って頷く)', line:'…ふふ。あなたのその静けさ、あの子に少し似ています。' },
+      ] },
       reward:{ coins:120, story:'yone_prayer' } },
     { id:'sq_hoshi', npc:'npc_miko', npcName:'星詠みの弟子ホシ', type:'delivery', need:{ mats:{ crystal:8 } },
       appearStory:'star_sign',   // 星見の村の導きで魂の広場に来た
@@ -992,6 +1008,11 @@ DATA.SIDEQUESTS = {
       reward:{ coins:100, hintBase:'b_dragon', story:'east_engine' } },
   ],
   b_south: [
+    { id:'sq_tome', npc:'npc_girl', npcName:'巡礼のトメ婆', type:'escort', ehp:280, escortSpr:'npc_girl',
+      dest:{ x:-500, y:14400, label:'泉の奥の祈り場' },
+      intro:['ばあはね、足を悪くしてから祈り場まで行けとらんのよ。','泉の奥までいっしょに歩いてくれんかね。ゆっくりでええから。','(トメ婆を祈り場まで護衛する。婆が倒れたら失敗だ)'],
+      done:['ありがとうねえ…何十年ぶりかの祈り場じゃったよ。','あんたの旅路にも、ようけ祝福がありますように。'],
+      reward:{ coins:90, story:'tome_walk' } },
     { id:'sq_mama', npc:'npc_girl', npcName:'宿屋の女将マーサ', type:'hunt', enemy:'mush', count:8,
       intro:['あら旅の人、うちは巡礼さん相手の宿屋なの。','巡礼さんはみんな魂の広場を目指すのよ。死んだ家族の魂が、一時あそこに還ると信じてね。','裏の森のマイコニドが食料庫を荒らして困ってるの。8体お願い!'],
       done:['助かったわ〜。そうだ、南東の海の向こうに「深緑の社」があるの。','巡礼さんたちのもう一つの目的地よ。地図に描いてあげる。','…あなた、もしかして「還る人」?なら広場で、ヨネさんって巡礼さんを気にかけてあげて。'],
@@ -1013,6 +1034,16 @@ DATA.SIDEQUESTS = {
       reward:{ coins:200, port:'p_sw', story:'goldo_ship' } },
   ],
   b_dragon: [
+    { id:'sq_gai2', npc:'npc_miner', npcName:'狩人ガイ', type:'mark', enemy:'lizard', rank:2,
+      markName:'紅鱗の主', mark:{ x:103500, y:6300 }, escortSpr:null,
+      requiresStory:'gai_code', lockedLine:'…まずは色付き狩りの腕を見せてもらってからだ。',
+      intro:['…見つけたんだ。相棒を殺った「紅鱗の主」を。','集落の東の谷に潜んでる。マップに印を付けた。','掟には「紅は退け」とある。だがあいつだけは、退くわけにいかねえ。頼む。'],
+      done:['……終わったか。','これで相棒も眠れる。…お前は、掟の外を生きる狩人だ。','主の牙だ。持っていけ。'],
+      doneChoice:{ text:'ガイに何と声をかける?', options:[
+        { label:'「相棒の仇、取ったぞ」', line:'…ああ。ああ、そうだな。……すまねえ、少し黙らせてくれ。' },
+        { label:'(黙って牙を受け取る)', line:'…口の重い奴は嫌いじゃねえ。またいつでも来い。' },
+      ] },
+      reward:{ coins:400, mats:{ beastfang:6 }, story:'gai_avenge' } },
     { id:'sq_ryu', npc:'npc_sage', npcName:'語り部リュウ', type:'hunt', enemy:'lizard', count:8,
       requiresStory:'east_engine', lockedLine:'…よそ者に語る話はない。東の遺跡のゲートに導かれて来たのなら、話は別じゃがな。',
       intro:['東の遺跡のゲートが、この大陸を指し示したのじゃろう?ならば語ろう…この大陸の竜は、霧の彼方から来た。','だがリザードマンどもが語りの場を荒らす。8体、鎮めてくれ。'],
@@ -1035,7 +1066,7 @@ DATA.SIDEQUESTS = {
       requiresStory:'mist_light', lockedLine:'灯りを見たって?…ふん、観測の村の紹介がなけりゃ話すことはねえ。',
       intro:['この港街の灯台はワシが守っとる。レンズ磨きに貝殻の粉がいるんじゃ。','貝殻8つ、持ってきてくれんか。'],
       done:['よし、灯りが強くなった。沖の果てまで照らせるぞ。','…見えるか?東の地平に赤く揺れる明かり。ありゃ「鍛冶神の工房都市」の炉の火じゃ。','この大陸の東の果てにある。地図に記す。'],
-      reward:{ coins:250, hintBase:'b_forge', story:'white_beam' } },
+      reward:{ coins:460, hintBase:'b_forge', story:'white_beam' } },
     { id:'sq_umi', npc:'npc_sailor', npcName:'潜り漁師ウミ', type:'delivery', need:{ mats:{ shell:12, coral:4 } },
       requiresStory:'white_beam', lockedLine:'今は時化でな…灯台の灯りが強くなったら、沖の話をしてやるよ。',
       intro:['あたしは素潜りのウミ。この街で一番深く潜る女さ。','潜り装束を繕いたい。貝殻12と珊瑚4、都合してくれないかい。','礼に、この海で一番の秘密を教えてやるよ。'],
@@ -1080,7 +1111,7 @@ DATA.SIDEQUESTS = {
       requiresStory:'east_astro', lockedLine:'星の話は、学術都市の天文資料を読んだ人としかしないんだ。',
       intro:['星がきれいでしょ、ここは星見の村。','でもウィスプの光が邪魔で星が見えない…8体消して?'],
       done:['星が戻った!見て、あの北西の沖に光る白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。小島の氷の隠れ里だよ。地図にかくね。'],
-      reward:{ coins:180, hintBase:'b_frost', story:'star_sign' } },
+      reward:{ coins:400, hintBase:'b_frost', story:'star_sign' } },
   ],
   b_frost: [
     { id:'sq_fuyu', npc:'npc_elder', npcName:'長老フユ', type:'hunt', enemy:'iceslime', count:10,
@@ -1140,7 +1171,7 @@ DATA.SIDEQUESTS = {
     { id:'sq_shell', npc:'npc_boy', npcName:'貝の童シェル', type:'hunt', enemy:'crab', count:8,
       intro:['ぼく、都のみんなの貝を集める係なんだ。','でも環礁の外にアイアンクラブがいっぱいで、潜れないよ…8匹お願い!'],
       done:['わーい!これでいっぱい潜れる!','お礼にとっておきの貝、あげるね。'],
-      reward:{ coins:150, mats:{ shell:6 }, story:'shell_kid' } },
+      reward:{ coins:450, mats:{ shell:6 }, story:'shell_kid' } },
   ],
   b_end: [
     { id:'sq_ou', npc:'npc_sage', npcName:'城主オウ', type:'hunt', enemy:'hornedimp', count:10,
@@ -1271,6 +1302,46 @@ DATA.QUESTS2 = {
     reward:{ coins:500, mats:{magic:4} } },
 };
 
+// 手書きのユニーク施設クエスト(主要基地): 施設が使えない「原因そのもの」を討つ
+DATA.QUESTS2 = DATA.QUESTS2 || {};
+Object.assign(DATA.QUESTS2, {
+  b_dragon: { npcName:'竜骨の番人', type:'mark', enemy:'lizard', rank:1,
+    markName:'祭具喰らいのリザード', mark:{ x:102700, y:4300 },
+    offer:'祭具を呑んだ奴の居所が分かった。取り返してくれんか。',
+    intro:['祭具を呑んだ金鱗のリザードが、集落の北の岩場に居着いておる。','マップに印を付けた。腹の中の祭具ごと、取り返してくれ。'],
+    done:['祭具が戻った…!竜の力が集落に流れ出す。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:300 } },
+  b_star: { npcName:'星読みのミラ', type:'mark', enemy:'wisp', rank:1,
+    markName:'星喰いの長', mark:{ x:138600, y:-108900 },
+    offer:'星水晶を吸っているのは、ただのウィスプではありません。長がいます。',
+    intro:['祭壇の光を吸い続ける「星喰いの長」…金色に肥え太ったウィスプです。','丘の上に現れます。マップに印を。どうか、討ってください。'],
+    done:['星水晶が輝きを取り戻した…祭壇が星の力を注いでくれます。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:350 } },
+  b_forge: { npcName:'鍛冶神の弟子ゴウ', type:'mark', enemy:'golem', rank:1,
+    markName:'暴走した大炉のゴーレム', mark:{ x:239300, y:-59500 },
+    offer:'大炉を占拠してる馬鹿デカいゴーレム、あれを止めてくれ。',
+    intro:['大炉の番をさせてたゴーレムが、熱にやられて暴走しちまった。','壊すしかねえ…親方が打った奴だ、せめて一撃で楽にしてやってくれ。マップに印を付けた。'],
+    done:['…すまなかったな。大炉は戻った。神鉄の火がお前の力になる。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:500 } },
+  b_moon: { npcName:'月の使者ツクヨ', type:'mark', enemy:'shade', rank:1,
+    markName:'聖句喰らいのシェイド', mark:{ x:-183200, y:5200 },
+    offer:'聖句を喰らう影の正体が知れた。斬ってくれ。',
+    intro:['月光の聖句を喰らっていたのは、一体の肥えたシェイドだ。','月の出る丘に現れる。マップに印を付けた。聖句が食い尽くされる前に。'],
+    done:['聖句が守られた…月の祈りが修道院に降りる。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:450 } },
+  b_sun: { npcName:'太陽の神官サナ', type:'mark', enemy:'scarab', rank:2,
+    markName:'日蝕の女王', mark:{ x:305800, y:-110800 },
+    offer:'日輪の間に巣を張った群れには、女王がいます。',
+    intro:['スカラベの群れの奥に、紅く輝く女王がいます。','女王を討たねば、巣は何度でも戻る。マップに印を。太陽の名のもとに。'],
+    done:['日輪が輝きを取り戻しました。太陽の力が都に満ちる。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:600 } },
+  b_void: { npcName:'虚無の囁き', type:'survive', enemy:'voidwisp', time:25,
+    offer:'……庵の静けさを、一度だけ完全に満たしたい。',
+    intro:['……今から庵の心臓で「無」を編み直す。','25秒。何者にも邪魔をさせるな。'],
+    done:['……戻った。この庵の力を、お前にも分けよう。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:550 } },
+});
+
 // ---- 施設解放クエスト(全基地): ゲート解放後に村のNPCから受けられる。 ----
 // 達成するとその基地のパワーアップ施設が目を覚ます(未達成の間、施設は眠っている)。
 // 各基地の背景設定に沿ったテンプレートで、未定義の基地ぶんを生成する。
@@ -1309,6 +1380,18 @@ DATA.QUESTS2 = {
   }
 }
 
+
+// エピローグ: 城主オウの物語を見届けた後、各地のNPCの第一声が変わる
+DATA.EPILOGUE = {
+  b_north: '…果ての城の話、聞いたぞ。先代の忘れ形見が、お前さんに託されたんじゃな。',
+  b_east:  '最果ての観測データ、届いたわ。あなた、本当に世界の端まで行ったのね…!',
+  b_south: '果ての城まで辿り着いた魂…泉の水が、今日はひときわ澄んでいます。',
+  b_west:  '王家の発注より、お前さんの得物を打つ方が名誉ってもんだぜ。',
+  b_dragon:'竜も、果てに辿り着いた魂の話をしておる。誇るがよい。',
+  b_sun:   '太陽は全てを見ていました。あなたが果てで交わした約束も。',
+  b_void:  '……見てきたか。ならば、もう語る言葉は要らぬ。',
+  b_end:   'お前が来てから、碑の光が優しくなった。…また、その先へ行くのだろう?',
+};
 
 // NPCの豆知識(再会話で1つ話してくれる)
 DATA.NPC_TIPS = [

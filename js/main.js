@@ -25,14 +25,14 @@ const Game = (() => {
   // ---------------- 状態遷移 ----------------
   function toTitle(){
     state = 'title'; overlay = null;
-    show('title-screen'); hide('hud'); hide('btn-skill');
+    show('title-screen'); hide('hud'); hide('btn-skill'); hide('btn-sig');
     document.body.classList.add('in-title');
     Sfx.setScene('title');
   }
   function toHub(){
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill');
+    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill'); hide('btn-sig');
     Hub.enter();
     Sfx.setScene('hub');
   }
@@ -45,12 +45,15 @@ const Game = (() => {
         'ポケットには古びた地図の切れ端。「北の砦」とだけ記され、印が打たれている。',
         '(🗺 マップに「?」の印がある。まずはそこを目指そう)',
         '(この世界では、死は終わりではない…らしい)',
-      ], null), 400);
+      ], () => dialogChoice('', null, '…どうする?', [
+        { label:'進むしかない', cb(){ dialog('', null, ['(足が、自然と北へ向いた)'], null); } },
+        { label:'帰り道を探す', cb(){ dialog('', null, ['(振り返っても、来た道の記憶がない。……進むしかない)'], null); } },
+      ])), 400);
     }
     state = 'run'; overlay = null;
     document.body.classList.remove('in-title');
     hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud'); show('btn-skill');   // スキルボタンは周回中のみ
+    show('hud'); show('btn-skill'); show('btn-sig');   // スキル/号令ボタンは周回中のみ
     el('interact-hint').classList.add('hidden');
     Run.start(pos);
     Sfx.setScene('run');
@@ -58,7 +61,7 @@ const Game = (() => {
   // 周回中に基地へ着いた: 拠点マップへ転移(周回は裏で保持)
   function enterBaseFromRun(baseId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun(baseId);
     Sfx.setScene('hub');
@@ -67,7 +70,7 @@ const Game = (() => {
   function resumeRun(){
     state = 'run'; overlay = null;
     hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud'); show('btn-skill');
+    show('hud'); show('btn-skill'); show('btn-sig');
     el('interact-hint').classList.add('hidden');
     Run.state.noInteractT = 1.0;   // 復帰直後に再び転移しないよう猶予
     Sfx.setScene('run');
@@ -136,8 +139,16 @@ const Game = (() => {
     // 2段階目クエスト進行中ならクエスト側の会話(報告・途中経過)
     if (Quest.activeFor('base2', baseId)) { Quest.atNpc('base2', baseId); return; }
     const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
-    const lines = (q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。'])
-      .concat(['「' + tip + '」']);
+    const lines = [];
+    // エピローグ: 果ての城の物語を見届けた後は、世界の語りが変わる
+    if ((SaveSys.data.story || {}).end_throne && DATA.EPILOGUE && DATA.EPILOGUE[baseId]) lines.push(DATA.EPILOGUE[baseId]);
+    // 死に戻りの回数に、世界がちゃんと反応する
+    const deaths = SaveSys.data.stats.deaths || 0;
+    if (deaths >= 30) lines.push('…もう' + deaths + '回も死に戻ったのか。それでも立ち上がる魂、大したものだ。');
+    else if (deaths >= 15) lines.push('また戻ったな。お前が何度でも帰ってくるの、この村はもう驚かなくなったよ。');
+    else if (deaths >= 5) lines.push('…また戻ったのか。死に戻りとは聞いていたが、本当に、戻ってくるのだな。');
+    lines.push(...(q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。']));
+    lines.push('「' + tip + '」');
     const q2 = DATA.QUESTS2[baseId];
     const done2 = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
     dialog(q.npcName, q.npc, lines, () => {
@@ -180,6 +191,8 @@ const Game = (() => {
     el('result-title').textContent = res.retired ? '帰還した' :
       (res.time >= DATA.REAPER_AT ? '終焉に呑まれた…' : '力尽きた…');
     el('result-body').innerHTML = `
+      ${res.recap ? `<div class="r-line" style="color:#f85149">死因: <b>${res.recap.killer}</b>
+        <span class="small">(直前10秒: ${res.recap.list.map(l => l[0] + ' ' + l[1]).join(' / ')})</span></div>` : ''}
       <div class="r-line">生存時間: <b>${fmtTime(res.time)}</b></div>
       <div class="r-line">到達距離: <b>${fmtNum(res.dist)}</b></div>
       <div class="r-line">撃破数: <b>${fmtNum(res.kills)}</b> / 仲間にした数: <b>${res.recruits}</b></div>
@@ -193,7 +206,7 @@ const Game = (() => {
 
   function endRun(retired){
     const res = Run.finishRun(retired);
-    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill');
+    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill'); hide('btn-sig');
     showResult(res);
   }
 
@@ -313,6 +326,7 @@ const Game = (() => {
   el('pause-resume').onclick = () => togglePause();
   el('pause-retire').onclick = () => { endRun(true); };
   el('btn-skill').onclick = () => toggleSkillPanel();
+  el('btn-sig').onclick = () => { if (state === 'run') Run.warcry(); };
   el('btn-act').onclick = () => {
     if (overlay === 'dialog') { advanceRunDialog(); return; }
     if (!overlay) {
