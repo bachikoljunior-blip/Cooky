@@ -11,15 +11,29 @@ const World = (() => {
     return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.3 + Math.sin(a * 13 + s * 4.1) * 0.2;
   }
   function edgeR(cont, angle){
-    return cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
+    let r = cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
+    // 大陸ごとの個性: coast=[{a:方角, w:幅rad, d:深さ}] 負dで湾(入り江)、正dで岬(半島)
+    if (cont.coast) for (const f of cont.coast) {
+      let da = angle - f.a;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      r *= 1 + f.d * Math.exp(-(da * da) / (2 * f.w * f.w));
+    }
+    return r;
   }
 
-  // その座標を含む大陸を返す(なければ null)。sx/syの伸縮で多様な形になる
+  // その座標を含む大陸を返す(なければ null)。sx/syの伸縮とrotの回転で多様な形になる
   function landAt(x, y){
     for (const c of DATA.CONTINENTS) {
-      const dx = (x - c.x) / (c.sx || 1), dy = (y - c.y) / (c.sy || 1);
+      let dx = x - c.x, dy = y - c.y;
+      if (c.rot) {
+        const co = Math.cos(-c.rot), si = Math.sin(-c.rot);
+        const rx = dx * co - dy * si, ry = dx * si + dy * co;
+        dx = rx; dy = ry;
+      }
+      dx /= (c.sx || 1); dy /= (c.sy || 1);
       const d = Math.hypot(dx, dy);
-      if (d > c.r * 1.55) continue;
+      if (d > c.r * 2.1) continue;
       const e = edgeR(c, Math.atan2(dy, dx));
       if (d < e) return { cont: c, d, edge: e };
     }
