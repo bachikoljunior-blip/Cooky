@@ -345,6 +345,7 @@ const Run = (() => {
     const hpMul = st.allyHp * (wb ? wb.hp : 1);
     R.allies.push({
       def: e.def, key: e.defKey,
+      rank: e.rank || 0, sizeMul: e.sizeMul || 1,   // 色違いと大きさは仲間になっても保つ
       x: e.x, y: e.y,
       // 初期値は敵だった時と同じHP・攻撃。ただし速さは主人公と同じくらいにして
       // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
@@ -1058,7 +1059,7 @@ const Run = (() => {
       let blocked = false;
       for (const a of R.allies) {
         if (a.waitAt || a.dead || a.joining) continue;   // 合流中はすり抜ける(無敵・壁にならない)
-        if (segCircleHit(px0, py0, b.x, b.y, a.x, a.y, a.def.r + 5)) {
+        if (segCircleHit(px0, py0, b.x, b.y, a.x, a.y, a.def.r * (a.sizeMul || 1) + 5)) {
           damageAlly(a, b.dmg * 0.35, b);   // 仲間への弾ダメージは控えめ
           R.eprojs.splice(i, 1); blocked = true; break;
         }
@@ -1218,7 +1219,7 @@ const Run = (() => {
         dest = tgt;
         // 接触攻撃(tdは敵の体の縁までの距離)。間合いは敵の接触攻撃(+4)と同じ
         a.atkCd -= dt;
-        if (td < a.def.r + 4) {
+        if (td < a.def.r * (a.sizeMul || 1) + 4) {
           if (a.atkCd <= 0) {
             a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd) * (sigActive() ? 0.55 : 1);   // 鬨の声/突撃の号令
             dealDamage(tgt, a.dmg * atkMul * (sigActive() ? 1.3 : 1) / R.stats.atk); // dealDamage内でatk倍されるため相殺
@@ -2347,12 +2348,15 @@ const Run = (() => {
       const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
       ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
     }
-    // 味方は元の色を残しつつ、うっすら青みを乗せて敵と少しだけ違って見えるように(リングなし)
-    Sprites.drawTinted(g, a.def.sprite, ax, ay, a.def.r * 2.6, false, '#3d7bff', 0.3);
-    if (a.hp < a.maxHp) drawBar(g, a.x, a.y - a.def.r - 12, 26, a.hp / a.maxHp, '#7ee787');
+    // 味方も色違い・大きさは敵だった時のまま。色違いはその色、通常はうっすら青みで敵と区別
+    const asz = a.def.r * 2.6 * (a.sizeMul || 1);
+    const tint = a.rank > 0 ? RANK_COLORS[a.rank] : '#3d7bff';
+    Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, tint, a.rank > 0 ? 0.4 : 0.3);
+    const atop = a.def.r * (a.sizeMul || 1);
+    if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
     if (a.waitAt) {
       g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
-      g.fillText('待機中', a.x, a.y - a.def.r - 16);
+      g.fillText('待機中', a.x, a.y - atop - 16);
     }
     g.globalAlpha = 1;
   }
