@@ -399,6 +399,15 @@ const Quest = (() => {
     return list.length ? list : null;
   }
 
+  // 色違い討伐依頼: その種が依頼対象として湧く時に必要な最低ランク
+  function wantRank(key){
+    let r = 0;
+    for (const a of actives)
+      if (a.phase === 'go' && a.def.type === 'hunt' && a.def.enemy === key)
+        r = Math.max(r, a.def.minRank || 0);
+    return r;
+  }
+
   function _forceReturn(kind, id){ const a = kind ? activeFor(kind, id) : actives[0]; if (a) { a.phase = 'return'; persist(); } }
 
   function visitTargets(){
@@ -416,6 +425,6 @@ const Quest = (() => {
     }
     return out;
   }
-  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, objText, activeFor, hasActive, _forceReturn, refreshHint, visitTargets, sideVisible,
+  return { reset, offer, atNpc, notifyKill, tick, wantSpawn, wantRank, objText, activeFor, hasActive, _forceReturn, refreshHint, visitTargets, sideVisible,
            get active(){ return actives[0] || null; } };
 })();

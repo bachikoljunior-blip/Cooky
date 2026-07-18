@@ -551,7 +551,7 @@ const Run = (() => {
     let x, y;
     if (opts.x !== undefined) { x = opts.x; y = opts.y; }
     else {
-      const a = Math.random() * Math.PI * 2;
+      const a = opts.ang !== undefined ? opts.ang : Math.random() * Math.PI * 2;
       const dist = opts.dist || rnd(560, 760);
       x = p.x + Math.cos(a) * dist; y = p.y + Math.sin(a) * dist;
       // 環境の合う場所へ補正(数回試行)
@@ -565,7 +565,9 @@ const Run = (() => {
       // 掃討したばかりの場所(1分以内)には環境の敵を湧かせない
       if (opts.ambient && isClearedCell(x, y)) return null;
     }
-    const rank = (opts.boss || def.isReaper) ? 0 : (opts.rank !== undefined ? opts.rank : pickRank());
+    let rank = (opts.boss || def.isReaper) ? 0 : (opts.rank !== undefined ? opts.rank : pickRank());
+    // 色違いの討伐依頼中: 依頼対象として湧く個体は依頼のランク以上で出る(対象が出ない事故を防ぐ)
+    if (opts.qMinRank && rank < opts.qMinRank) rank = Math.min(RANK_MAX, opts.qMinRank);
     const e = {
       def, defKey,
       x, y,
@@ -625,7 +627,11 @@ const Run = (() => {
     }
     const inTier = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
       d.tier <= tier && d.tier >= tier - 2 && (onSea ? d.env !== 'land' : d.env !== 'sea'); };
+    // 逃げる敵(ヒーラー等)はあくまで「一部」: 生存数が上限に達していたら湧かせない
+    // (逃げ回って死なずに溜まり、まわりが回復役だらけになるのを防ぐ)
+    const kiteAlive = R.enemies.reduce((n, e) => n + (!e.dead && e.def.move === 'kite' && !e.def.rare ? 1 : 0), 0);
     let candidates = keys.filter(inTier);
+    if (kiteAlive >= 3) candidates = candidates.filter(k => DATA.ENEMIES[k].move !== 'kite');
     if (!candidates.length) candidates = Object.keys(DATA.ENEMIES).filter(inTier);   // フォールバック
     const pool = [];
     const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
@@ -709,9 +715,9 @@ const Run = (() => {
     const mig = R.worldEvent === 'migration' && R.evSpecies &&
                 (DATA.ENEMIES[R.evSpecies].tier || 0) === tier && !onSea;
     const n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4) + (mig ? 3 : 0);   // 低ティアほど大所帯/大移動は+3
+    const herdKey = keys[Math.floor(Math.random() * keys.length)];   // 群れは同種で構成
     for (let i = 0; i < n; i++) {
-      const key = (mig && Math.random() < 0.7) ? R.evSpecies
-        : keys[Math.floor(Math.random() * keys.length)];   // 同ティア内の種で構成
+      const key = (mig && Math.random() < 0.7) ? R.evSpecies : herdKey;
       const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       spawnEnemy(key, { x: ex, y: ey, herd, mad });
@@ -817,17 +823,35 @@ const Run = (() => {
       if (tot > 0) nearTarget = Math.round(nearTarget * (1 - clr / tot));
     }
     const calmMul = (R.worldEvent === 'calm' && !World.isLand(p.x, p.y)) ? 0.65 : 1;
-    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul;
+    // 移動中は前方の分が間引かれていくぶん補充を速める(移動しても敵密度が薄くならない)
+    const pSpd = Math.hypot(p.vx || 0, p.vy || 0);
+    const moveBoost = 1 + Math.min(2.2, pSpd / 60);
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost;
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
+    const moveA = pSpd > 20 ? Math.atan2(p.vy, p.vx) : null;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
       if (nearN >= nearTarget || R.enemies.length >= 900) break;
       if (Math.random() < (R.worldEvent === 'migration' ? 0.22 : 0.12)) { spawnHerd(false); nearN += 5; }   // 時々、群れ
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
-      else { const k = pickEnemyKey(); if (k && spawnEnemy(k, { mad: questTgts.includes(k), dist: offR + rnd(15, 240), ambient: true })) nearN++; }
+      // 移動中は進行方向の前方に多めに湧かせる(置いていった敵の分を前で補う)
+      else {
+        const k = pickEnemyKey();
+        const ang = (moveA !== null && Math.random() < 0.7) ? moveA + rnd(-1.3, 1.3) : undefined;
+        if (k && spawnEnemy(k, { mad: questTgts.includes(k), qMinRank: Quest.wantRank ? Quest.wantRank(k) : 0,
+                                 dist: offR + rnd(15, 240), ang, ambient: true })) nearN++;
+      }
     }
     if (R.spawnAcc > 12) R.spawnAcc = 12;
+
+    // --- ティアごとの群れ: 密度と関係なく定期的に必ず出会う(その土地のティアで構成) ---
+    if (R.herdT === undefined) R.herdT = rnd(14, 22);
+    R.herdT -= dt;
+    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < 850) {
+      spawnHerd(false);
+      R.herdT = rnd(20, 34) * (R.worldEvent === 'migration' ? 0.6 : 1);
+    }
 
     // --- 時間ごとの大群(何波にも分けて押し寄せる) ---
     if (R.hordeT === undefined) R.hordeT = rnd(60, 90);
@@ -1343,8 +1367,22 @@ const Run = (() => {
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
             const uImm = u === pl, vImm = v === pl;
-            if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); u.x -= nx * tot * f; u.y -= ny * tot * f; }
-            if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); v.x += nx * tot * f; v.y += ny * tot * f; }
+            // 敵が押し合いで主人公へ押し込まれない: 主人公の近くでは、
+            // 主人公方向への押し成分を消す(後ろの群れが前の敵を擦り付けてくるのを防ぐ)
+            const push = (ent, fx, fy) => {
+              if (!ent._ally && ent !== pl) {
+                const dxp = pl.x - ent.x, dyp = pl.y - ent.y;
+                const dp2 = dxp * dxp + dyp * dyp;
+                if (dp2 < 120 * 120) {
+                  const dl = Math.sqrt(dp2) || 1;
+                  const tw = (fx * dxp + fy * dyp) / dl;
+                  if (tw > 0) { fx -= dxp / dl * tw; fy -= dyp / dl * tw; }
+                }
+              }
+              ent.x += fx; ent.y += fy;
+            };
+            if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); push(u, -nx * tot * f, -ny * tot * f); }
+            if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); push(v, nx * tot * f, ny * tot * f); }
           }
         }
       }

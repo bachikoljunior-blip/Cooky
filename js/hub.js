@@ -47,6 +47,14 @@ const Hub = (() => {
     });
     list.push({ kind:'board', x:-320, y:260 });   // 依頼板(周回ごとに変わる小口の依頼)
     list.push({ kind:'gate', x:0, y:260 });
+    // 依頼を持たないふつうの住民(基地ごとに2人、顔ぶれは固定)
+    {
+      let h = 0; for (let i = 0; i < H.area.length; i++) h = (h * 31 + H.area.charCodeAt(i)) | 0;
+      const n = DATA.VILLAGERS.length;
+      const i1 = Math.abs(h) % n, i2 = (Math.abs(h >> 3) % (n - 1) + i1 + 1) % n;
+      list.push({ kind:'villager', v: DATA.VILLAGERS[i1], x:-140, y:80 });
+      list.push({ kind:'villager', v: DATA.VILLAGERS[i2], x:180, y:100 });
+    }
     return list;
   }
 
@@ -95,7 +103,7 @@ const Hub = (() => {
     // 住民は定位置のまわりを行き来する(作業している感)
     H.time = (H.time || 0) + dt;
     for (const s of H.list) {
-      if (s.kind === 'npc' || s.kind === 'sidenpc') {
+      if (s.kind === 'npc' || s.kind === 'sidenpc' || s.kind === 'villager') {
         const ph = (s.x * 13 + s.y * 7) % 10;
         s.ox = Math.sin(H.time * 0.5 + ph) * 34;
         s.oy = Math.sin(H.time * 1.7 + ph * 2) * 2;   // 作業の上下ゆれ
@@ -129,6 +137,7 @@ const Hub = (() => {
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
     if (s.kind === 'sidenpc') return s.name + 'と話す';
+    if (s.kind === 'villager') return s.v.name + 'と話す';
     if (s.kind === 'board') return (Run.state.boardDone || {})[H.area] ? '依頼板(今日の依頼は達成済み)' : '依頼板を見る';
     if (s.kind === 'armory') return '武器庫(攻撃手段の切替・強化)';
     if (s.kind === 'gate') return H.fromRun ? '転送ゲート(周回に戻る)' : '転送ゲート(出撃 / 基地へ移動)';
@@ -154,6 +163,10 @@ const Hub = (() => {
       else Game.npcTalk(s.base);
     }
     else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
+    else if (s.kind === 'villager') {
+      const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
+      Game.dialog(s.v.name, s.v.spr, [s.v.line, '「' + tip + '」'], null);
+    }
     else if (s.kind === 'board') {
       if ((Run.state.boardDone || {})[H.area]) Game.dialog('', null, ['(今日の依頼は済んでいる。また次の周回で新しい依頼が貼り出されるだろう)'], null);
       else Quest.offer('board', H.area);
@@ -489,6 +502,7 @@ const Hub = (() => {
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
     if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
+    if (s.kind === 'villager') return { spr: s.v.spr, label: s.v.name, short: '住民' };
     if (s.kind === 'board') return { spr:'ob_house2', label:'依頼板', short:'依頼' };
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };

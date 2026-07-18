@@ -38,13 +38,29 @@ DATA.MATERIALS = {
 };
 
 // コスト生成ヘルパ: lv(1〜)に応じて素材要求が増え、高レベルで上位素材が混ざる
+// 魔物からドロップする素材の集合(遅延構築)。オブジェクト(木・岩など)からしか
+// 出ない素材と要求量の伸び方を分けるために使う
+let _foeMats = null;
+function foeMats(){
+  if (_foeMats) return _foeMats;
+  _foeMats = new Set();
+  for (const k in DATA.ENEMIES) for (const d of DATA.ENEMIES[k].drops || []) _foeMats.add(d.m);
+  return _foeMats;
+}
 function matCost(lv, base, extras){
   // base: {mat: qty} lv1時 / extras: [{from: lv, mat, qty}]
+  // 魔物素材はレベルごとに約1.6倍へ跳ね上がる(狩りの周回が要る)。
+  // オブジェクト素材(木材など)は緩やかに増えるだけ
   const c = {};
-  const mul = 1 + (lv - 1) * 0.8;
-  for (const m in base) c[m] = Math.ceil(base[m] * mul);
+  for (const m in base) {
+    const mul = foeMats().has(m) ? Math.pow(1.6, lv - 1) : 1 + (lv - 1) * 0.6;
+    c[m] = Math.ceil(base[m] * mul);
+  }
   if (extras) for (const e of extras) {
-    if (lv >= e.from) c[e.mat] = Math.ceil(e.qty * (1 + (lv - e.from) * 0.5));
+    if (lv >= e.from) {
+      const mul = foeMats().has(e.mat) ? Math.pow(1.6, lv - e.from) : 1 + (lv - e.from) * 0.5;
+      c[e.mat] = Math.ceil(e.qty * mul);
+    }
   }
   return c;
 }
@@ -1006,13 +1022,17 @@ DATA.SIDEQUESTS = {
       intro:['トトさんの地図のおかげで分かったんです。この装置、東の大陸と共鳴してる!','水晶6つあれば共鳴先を特定できます。お願いできますか?'],
       done:['…見えた!共鳴先は東の大海の向こう、竜骨の大陸の「竜骨の前哨」。','狩人の集落があるはずです。地図に印を付けますね。'],
       reward:{ coins:100, hintBase:'b_dragon', story:'east_engine' } },
+    { id:'sq_tetsu', npc:'npc_sailor', npcName:'行商のテツ', type:'visit', visit:{ x:-2000, y:11600, label:'南の泉のほとり' },
+      intro:['俺は行商でな。ここの学者先生たちに紙とインクを卸してる。','仕入れ先は南西の泉のほとりにある巡礼の村なんだが、道中の魔物が増えて隊商が出せねえ。','様子を見てきてくれないか?泉が見えたら、そのほとりだ。'],
+      done:['おお、村は無事だったか!泉の巫女様のいる「南の泉」だ。','地図に描いておこう。これでまた商売に行ける。恩に着るぜ。'],
+      reward:{ coins:90, hintBase:'b_south', story:'east_road' } },
   ],
   b_south: [
     { id:'sq_tome', npc:'npc_girl', npcName:'巡礼のトメ婆', type:'escort', ehp:280, escortSpr:'npc_girl',
       dest:{ x:-500, y:14400, label:'泉の奥の祈り場' },
       intro:['ばあはね、足を悪くしてから祈り場まで行けとらんのよ。','泉の奥までいっしょに歩いてくれんかね。ゆっくりでええから。','(トメ婆を祈り場まで護衛する。婆が倒れたら失敗だ)'],
-      done:['ありがとうねえ…何十年ぶりかの祈り場じゃったよ。','あんたの旅路にも、ようけ祝福がありますように。'],
-      reward:{ coins:90, story:'tome_walk' } },
+      done:['ありがとうねえ…何十年ぶりかの祈り場じゃったよ。','祈り場から西の空に、煙が立っとったろう?あれは「西の炉」…鍛冶の街の炉の煙よ。','ばあの息子があそこで炭鉱夫をしとる。地図に描いてあげよう。訪ねてやってな。','あんたの旅路にも、ようけ祝福がありますように。'],
+      reward:{ coins:90, hintBase:'b_west', story:'tome_walk' } },
     { id:'sq_mama', npc:'npc_girl', npcName:'宿屋の女将マーサ', type:'hunt', enemy:'mush', count:8,
       intro:['あら旅の人、うちは巡礼さん相手の宿屋なの。','巡礼さんはみんな魂の広場を目指すのよ。死んだ家族の魂が、一時あそこに還ると信じてね。','裏の森のマイコニドが食料庫を荒らして困ってるの。8体お願い!'],
       done:['助かったわ〜。そうだ、南東の海の向こうに「深緑の社」があるの。','巡礼さんたちのもう一つの目的地よ。地図に描いてあげる。','…あなた、もしかして「還る人」?なら広場で、ヨネさんって巡礼さんを気にかけてあげて。'],
@@ -1388,6 +1408,18 @@ DATA.EPILOGUE = {
 };
 
 // NPCの豆知識(再会話で1つ話してくれる)
+// 依頼を持たないふつうの住民。基地ごとに2人が住んでいて、世間話と豆知識をくれる
+DATA.VILLAGERS = [
+  { spr:'npc_boy',    name:'村の子',     line:'ゲートが灯ってから、夜もこわくないんだ。とうさんが「あの光は魔物よけだ」って。' },
+  { spr:'npc_girl',   name:'洗濯娘',     line:'あなたの軍勢、最初はびっくりしたけど…礼儀正しい魔物さんたちね。' },
+  { spr:'npc_elder',  name:'ご隠居',     line:'わしが若い頃は、ゲートの外へ出る者などおらんかった。時代は変わるものよ。' },
+  { spr:'npc_miner',  name:'荷運び',     line:'行商人が街道を歩けるのも、あんたが魔物を減らしてくれてるおかげさ。' },
+  { spr:'npc_sailor', name:'渡りの漁師', line:'海にも魔物の縄張りがある。海域が変われば、獲れるもんも変わるのさ。' },
+  { spr:'npc_scholar',name:'書生',       line:'「死に戻り」の研究をしてるんです。魂が広場に還る仕組み…いつか解き明かしたい。' },
+  { spr:'npc_miko',   name:'祈り手',     line:'還らぬ魂のために、毎朝祈っています。あなたのような方は…どうか、御無事で。' },
+  { spr:'npc_smith',  name:'鍛冶見習い', line:'親方が言ってました。「いい武器より、いい仲間だ」って。あなたを見てると分かります。' },
+];
+
 DATA.NPC_TIPS = [
   'ヒーラー系の魔物と共鳴できれば、今度はお前と軍勢を回復してくれる。狙う価値があるぞ。',
   'バイオドームごとに住む魔物が違う。欲しい素材は、それを落とす魔物の土地で狩るんだ。',
