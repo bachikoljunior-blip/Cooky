@@ -2491,13 +2491,12 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
-    // 基地を一つでも解放していれば、未解放の基地はすべてヒント(?)として表示する。
+    // 場所を知る手段は物語のヒント(?)・visit依頼の📍・実際に近づくこと、だけ。
     const seen = SaveSys.data.seen || {};
-    const allHints = SaveSys.data.allHints;
     const hints = [];
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (allHints || SaveSys.data.nextHint === b.id) hints.push(b);   // ヒントは最後に大きく描く
+      else if (SaveSys.data.nextHint === b.id) hints.push(b);   // ヒントは最後に大きく描く
       else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
     }
     for (const port of World.ports) {

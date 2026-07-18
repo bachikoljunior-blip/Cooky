@@ -221,33 +221,16 @@ const Quest = (() => {
     Sfx.unlock();
   }
 
-  // 最寄りの未解放の主大陸の基地
-  function nextLockedBase(fx, fy){
-    let best = null, bd = 1e18;
-    for (const b of DATA.BASES) {
-      if (b.cont !== 'main' || SaveSys.data.bases[b.id]) continue;
-      const d = Math.hypot(b.x - fx, b.y - fy);
-      if (d < bd) { best = b; bd = d; }
-    }
-    return best;
-  }
-
-  // 基地を一つでも解放したら、全ての基地の場所をマップにヒント表示する。
-  function refreshHint(fx, fy){
+  // 拠点の場所は自動では明かさない。知る手段は
+  //   ・最初の地図の切れ端(nextHint = b_north)
+  //   ・クエスト報酬のヒント(hintBase / hintPort)
+  //   ・visit依頼の道中や探索で実際に近づく(seen)
+  // だけ。ここではヒントの整合(解放済み・実在しない先を指すヒントの掃除)のみ行う。
+  function refreshHint(){
     SaveSys.data.seen = SaveSys.data.seen || {};
-    if (Object.keys(SaveSys.data.bases).length > 0) {
-      SaveSys.data.allHints = true;
-      // 全体図に収まるよう、主大陸の基地は既知(seen)にしておく
-      for (const b of DATA.BASES) if (b.cont === 'main') SaveSys.data.seen[b.id] = true;
-    }
-    // 互換: 単一ヒント(nextHint)も未解放の最寄りへ維持
     const cur = SaveSys.data.nextHint;
-    const valid = cur && !SaveSys.data.bases[cur] && DATA.BASES.some(b => b.id === cur);
-    if (!valid) {
-      const best = nextLockedBase(fx || 0, fy || 0);
-      SaveSys.data.nextHint = best ? best.id : null;
-      if (best) SaveSys.data.seen[best.id] = true;
-    }
+    if (cur && (SaveSys.data.bases[cur] || !DATA.BASES.some(b => b.id === cur))) SaveSys.data.nextHint = null;
+    delete SaveSys.data.allHints;   // 旧セーブの「全基地ヒント」は廃止(場所は物語で知る)
     SaveSys.save();
   }
 
@@ -257,22 +240,20 @@ const Quest = (() => {
     const face = def.npc || 'npc_elder';
     SaveSys.data.seen = SaveSys.data.seen || {};
     // 解放した基地がヒント先なら、次の未解放の拠点へヒントを進める
-    const b0 = DATA.BASES.find(b => b.id === id);
     if (SaveSys.data.nextHint === id) SaveSys.data.nextHint = null;
-    refreshHint(b0 ? b0.x : 0, b0 ? b0.y : 0);
+    refreshHint();
 
     if (n === 1) {
-      // 最初の基地: 古地図の写し = この大陸の全拠点がマップに記される(refreshHintの挙動と一致)
+      // 最初の基地: 次の場所は教えない。土地の話は住人との関わり(サイドクエスト)から
       Game.dialog(def.npcName, face, [
-        'これを持っていけ。ワシの古地図を、お前さんのマップに写しておいた。',
-        'この大陸の拠点の在り処は、これで全て分かるはずじゃ。',
-        '(🗺 この大陸の拠点がマップに記された)',
-        '海の向こうの大陸は…ワシも知らん。土地の者の話が頼りじゃな。',
+        'この砦は今日からお前さんの拠点じゃ。ゲートで魂の広場といつでも行き来できる。',
+        '…この先の土地のことか?すまんが、ワシは砦を離れられん身での。詳しくは知らん。',
+        '村の連中の困りごとを聞いてやるといい。土地の話は、人の暮らしの中にあるもんじゃ。',
       ], null);
     } else {
       Game.dialog(def.npcName, face, [
         'よくぞここまで来た。この拠点はもうお前のものだ。',
-        '他にも拠点や港が眠っておる。自分の目で見つけるといい。',
+        '他にも拠点や港が眠っておる。土地の者と話し、手掛かりを辿ることじゃ。',
       ], null);
     }
   }
