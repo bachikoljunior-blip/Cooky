@@ -65,7 +65,7 @@ const Quest = (() => {
   }
 
   function objSummary(def){
-    if (def.type === 'hunt') return DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
+    if (def.type === 'hunt') return (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
     if (def.type === 'survive') return 'この場所の近くで' + def.time + '秒間守り抜く';
     if (def.type === 'delivery') return '素材とコインを届ける';
     if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(マップに📍)';
@@ -74,7 +74,7 @@ const Quest = (() => {
   function oneObjText(a){
     const d = a.def;
     if (a.phase === 'return') return '📜 ' + d.npcName + 'に報告';
-    if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + DATA.ENEMIES[d.enemy].name + ')';
+    if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + (d.minRank ? '色違いの' : '') + DATA.ENEMIES[d.enemy].name + ')';
     if (d.type === 'survive') {
       const near = a.near ? '' : '(場所に近づけ!)';
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
@@ -278,10 +278,11 @@ const Quest = (() => {
   }
 
   // ---------------- 周回からのフック ----------------
-  function notifyKill(defKey){
+  function notifyKill(defKey, rank){
     let changed = false;
     for (const a of actives) {
       if (a.phase !== 'go' || a.def.type !== 'hunt' || a.def.enemy !== defKey) continue;
+      if (a.def.minRank && (rank || 0) < a.def.minRank) continue;   // 色違い指定の依頼は通常個体を数えない
       a.killed++; changed = true;
       if (a.killed >= a.def.count) {
         a.phase = 'return';

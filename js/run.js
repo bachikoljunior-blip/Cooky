@@ -267,7 +267,7 @@ const Run = (() => {
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
     if (e.def.rare) { R.rareKills++; R.warnMsg = '✨ レアモンスターを倒した!'; R.warnT = 3; }
-    Quest.notifyKill(e.defKey);   // 討伐クエストの進行
+    Quest.notifyKill(e.defKey, e.rank || 0);   // 討伐クエストの進行(色違い指定の依頼はランクも見る)
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
     const ring = World.ringOf(e.x, e.y);
