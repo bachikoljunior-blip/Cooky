@@ -1395,8 +1395,11 @@ const Run = (() => {
           const spread = (i - (bolt.count-1)/2) * 0.12;
           const d = Math.hypot(tgt.x-p.x, tgt.y-p.y) || 1;
           const a = Math.atan2(tgt.y-p.y, tgt.x-p.x) + spread;
+          // 飛距離は射程(狙える距離)+少しの余裕まで。強化で弾数や貫通が増えても
+          // 射程の外まで飛んで遠くの敵に当たることはない(射程は眼力などで伸ばす)
           R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*bolt.speed, vy:Math.sin(a)*bolt.speed,
-                         dmg:bolt.dmg, life:1.6, size:6, pierce:bolt.pierce, color:'#58a6ff' });
+                         dmg:bolt.dmg, life:1.6, maxFly:effRange(360) + 60,
+                         size:6, pierce:bolt.pierce, color:'#58a6ff' });
         }
       } else R.cd['bolt'] = R.time + 0.15;
     }
@@ -1405,8 +1408,10 @@ const Run = (() => {
     if (hom && cdReady('homing', hom.cd)) {
       for (let i = 0; i < hom.count; i++) {
         const a = Math.random() * Math.PI * 2;
+        // さまよう性質は保ちつつ、主人公の射程圏から離れすぎたら消える(遠距離狙撃防止)
         R.projs.push({ x:p.x, y:p.y, vx:Math.cos(a)*hom.speed, vy:Math.sin(a)*hom.speed,
-                       dmg:hom.dmg, life:3.2, size:6, pierce:0, homing:hom.turn, hspeed:hom.speed,
+                       dmg:hom.dmg, life:3.2, leash:R.rangeCapPx * 2 + 90,
+                       size:6, pierce:0, homing:hom.turn, hspeed:hom.speed,
                        blast:hom.blast, color:'#f0883e' });
       }
     }
@@ -1510,7 +1515,7 @@ const Run = (() => {
         if (R.time > t.until) { R.turrets.splice(i, 1); continue; }
         t.fireCd -= dt;
         if (t.fireCd <= 0) {
-          const tgt = nearestEnemy(t.x, t.y, effRange(tu.range * area * st.range)) || nearestObject(t.x, t.y, effRange(260));
+          const tgt = nearestEnemy(t.x, t.y, effRange(tu.range * area)) || nearestObject(t.x, t.y, effRange(260));
           if (tgt) {
             t.fireCd = tu.fireCd * (1 - st.cdr);
             const d = Math.hypot(tgt.x-t.x, tgt.y-t.y) || 1;
@@ -1518,7 +1523,8 @@ const Run = (() => {
             for (let s = 0; s < shots; s++) {
               const a = Math.atan2(tgt.y-t.y, tgt.x-t.x) + (s ? 0.15 : 0);
               R.projs.push({ x:t.x, y:t.y, vx:Math.cos(a)*500, vy:Math.sin(a)*500,
-                             dmg:tu.dmg, life:1.2, size:4, pierce:0, color:'#8b949e' });
+                             dmg:tu.dmg, life:1.2, maxFly:effRange(tu.range * area) + 60,
+                             size:4, pierce:0, color:'#8b949e' });
             }
           }
         }
@@ -1902,6 +1908,14 @@ const Run = (() => {
       const b = R.projs[i];
       b.life -= dt;
       if (b.life <= 0) { R.projs.splice(i, 1); continue; }
+      // 射程の外へは飛ばない: maxFly=飛距離の上限 / leash=主人公からの距離の上限(追尾弾)
+      if (b.maxFly != null) {
+        b.flew = (b.flew || 0) + Math.hypot(b.vx, b.vy) * dt;
+        if (b.flew > b.maxFly) { R.projs.splice(i, 1); continue; }
+      }
+      if (b.leash != null && Math.hypot(b.x - R.player.x, b.y - R.player.y) > b.leash) {
+        R.projs.splice(i, 1); continue;
+      }
       // 追尾(敵がいなければオブジェクトも狙う)
       if (b.homing) {
         const tgt = nearestEnemy(b.x, b.y, effRange(400)) || nearestObject(b.x, b.y, effRange(400));
