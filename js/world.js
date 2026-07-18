@@ -7,11 +7,11 @@
 const World = (() => {
 
   // 疑似ノイズ(角度ベースの海岸線ゆらぎ)。lobesで岬の数、ampで凹凸の激しさが変わる。
-  // 実際の大陸のように、大きなうねりの上に細かいギザギザ(フラクタルな海岸線)を重ねる
+  // 実際の大陸のように、全体の輪郭はなだらかに保ち、小さなスケールのギザギザだけを重ねる
   function wob(a, s, lobes){
-    return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.3
-         + Math.sin(a * 13 + s * 4.1) * 0.2
-         + Math.sin(a * 19 + s * 1.7) * 0.13 + Math.sin(a * 29 + s * 3.3) * 0.08;
+    return Math.sin(a * (lobes || 3) + s) * 0.5 + Math.sin(a * 7 + s * 2.3) * 0.18
+         + Math.sin(a * 13 + s * 4.1) * 0.1
+         + Math.sin(a * 19 + s * 1.7) * 0.07 + Math.sin(a * 29 + s * 3.3) * 0.05;
   }
   function edgeR(cont, angle){
     let r = cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
