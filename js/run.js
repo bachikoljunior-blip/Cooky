@@ -684,7 +684,8 @@ const Run = (() => {
     if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
     else keys = DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES);
     // この土地に存在するティアだけを候補に、pickEnemyKeyと同じ重み付けで抽選
-    const tiers = [...new Set(keys.map(k => DATA.ENEMIES[k]).filter(d => d && !d.isReaper && !d.rare)
+    // (逃げ回る敵=ヒーラー等は群れを組まない。狩れない群れが溜まるのを防ぐ)
+    const tiers = [...new Set(keys.map(k => DATA.ENEMIES[k]).filter(d => d && !d.isReaper && !d.rare && d.move !== 'kite')
       .map(d => d.tier || 0))].filter(t => t <= top && t >= top - 2);
     if (!tiers.length) return 0;
     const ws = tiers.map(t => 1 + t * 1.6 + (t === top ? 2 : 0));
@@ -698,7 +699,7 @@ const Run = (() => {
     const keys = (onSea ? ((DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA)
       : DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES))
       .filter(k => { const dd = DATA.ENEMIES[k];
-        return dd && !dd.isReaper && !dd.rare && (dd.tier || 0) === tier &&
+        return dd && !dd.isReaper && !dd.rare && dd.move !== 'kite' && (dd.tier || 0) === tier &&
                (onSea ? dd.env !== 'land' : dd.env !== 'sea'); });
     if (!keys.length) return;
     const offR = R.offscreenR || 500;
@@ -1943,6 +1944,7 @@ const Run = (() => {
       let hit = false;
       for (const e of R.enemies) {
         if (e.dead) continue;
+        if (b._pierced && b._pierced.includes(e)) continue;   // 貫通済みの敵に再ヒットしない
         if (Math.hypot(e.x-b.x, e.y-b.y) < b.size + e.def.r) {
           if (b.boomerang) {
             if (!e._axeT || R.time - e._axeT > 0.5) { e._axeT = R.time; dealDamage(e, b.dmg); }
@@ -1954,7 +1956,7 @@ const Run = (() => {
             for (const o of R.enemies)
               if (!o.dead && o !== e && Math.hypot(o.x-b.x, o.y-b.y) < b.blast + o.def.r) dealDamage(o, b.dmg * 0.7);
           }
-          if (b.pierce > 0) { b.pierce--; }
+          if (b.pierce > 0) { b.pierce--; (b._pierced = b._pierced || []).push(e); }
           else { hit = true; }
           break;
         }
