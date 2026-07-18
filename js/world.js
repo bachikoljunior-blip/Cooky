@@ -144,10 +144,17 @@ const World = (() => {
     return { biome, cx: c.cx, cy: c.cy };
   }
 
-  // タイル情報: 地形タイプ + バイオーム(描画用)。バイオームはバイオドームで決まる
+  // 海域バイオーム: 海もバイオドームと同じセル割りで環境が変わる
+  function seaBiomeAt(x, y){
+    return (DATA.SEA_OF || {})[biodomeAt(x, y).biome] || 'open';
+  }
+
+  // タイル情報: 地形タイプ + バイオーム(描画用)。バイオームはバイオドームで決まる。
+  // 水タイルには海域バイオーム(sea)が付く
   function tileAt(x, y){
     const t = terrainKind(coastGap(x, y).gap);
-    return { t, biome: (t === 'grass' || t === 'sand') ? biodomeAt(x, y).biome : 'grass' };
+    if (t === 'grass' || t === 'sand') return { t, biome: biodomeAt(x, y).biome };
+    return { t, biome: 'grass', sea: seaBiomeAt(x, y) };
   }
 
   // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
@@ -307,8 +314,9 @@ const World = (() => {
         const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
         if (ti.t === 'grass') c = bio.mm;
         else if (ti.t === 'sand') c = [160, 140, 90];
-        else if (ti.t === 'sea') c = [22, 50, 92];
-        else c = [12, 28, 58];
+        else if (ti.t === 'sea') c = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
+        else { const sm = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
+               c = [sm[0] * 0.55 | 0, sm[1] * 0.55 | 0, sm[2] * 0.62 | 0]; }
         img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 230;
       }
     }
@@ -413,5 +421,5 @@ const World = (() => {
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
-           biodomeAt };
+           biodomeAt, seaBiomeAt };
 })();

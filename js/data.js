@@ -535,6 +535,28 @@ DATA.BIOME_FAUNA = {
 };
 DATA.SEA_FAUNA = ['jellyfish','crab','shark','siren','icewisp','serpent','shade','whelp','abysslord'];
 
+// ---- 海域バイオーム: 海もバイオドームと同じ区画で環境が変わる ----
+// (同じセル割りを使うので、陸のバイオドームと同様に約1分ごとに海域も移り変わる)
+DATA.SEA_BIOMES = {
+  coral: { name:'珊瑚の海',   c1:'#1a4a72', c2:'#1c507c', d1:'#123458', d2:'#143a60', mm:[26,74,114],
+           fauna:['jellyfish','crab','siren','shark'] },
+  open:  { name:'蒼海',       c1:'#173a66', c2:'#194070', d1:'#0e2647', d2:'#102a4e', mm:[22,50,92],
+           fauna:['shark','jellyfish','serpent','whelp'] },
+  ice:   { name:'凍てつく海', c1:'#2a5578', c2:'#2d5b80', d1:'#1c3c58', d2:'#1e4260', mm:[42,74,110],
+           fauna:['icewisp','shark','serpent','stormwisp'] },
+  storm: { name:'嵐の海',     c1:'#20455c', c2:'#224a62', d1:'#142e40', d2:'#163246', mm:[32,58,84],
+           fauna:['stormwisp','serpent','shark','whelp'] },
+  abyss: { name:'深淵の海',   c1:'#1b2352', c2:'#1d265a', d1:'#101538', d2:'#12183e', mm:[20,26,64],
+           fauna:['shade','abysslord','serpent','voidwisp'] },
+};
+// バイオドームの陸バイオーム → 対応する海域
+DATA.SEA_OF = {
+  grass:'coral', jungle:'coral', desert:'coral', chalk:'coral',
+  mist:'open', bones:'open', twilight:'open', volcano:'open',
+  frost:'ice', moon:'ice', storm:'storm',
+  obsidian:'abyss', magma:'abyss', makai:'abyss', void:'abyss', end:'abyss',
+};
+
 // ボス: minute = 出現時刻(分)
 DATA.BOSSES = [
   { at:5,  base:'golem',   name:'巨壁のゴーレム',   hpMul:14, dmgMul:1.6, coin:80,  sprite:'boss_golem' },
@@ -629,6 +651,8 @@ DATA.CONTINENTS = [
   { id:'nw2', x:-130000, y:-105000, r:7000,  seed:173, name:'夕凪の小島', biome:'mist',     lobes:4, amp:0.3 },
   { id:'nw3', x:-55000,  y:-115000, r:5000,  seed:179, name:'茜の岩礁',   biome:'chalk',    lobes:4, amp:0.35 },
   { id:'nw4', x:-165000, y:-55000,  r:6000,  seed:181, name:'残照の小島', biome:'twilight', lobes:5, amp:0.3 },
+  // --- 環礁(海底都市「沈み都」の入り口が立つ、海のただ中の小さな輪) ---
+  { id:'i_sea', x:-95000, y:-180000, r:4200, seed:191, name:'沈み都の環礁', biome:'chalk', lobes:6, amp:0.22 },
 ];
 
 // バイオーム: エリアごとのフィールドの見た目(地面2色/砂浜2色/装飾色/ミニマップ色)
@@ -680,6 +704,8 @@ DATA.BASES = [
   // 遠環の特別な地(一拠点のみ)
   { id:'b_sun',   name:'太陽の神殿', x:305000,  y:-110000, cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
   { id:'b_void',  name:'虚無の門',   x:-239000, y:120000, cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
+  // 海のただ中(環礁の下に沈んだ都)
+  { id:'b_sea',   name:'沈み都',     x:-95000,  y:-180000, cont:'i_sea', kind:'海底都市', spr:'base_sunken' },
   // 最果て
   { id:'b_end',   name:'最果ての碑', x:85000,   y:-378000, cont:'r4_end', kind:'最果ての城', spr:'base_castle' },
 ];
@@ -875,6 +901,10 @@ DATA.META = {
   g_end_vessel:  { st:'b_end',   fac:'life', name:'終焉の器',   desc:'最大HP +4%', max:15, cost:gcost(140000,1.55), effMul:{maxHp:.04} },
   g_end_relic:   { st:'b_end',   fac:'lore', name:'彼方の遺物', desc:'素材ドロップ量 +5%', max:15, cost:gcost(130000,1.55), effMul:{dropMul:.05} },
   g_end_sk:      { st:'b_end',  fac:'war',  name:'【解放】終焉の誓い', desc:'スキル「終焉の誓い」を習得可能に', max:1, cost:gcost(150000,1) },
+  // --- 沈み都(海底都市) ---
+  g_sea_tide:    { st:'b_sea', fac:'war',  name:'潮流の型',     desc:'クリティカル率 +1%',  max:10, cost:gcost(2800,1.45), effMul:{critAdd:.01} },
+  g_sea_breath:  { st:'b_sea', fac:'life', name:'潮の息継ぎ',   desc:'自然回復 +0.2/秒',    max:10, cost:gcost(2600,1.45), effMul:{regenAdd:.2} },
+  g_sea_pearl:   { st:'b_sea', fac:'lore', name:'真珠の目利き', desc:'コイン獲得 +4%',      max:15, cost:gcost(2400,1.45), effMul:{coinMul:.04} },
 };
 
 // 基地マップの施設(基地ごとの特別強化は3種類の施設に分かれている)
@@ -1006,6 +1036,11 @@ DATA.SIDEQUESTS = {
       intro:['この港街の灯台はワシが守っとる。レンズ磨きに貝殻の粉がいるんじゃ。','貝殻8つ、持ってきてくれんか。'],
       done:['よし、灯りが強くなった。沖の果てまで照らせるぞ。','…見えるか?東の地平に赤く揺れる明かり。ありゃ「鍛冶神の工房都市」の炉の火じゃ。','この大陸の東の果てにある。地図に記す。'],
       reward:{ coins:250, hintBase:'b_forge', story:'white_beam' } },
+    { id:'sq_umi', npc:'npc_sailor', npcName:'潜り漁師ウミ', type:'delivery', need:{ mats:{ shell:12, coral:4 } },
+      requiresStory:'white_beam', lockedLine:'今は時化でな…灯台の灯りが強くなったら、沖の話をしてやるよ。',
+      intro:['あたしは素潜りのウミ。この街で一番深く潜る女さ。','潜り装束を繕いたい。貝殻12と珊瑚4、都合してくれないかい。','礼に、この海で一番の秘密を教えてやるよ。'],
+      done:['ありがとよ。…じゃあ約束の話だ。西の沖はるか、環礁がぽつんと浮かんでる。','あの下にはね、「沈み都」…海の底の都が今も生きて沈んでるんだ。環礁に巫女様がいる。地図に描いとくよ。'],
+      reward:{ coins:300, hintBase:'b_sea', story:'umi_dive' } },
   ],
   b_dusk: [
     { id:'sq_sora', npc:'npc_girl', npcName:'吟遊詩人ソラ', type:'hunt', enemy:'bat', count:10,
@@ -1101,6 +1136,12 @@ DATA.SIDEQUESTS = {
       done:['静寂が戻った…最後に教えよう。北の果ての海、城の前に「最果ての碑」が立っている。','この世界の終わりと始まりを見届ける場所だ。地図に記す。…良い旅を。'],
       reward:{ coins:1000, hintBase:'b_end', story:'void_call' } },
   ],
+  b_sea: [
+    { id:'sq_shell', npc:'npc_boy', npcName:'貝の童シェル', type:'hunt', enemy:'crab', count:8,
+      intro:['ぼく、都のみんなの貝を集める係なんだ。','でも環礁の外にアイアンクラブがいっぱいで、潜れないよ…8匹お願い!'],
+      done:['わーい!これでいっぱい潜れる!','お礼にとっておきの貝、あげるね。'],
+      reward:{ coins:150, mats:{ shell:6 }, story:'shell_kid' } },
+  ],
   b_end: [
     { id:'sq_ou', npc:'npc_sage', npcName:'城主オウ', type:'hunt', enemy:'hornedimp', count:10,
       requiresStory:'void_call', lockedLine:'……(城主は玉座から動かない。隠者の言葉なくして謁見は叶わない)',
@@ -1176,6 +1217,9 @@ DATA.QUESTS = {
   b_void: { npc:'npc_sage', npcName:'虚無の囁き', type:'hunt', enemy:'demon', count:5,
     intro:['……来たか。ここは在って無い場所。','この庵のゲートは、完全な静けさの中でだけ開く。だがデーモンが5体、騒がしくてかなわん。','排せ。さすれば道は開く。'],
     done:['……良い。静けさが戻り、ゲートが開いた。','虚無はお前を通す。'] },
+  b_sea: { npc:'npc_miko', npcName:'海の巫女ルカ', type:'survive', enemy:'siren', time:20,
+    intro:['ようこそ、波の上の環礁へ。この足元に、私たちの都が沈んでいます。','都と魂の広場を繋ぐゲートは、この環礁の祭壇から潮の歌で灯すのです。','今から歌います。歌い終わるまでの20秒、海の魔物から私を守ってください。'],
+    done:['…歌が届きました。ご覧なさい、海の底からゲートの光が昇ってきます。','沈み都は、あなたを客人として迎えます。'] },
   b_end:  { npc:'npc_elder', npcName:'最果ての賢者', type:'survive', enemy:'reaper', time:25,
     intro:['ついに…ここまで来る者が現れたか。','この碑は、最果ての城の前に立つ最後のゲート。じゃが城に近すぎるゆえ、終焉の使者リーパーが絶えず群がってくる。','最後の試練だ。碑のそばで25秒、生き延びてみせよ。碑がお前の魂を覚える。'],
     done:['…見届けた。碑がお前を覚え、ゲートが繋がった。','30分――それがこの世界の限界じゃ。刻が満ちれば、世界の縁からリーパーの大群が押し寄せ、全てを刈り取っていく。','人里がゲートの光の下にしか残っておらんのは、そのせいよ。','…かつて一人、お前と同じ目をした者がこの碑を越え、城へ入った。戻っては来なんだ。','その先に何があったかは、城の主に聞くがいい。お前こそ、終焉に抗う者じゃ。'] },
@@ -1241,6 +1285,7 @@ DATA.QUESTS2 = {
     b_sun:['scarab',7,'日輪の間にスカラベが巣を作った。','日輪が輝きを取り戻した。太陽の力が都に満ちる。'],
     b_void:['voidwisp',6,'庵の静けさがヴォイドウィスプに乱されている。','静けさが戻った…この庵の力を、お前にも分けよう。'],
     b_end:['hornedimp',8,'玉座の間にデーモンが居座っている。','玉座が清められた。最果ての力がお前に開かれる。'],
+    b_sea:['crab',7,'都へ空気を送る泉に、アイアンクラブが挟まって詰まってしもうた。','泉が息を吹き返した…都の力が、お前にも流れ込む。'],
   };
   for (const b of DATA.BASES) {
     if (DATA.QUESTS2[b.id] || !DATA.QUESTS[b.id]) continue;
@@ -1277,6 +1322,7 @@ DATA.NPC_TIPS = [
   '仲間の魔物を連れて村に入っても心配ない。ゲートの光が弾くのは、敵意のあるものだけだ。',
   '狩人の掟「金は挑め、紅は退け、紫は語るな」。色違いに出会ったら思い出せ。',
   '北西の海に人の住まん「夕凪の群島」がある。魔物と素材の宝庫だ。船があるなら行ってみな。',
+  '海にも土地と同じで「海域」がある。珊瑚の海と深淵の海じゃ、出る魔物も獲れる素材もまるで違う。',
 ];
 
 DATA.STATIONS = {
@@ -1311,6 +1357,7 @@ DATA.FAC_STATE = {
   b_sun:   { tag:'日輪が曇っている',       look:['日輪の間は虫の巣で覆われ、黄金の輝きがくすんでいる。','カサカサと、無数の羽音がする…'] },
   b_void:  { tag:'静けさが失われている',   look:['庵の静けさが乱れ、空間がわずかに軋んでいる。','心を鎮める修行の場だというのに、これではとても集中できない…'] },
   b_end:   { tag:'玉座が穢れている',       look:['玉座の間は瘴気に満ち、禍々しい気配が渦巻いている。','デーモンの哄笑が、どこからか聞こえる…'] },
+  b_sea:   { tag:'空気の泉が詰まっている', look:['環礁の祭壇の脇、都へ空気を送る泉がごぼごぼと苦しげに詰まっている。','海の底の都の灯りが、心なしか暗い…'] },
 };
 
 // 敵の強さは種類+色違いランクで固定(時間による個体強化は廃止)

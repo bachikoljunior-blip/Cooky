@@ -117,6 +117,7 @@ const Sprites = (() => {
     base_temple:  { kind:'settlement', c:'#a8894a', a:'#ffd766', opt:{v:'temple'} },
     base_portal:  { kind:'settlement', c:'#6e40c9', a:'#76e3ea', opt:{v:'portal'} },
     base_castle:  { kind:'settlement', c:'#54242c', a:'#ffd766', opt:{v:'castle'} },
+    base_sunken:  { kind:'settlement', c:'#2dd4bf', a:'#76e3ea', opt:{v:'spring'} },
     ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
     ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
     st_altar:   { kind:'building',c:'#f0883e', a:'#ffd766', opt:{sym:'⚔'} },

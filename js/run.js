@@ -527,7 +527,7 @@ const Run = (() => {
     // バイオドームごとの敵プールから抽選 ― 場所が変わると顔ぶれも変わる。
     // その場所の許容ティアに合う敵がプールに無ければ全体から拾う(空湧き防止)。
     let keys;
-    if (onSea) keys = DATA.SEA_FAUNA;
+    if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
     else {
       const bd = World.biodomeAt(R.player.x, R.player.y);
       keys = DATA.BIOME_FAUNA[bd.biome] || Object.keys(DATA.ENEMIES);
@@ -590,7 +590,7 @@ const Run = (() => {
     const top = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
     let keys;
-    if (onSea) keys = DATA.SEA_FAUNA;
+    if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
     else keys = DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES);
     // この土地に存在するティアだけを候補に、pickEnemyKeyと同じ重み付けで抽選
     const tiers = [...new Set(keys.map(k => DATA.ENEMIES[k]).filter(d => d && !d.isReaper && !d.rare)
@@ -604,7 +604,7 @@ const Run = (() => {
   function spawnHerd(mad){
     const tier = pickHerdTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
-    const keys = (onSea ? DATA.SEA_FAUNA
+    const keys = (onSea ? ((DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA)
       : DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES))
       .filter(k => { const dd = DATA.ENEMIES[k];
         return dd && !dd.isReaper && !dd.rare && (dd.tier || 0) === tier &&
@@ -2038,7 +2038,8 @@ const Run = (() => {
       // バイオドーム進入バナー(≈1分ごとに別のバイオドームへ入ると表示)
       const L = World.landAt(p.x, p.y);
       const bd = World.biodomeAt(p.x, p.y);
-      const cid = L ? ('b' + bd.cx + '_' + bd.cy) : 'sea';
+      const seaKey = L ? null : World.seaBiomeAt(p.x, p.y);
+      const cid = L ? ('b' + bd.cx + '_' + bd.cy) : ('s_' + seaKey);
       R.curBiome = L ? bd.biome : 'sea';
       if (cid !== R.curCont) {
         R.curCont = cid;
@@ -2050,8 +2051,9 @@ const Run = (() => {
           const mm = faunaMats(DATA.BIOME_FAUNA[bd.biome] || []);
           R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
         } else {
-          const mm = faunaMats(DATA.SEA_FAUNA || []);
-          R.warnMsg = '― 海域 ―' + (mm ? ' 出る素材: ' + mm : '');
+          const sb = DATA.SEA_BIOMES[seaKey] || { name:'海', fauna: DATA.SEA_FAUNA };
+          const mm = faunaMats(sb.fauna || []);
+          R.warnMsg = '― 海域 <' + sb.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
         }
         R.warnColor = '#a5d8ff';
         R.warnT = 4;
@@ -2203,8 +2205,10 @@ const Run = (() => {
         const chk = ((x0+ix) + (y0+iy)) % 2 === 0;
         if (ti.t === 'grass') c = chk ? bio.g1 : bio.g2;
         else if (ti.t === 'sand') c = chk ? bio.s1 : bio.s2;
-        else if (ti.t === 'sea') c = (chk !== (waveT === 1)) ? '#173a66' : '#194070';
-        else c = (chk !== (waveT === 1)) ? '#0e2647' : '#102a4e';
+        else if (ti.t === 'sea') { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
+          c = (chk !== (waveT === 1)) ? sb.c1 : sb.c2; }
+        else { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
+          c = (chk !== (waveT === 1)) ? sb.d1 : sb.d2; }
         g.fillStyle = c;
         g.fillRect(wx - camX, wy - camY, TILE + 1, TILE + 1);
         // 地面の装飾(草・花・岩粒など、バイオーム色)
