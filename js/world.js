@@ -13,12 +13,17 @@ const World = (() => {
          + Math.sin(a * 13 + s * 4.1) * 0.1
          + Math.sin(a * 19 + s * 1.7) * 0.07 + Math.sin(a * 29 + s * 3.3) * 0.05;
   }
-  function edgeR(cont, angle){
-    let r = cont.r * (1 + (cont.amp || 0.13) * wob(angle, cont.seed, cont.lobes));
-    // 質量の偏り(taper): 実際の大陸のように、片側が広く反対側へ細く伸びる
-    if (cont.taper) r *= 1 + cont.taper.d * Math.cos(angle - cont.taper.a);
-    // 大陸ごとの個性: coast=[{a:方角, w:幅rad, d:深さ}] 負dで湾(入り江)、正dで岬(半島)
-    if (cont.coast) for (const f of cont.coast) {
+  // ---- 陸地 = 複数の「板」(parts)の合成 ----
+  // 単一中心の放射形だと、どう歪めても「凸凹した円盤」にしかならない。
+  // 実際の大陸のような弧・三日月・くびれ・半島は、ずらして重ねた複数の板の
+  // 合成(union)から生まれる。parts の無い陸地は従来通り自身1枚の板として扱う。
+  function partEdge(c, p, i, angle){
+    const seed = (p.seed != null ? p.seed : c.seed + i * 7);
+    let r = p.r * (1 + (p.amp != null ? p.amp : (c.amp || 0.13)) * wob(angle, seed, p.lobes || c.lobes));
+    const tp = p.taper || (c.parts ? null : c.taper);
+    if (tp) r *= 1 + tp.d * Math.cos(angle - tp.a);
+    const coast = p.coast || (c.parts ? null : c.coast);
+    if (coast) for (const f of coast) {
       let da = angle - f.a;
       while (da > Math.PI) da -= Math.PI * 2;
       while (da < -Math.PI) da += Math.PI * 2;
@@ -26,51 +31,53 @@ const World = (() => {
     }
     return r;
   }
-
-  // その座標を含む大陸を返す(なければ null)。sx/syの伸縮とrotの回転で多様な形になる
-  function landAt(x, y){
-    for (const c of DATA.CONTINENTS) {
-      let dx = x - c.x, dy = y - c.y;
-      if (c.rot) {
-        const co = Math.cos(-c.rot), si = Math.sin(-c.rot);
-        const rx = dx * co - dy * si, ry = dx * si + dy * co;
-        dx = rx; dy = ry;
-      }
-      dx /= (c.sx || 1); dy /= (c.sy || 1);
-      const d = Math.hypot(dx, dy);
-      if (d > c.r * 2.1) continue;
-      const e = edgeR(c, Math.atan2(dy, dx));
-      if (d < e) return { cont: c, d, edge: e };
+  // 板1枚に対する「海岸からの符号つき距離」(負=陸の内側、正=海側。おおよそworld単位)
+  function partGap(c, p, i, x, y){
+    let dx = x - c.x - (p.dx || 0), dy = y - c.y - (p.dy || 0);
+    const rot = (p.rot != null ? p.rot : (c.parts ? 0 : c.rot)) || 0;
+    if (rot) {
+      const co = Math.cos(-rot), si = Math.sin(-rot);
+      const rx = dx * co - dy * si, ry = dx * si + dy * co;
+      dx = rx; dy = ry;
     }
-    return null;
+    const sx = (p.sx != null ? p.sx : (c.parts ? 1 : c.sx)) || 1;
+    const sy = (p.sy != null ? p.sy : (c.parts ? 1 : c.sy)) || 1;
+    dx /= sx; dy /= sy;
+    const d = Math.hypot(dx, dy);
+    const sMin = Math.min(sx, sy);
+    if (d > p.r * 2.4) return (d - p.r) * sMin;   // 遠距離は近似で十分(三角関数を省く)
+    return (d - partEdge(c, p, i, Math.atan2(dy, dx))) * sMin;
+  }
+  function partsOf(c){ return c.parts || [c]; }
+  // 最寄りの海岸までの符号つき距離と、その陸地
+  function coastGap(x, y){
+    let best = 1e18, bc = null;
+    for (const c of DATA.CONTINENTS) {
+      const ps = partsOf(c);
+      for (let i = 0; i < ps.length; i++) {
+        const g = partGap(c, ps[i], i, x, y);
+        if (g < best) { best = g; bc = c; }
+      }
+    }
+    return { gap: best, cont: bc };
+  }
+  // 後方互換: 単一の板としての縁の半径(港の配置などに使用)
+  function edgeR(cont, angle){ return partEdge(cont, cont, 0, angle); }
+
+  // その座標を含む陸地を返す(なければ null)
+  function landAt(x, y){
+    const g = coastGap(x, y);
+    return g.gap < 0 ? { cont: g.cont, gap: g.gap } : null;
   }
   function isLand(x, y){ return landAt(x, y) !== null; }
 
-  // 海の種別: 浅瀬(sea)は円ではなく実際の海岸線に沿った帯にする
-  function seaKind(x, y){
-    let gap = 1e9;
-    for (const c of DATA.CONTINENTS) {
-      let dx = x - c.x, dy = y - c.y;
-      if (c.rot) {
-        const co = Math.cos(-c.rot), si = Math.sin(-c.rot);
-        const rx = dx * co - dy * si, ry = dx * si + dy * co;
-        dx = rx; dy = ry;
-      }
-      dx /= (c.sx || 1); dy /= (c.sy || 1);
-      const d = Math.hypot(dx, dy);
-      if (d > c.r * 2.6) continue;
-      const e = edgeR(c, Math.atan2(dy, dx));
-      const g = (d - e) * Math.min(c.sx || 1, c.sy || 1);
-      if (g < gap) gap = g;
-    }
-    return gap > 2600 ? 'deep' : 'sea';
+  // 'grass' | 'sand' | 'sea' | 'deep' ― 海岸からの距離だけで決まる
+  // (砂浜=海岸から90以内の陸、浅瀬=海岸から2600以内の海)
+  function terrainKind(gap){
+    return gap < -90 ? 'grass' : gap < 0 ? 'sand' : gap < 2600 ? 'sea' : 'deep';
   }
-
-  // 'grass' | 'sand' | 'sea' | 'deep'
   function terrainAt(x, y){
-    const L = landAt(x, y);
-    if (L) return (L.d > L.edge - 90) ? 'sand' : 'grass';
-    return seaKind(x, y);
+    return terrainKind(coastGap(x, y).gap);
   }
 
   // ---- バイオドーム: 約1分歩くごと(≈2600px)に別のバイオドームへ入る ----
@@ -139,9 +146,8 @@ const World = (() => {
 
   // タイル情報: 地形タイプ + バイオーム(描画用)。バイオームはバイオドームで決まる
   function tileAt(x, y){
-    const L = landAt(x, y);
-    if (L) return { t: (L.d > L.edge - 90) ? 'sand' : 'grass', biome: biodomeAt(x, y).biome };
-    return { t: seaKind(x, y), biome: 'grass' };
+    const t = terrainKind(coastGap(x, y).gap);
+    return { t, biome: (t === 'grass' || t === 'sand') ? biodomeAt(x, y).biome : 'grass' };
   }
 
   // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
@@ -269,9 +275,12 @@ const World = (() => {
     if (WB) return WB;
     let x0 = 1e18, y0 = 1e18, x1 = -1e18, y1 = -1e18;
     for (const c of DATA.CONTINENTS) {
-      const m = c.r * (1 + (c.amp || 0.13) * 1.3 + 0.35) * Math.max(c.sx || 1, c.sy || 1);
-      x0 = Math.min(x0, c.x - m); x1 = Math.max(x1, c.x + m);
-      y0 = Math.min(y0, c.y - m); y1 = Math.max(y1, c.y + m);
+      for (const p of partsOf(c)) {
+        const m = p.r * (1 + ((p.amp != null ? p.amp : c.amp) || 0.13) * 1.3 + 0.35) *
+                  Math.max(p.sx || c.sx || 1, p.sy || c.sy || 1);
+        x0 = Math.min(x0, c.x + (p.dx || 0) - m); x1 = Math.max(x1, c.x + (p.dx || 0) + m);
+        y0 = Math.min(y0, c.y + (p.dy || 0) - m); y1 = Math.max(y1, c.y + (p.dy || 0) + m);
+      }
     }
     const pad = 25000;
     x0 -= pad; x1 += pad; y0 -= pad; y1 += pad;
