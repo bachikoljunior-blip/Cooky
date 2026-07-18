@@ -53,7 +53,7 @@ const Run = (() => {
       allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
-      dropMul: 3 * (0.1 + 0.1*m('lab_drop')),   // 素材ドロップ率3倍(初期30%、採集の心得で上げる)
+      dropMul: 6 * (0.1 + 0.1*m('lab_drop')),   // 素材ドロップ率6倍(初期60%、採集の心得で上げる)
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
@@ -1767,7 +1767,7 @@ const Run = (() => {
       const drops = World.objectDrops(o.type, Skills.matUnlocked);
       if (drops.length && Math.random() < R.stats.salvage) drops.push(drops[0]);   // 解体術: 追加素材
       for (const m of drops) {
-        if (Math.random() >= R.stats.dropMul) continue;   // オブジェクトのドロップ率も dropMul(初期1/5)を反映
+        if (Math.random() >= R.stats.dropMul) continue;   // オブジェクトのドロップ率も dropMul(初期60%)を反映
         const n = Math.random() < R.stats.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(o.x + rnd(-10,10), o.y + rnd(-10,10), { type:'mat', mat:m });
       }
