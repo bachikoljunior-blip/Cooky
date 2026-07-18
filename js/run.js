@@ -2052,15 +2052,15 @@ const Run = (() => {
     const it = R.interact;
     if (!it) return;
     if (it.type === 'portquest') Quest.offer('port', it.port.id);
-    else if (it.type === 'trader') openTrade('port_' + it.port.id);
-    else if (it.type === 'peddler') openTrade('ped_' + it.base.id);
+    else if (it.type === 'trader') openTrade('port_' + it.port.id, '貿易商');
+    else if (it.type === 'peddler') openTrade('ped_' + it.base.id, '行商人');
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
   }
 
   // 素材⇄コインの取引(港の貿易商/小道の行商人)。相場は周回と場所で変わる
-  function openTrade(seedKey){
+  function openTrade(seedKey, who){
     let h = SaveSys.data.stats.runs * 97;
     for (let i = 0; i < seedKey.length; i++) h = (h * 31 + seedKey.charCodeAt(i)) | 0;
     h = Math.abs(h);
@@ -2088,7 +2088,7 @@ const Run = (() => {
       cb(){ Skills.mats()[sellMat] -= 10; R.coins += sellPrice; Sfx.buy();
             popup(R.player.x, R.player.y - 30, '🪙' + sellPrice + 'で売れた', '#ffd766'); } });
     opts.push({ label:'やめる', sub:true });
-    Game.dialogChoice('貿易商', 'npc_scholar', '見ての通り、相場は日々変わる。今日の取引はこれだ。', opts);
+    Game.dialogChoice(who || '貿易商', 'npc_scholar', '見ての通り、相場は日々変わる。今日の取引はこれだ。', opts);
   }
 
   function boardBoat(x, y, port){
@@ -2554,6 +2554,12 @@ const Run = (() => {
       Sprites.draw(g, 'ob_crate', port.x - 32, port.y + 18, 18);
       Sprites.draw(g, 'ob_dock', port.x, port.y, 56);
       Sprites.draw(g, 'npc_sailor', port.x + 36, port.y - 14, 30);
+      if (SaveSys.data.ports[port.id]) {   // 修理済みの港町には貿易商が店を開く
+        Sprites.draw(g, 'ob_crate', port.x - 66, port.y + 26, 20);
+        Sprites.draw(g, 'npc_scholar', port.x - 52, port.y + 12, 30);
+        g.fillStyle = '#c9d1d9'; g.font = '10px sans-serif'; g.textAlign = 'center';
+        g.fillText('貿易商', port.x - 52, port.y - 8);
+      }
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
       else Sprites.draw(g, 'ob_wreck', port.seaX, port.seaY, 44);
       g.fillStyle = '#e6edf3'; g.font = '11px sans-serif'; g.textAlign = 'center';

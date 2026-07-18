@@ -87,7 +87,12 @@ const Skills = (() => {
     if (st.spd) st.spd = 1 + (st.spd - 1) * amp;
     if (st.hpMul) st.hpMul = 1 + (st.hpMul - 1) * amp;           // 骨の壁のHP
     if (st.allyMul) st.allyMul = 1 + (st.allyMul - 1) * amp;
-    if (st.passive) st.passive = { key: st.passive.key, value: st.passive.value * amp };   // 心得
+    if (st.passive) {
+      // 範囲系のパッシブ(効果範囲・磁石)は全体倍率の対象外(範囲は2倍しない約束)
+      const rangeKey = st.passive.key === 'areaMul' || st.passive.key === 'magnetMul';
+      const pAmp = rangeKey ? (powMap ? (powMap[id] || 1) : 1) : amp;
+      st.passive = { key: st.passive.key, value: st.passive.value * pAmp };   // 心得
+    }
     return st;
   }
   function matCount(m){ return mats[m] || 0; }
