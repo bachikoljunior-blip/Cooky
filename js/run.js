@@ -166,6 +166,7 @@ const Run = (() => {
     // 拠点を一つでも解放済みなら、次の拠点ヒントを常に一つ表示(既存セーブ救済)
     if (Object.keys(SaveSys.data.bases).length > 0) Quest.refreshHint();
     R.time = 0;
+    R.settled = null;
     R.player = { x:startPos.x, y:startPos.y, hp:1, dir:1, moveA:0,
                  onBoat:false, boatAnchor:null, invuln:0 };
     R.baseStats = calcStats();
@@ -2961,6 +2962,7 @@ const Run = (() => {
 
   // 周回結果を確定して銀行へ
   function finishRun(retired){
+    if (R.settled) return R.settled;   // 二重精算(コイン二重加算)の防止
     const s = SaveSys.data;
     // 保管庫(研究所): 高ティアの素材から次の周回へ持ち越す。残りは換金
     const mats = Skills.mats();
@@ -3012,8 +3014,9 @@ const Run = (() => {
       recap = { killer: R.dmgLog[R.dmgLog.length - 1].name,
                 list: Object.entries(by).sort((a, b) => b[1] - a[1]).slice(0, 3) };
     }
-    return { coins:R.coins, matBonus, total, time:R.time, kills:R.kills,
-             recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs, recap };
+    R.settled = { coins:R.coins, matBonus, total, time:R.time, kills:R.kills,
+                  recruits:R.recruits, retired, dist:Math.round(R.maxDist), newAchs, recap };
+    return R.settled;
   }
 
   return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap,

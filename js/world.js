@@ -296,31 +296,45 @@ const World = (() => {
     return WB;
   }
 
-  // 全世界画像。起動時に一度だけ生成(範囲は陸地のバウンディングボックス)
+  // 全世界画像。世界が広大なため一括生成すると数秒固まる。
+  // 少しずつ(1回十数ms)描き足す分割生成にして、生成中も部分的な画像をそのまま使う。
+  let wmRow = 0;
   function worldImage(){
     if (wmCanvas) return wmCanvas;
     const B = bounds();
     wmCanvas = document.createElement('canvas');
     wmCanvas.width = WM_RES; wmCanvas.height = WM_RES;
     const g = wmCanvas.getContext('2d');
-    const img = g.createImageData(WM_RES, WM_RES);
-    for (let py = 0; py < WM_RES; py++){
-      for (let px = 0; px < WM_RES; px++){
-        const wx = B.x0 + (px + 0.5) / WM_RES * B.w;
-        const wy = B.y0 + (py + 0.5) / WM_RES * B.w;
-        const ti = tileAt(wx, wy);
-        const i = (py * WM_RES + px) * 4;
-        let c;
-        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
-        if (ti.t === 'grass') c = bio.mm;
-        else if (ti.t === 'sand') c = [160, 140, 90];
-        else if (ti.t === 'sea') c = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
-        else { const sm = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
-               c = [sm[0] * 0.55 | 0, sm[1] * 0.55 | 0, sm[2] * 0.62 | 0]; }
-        img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 230;
+    g.fillStyle = 'rgba(22,50,92,0.9)';          // 未生成の行はひとまず海の色
+    g.fillRect(0, 0, WM_RES, WM_RES);
+    // 始まりの大陸(y=0付近)に近い行から描く: 序盤のミニマップが真っ先に埋まる
+    const rowOrder = Array.from({ length: WM_RES }, (_, i) => i)
+      .sort((a, b) => Math.abs(B.y0 + (a + 0.5) / WM_RES * B.w) - Math.abs(B.y0 + (b + 0.5) / WM_RES * B.w));
+    const step = () => {
+      const t0 = performance.now();
+      while (wmRow < WM_RES && performance.now() - t0 < 12) {
+        const row = rowOrder[wmRow];
+        const img = g.createImageData(WM_RES, 1);
+        const wy = B.y0 + (row + 0.5) / WM_RES * B.w;
+        for (let px = 0; px < WM_RES; px++){
+          const wx = B.x0 + (px + 0.5) / WM_RES * B.w;
+          const ti = tileAt(wx, wy);
+          const i = px * 4;
+          let c;
+          const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
+          if (ti.t === 'grass') c = bio.mm;
+          else if (ti.t === 'sand') c = [160, 140, 90];
+          else if (ti.t === 'sea') c = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
+          else { const sm = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
+                 c = [sm[0] * 0.55 | 0, sm[1] * 0.55 | 0, sm[2] * 0.62 | 0]; }
+          img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 230;
+        }
+        g.putImageData(img, 0, row);
+        wmRow++;
       }
-    }
-    g.putImageData(img, 0, 0);
+      if (wmRow < WM_RES) setTimeout(step, 0);
+    };
+    step();
     return wmCanvas;
   }
 
