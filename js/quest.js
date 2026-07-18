@@ -192,6 +192,9 @@ const Quest = (() => {
         const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所'); }
       if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
+      // 船の下賜/出資: 富豪や王がその港の船を用意してくれる(修理と同じ扱いで航海可能に)
+      if (rw.port) { SaveSys.data.ports[rw.port] = true; SaveSys.data.seen[rw.port] = true;
+        const gp = DATA.PORTS.find(p => p.id === rw.port); txt.push('⚓「' + (gp ? gp.name : '') + '」の船'); }
       // 世界観と結びついたパワーアップ報酬(地図学・骸骨の軍勢・スキル解放など)
       for (const mid in rw.metaLv || {}) {
         const md = DATA.META[mid]; if (!md) continue;

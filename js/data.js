@@ -628,14 +628,14 @@ DATA.BASES = [
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる
 DATA.PORTS = [
-  { id:'p_e',  name:'東の港',   angle:0,           repair:{ coins:150,  mats:{wood:15, scrap:8} } },
-  { id:'p_ne', name:'北東の港', angle:-Math.PI/4,  repair:{ coins:300,  mats:{wood:20, scrap:12, shell:6} } },
-  { id:'p_n',  name:'北の港',   angle:-Math.PI/2,  repair:{ coins:500,  mats:{wood:25, crystal:10, shell:10} } },
-  { id:'p_nw', name:'北西の港', angle:-Math.PI*3/4,repair:{ coins:800,  mats:{wood:30, scrap:20, magic:5} } },
-  { id:'p_w',  name:'西の港',   angle:Math.PI,     repair:{ coins:1200, mats:{wood:35, crystal:15, magic:8} } },
-  { id:'p_sw', name:'南西の港', angle:Math.PI*3/4, repair:{ coins:1800, mats:{wood:40, shell:20, coral:6} } },
-  { id:'p_s',  name:'南の港',   angle:Math.PI/2,   repair:{ coins:2500, mats:{wood:50, coral:10, scale:3} } },
-  { id:'p_se', name:'南東の港', angle:Math.PI/4,   repair:{ coins:4000, mats:{wood:60, scale:6, star:3} } },
+  { id:'p_e',  name:'東の港町',   angle:0,           repair:{ coins:150,  mats:{wood:15, scrap:8} } },
+  { id:'p_ne', name:'北東の港町', angle:-Math.PI/4,  repair:{ coins:300,  mats:{wood:20, scrap:12, shell:6} } },
+  { id:'p_n',  name:'北の港町',   angle:-Math.PI/2,  repair:{ coins:500,  mats:{wood:25, crystal:10, shell:10} } },
+  { id:'p_nw', name:'北西の港町', angle:-Math.PI*3/4,repair:{ coins:800,  mats:{wood:30, scrap:20, magic:5} } },
+  { id:'p_w',  name:'西の港町',   angle:Math.PI,     repair:{ coins:1200, mats:{wood:35, crystal:15, magic:8} } },
+  { id:'p_sw', name:'南西の港町', angle:Math.PI*3/4, repair:{ coins:1800, mats:{wood:40, shell:20, coral:6} } },
+  { id:'p_s',  name:'南の港町',   angle:Math.PI/2,   repair:{ coins:2500, mats:{wood:50, coral:10, scale:3} } },
+  { id:'p_se', name:'南東の港町', angle:Math.PI/4,   repair:{ coins:4000, mats:{wood:60, scale:6, star:3} } },
 ];
 
 // ---------------- 魂の広場(死後フィールド)の恒久強化 ----------------
@@ -918,6 +918,11 @@ DATA.SIDEQUESTS = {
       intro:['この街の鉱脈も昔ほど出なくなっちまった。','鉄クズ10個ありゃ、坑道の支柱が直せるんだが。'],
       done:['恩に着るぜ。これで街の炉も回り続ける。','そういや西の海の向こう、黄昏の大陸に「黄昏の前哨」ってのがある。詩人の隠れ里だ。地図に描いといてやる。'],
       reward:{ coins:120, story:'west_fire', hintBase:'b_dusk' } },
+    { id:'sq_goldo', npc:'npc_scholar', npcName:'豪商ゴルド', type:'delivery', need:{ coins:300, mats:{ hide:15 } },
+      requiresStory:'west_fire', lockedLine:'ワシは忙しい。…ふむ、炭鉱のバドを助けてやったら、また顔を見せなさい。働き者は嫌いじゃない。',
+      intro:['ワシは西方交易の豪商ゴルド。お前さんの働きぶり、聞いておるよ。','隊商の冬支度に毛皮が15枚要る。それと商談の手付に🪙300。','なに、悪いようにはせん。ワシは払いのいい相手が好きでな。'],
+      done:['よし、確かに受け取った。…ときにお前さん、西の海の向こうへ渡りたいんだろう?','西の港町の船大工に、修理代を全額払っておいた。ワシの船だと思って使うといい。','黄昏の大陸への航路はワシの庭よ。…また良い取引をしよう。'],
+      reward:{ coins:200, port:'p_w', story:'goldo_ship' } },
   ],
   b_dragon: [
     { id:'sq_ryu', npc:'npc_sage', npcName:'語り部リュウ', type:'hunt', enemy:'lizard', count:8,
@@ -1025,6 +1030,11 @@ DATA.SIDEQUESTS = {
       intro:['よくぞ嵐を越えた。この神殿都市は太陽を祀る。','聖域にスカラベが巣食っておる。10体、頼む。'],
       done:['聖域が清まった。太陽の祝福を受けるがいい。','…最果てに何があるかは、虚無の隠者に聞くことだ。'],
       reward:{ coins:800, mats:{ sunstone:3 }, story:'sun_rite' } },
+    { id:'sq_solda', npc:'npc_sage', npcName:'太陽王ソルダ', type:'delivery', need:{ mats:{ sunstone:4 } },
+      requiresStory:'sun_rite', lockedLine:'(衛兵に止められた)「王への謁見は、神官ラーの認めた者だけだ。」',
+      intro:['余は太陽王ソルダ。この神殿都市の主である。','聖域を清めた者と聞く。ならば頼みがある。王冠の日輪石が欠けてしもうた。','太陽石を4つ、献上せよ。王の頼みを聞ける者など、そうはおらぬぞ?'],
+      done:['うむ、見事な石だ。王冠が再び陽を宿した。…褒美を取らせよう。','南東の港町に、王家の船を一隻届けさせた。','南東の海は竜の通り道…並の船では渡れぬ海よ。王家の船で行くがいい。'],
+      reward:{ coins:500, port:'p_se', story:'solda_ship' } },
   ],
   b_void: [
     { id:'sq_muu', npc:'npc_sage', npcName:'隠者ムウ', type:'hunt', enemy:'voidwisp', count:8,

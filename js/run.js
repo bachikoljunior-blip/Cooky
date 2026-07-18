@@ -2263,8 +2263,15 @@ const Run = (() => {
       if (o.hp < o.maxHp) drawBar(g, o.x, o.y - 26, 28, o.hp / o.maxHp, '#b08968');
     }
 
-    // 港・基地・停泊船
+    // 港町・基地・停泊船
     for (const port of World.ports) {
+      // 港は船着き場だけでなく小さな港町: 内陸側に家々、桟橋のそばに積み荷
+      const pa = Math.atan2(port.y - port.seaY, port.x - port.seaX);   // 海→陸の向き
+      const ix = Math.cos(pa), iy = Math.sin(pa);
+      Sprites.draw(g, 'ob_house',  port.x + ix * 95 - 42, port.y + iy * 95 - 18, 52);
+      Sprites.draw(g, 'ob_house2', port.x + ix * 125 + 46, port.y + iy * 125 + 8, 48);
+      Sprites.draw(g, 'ob_crate', port.x + 24, port.y + 26, 22);
+      Sprites.draw(g, 'ob_crate', port.x - 32, port.y + 18, 18);
       Sprites.draw(g, 'ob_dock', port.x, port.y, 56);
       Sprites.draw(g, 'npc_sailor', port.x + 36, port.y - 14, 30);
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
