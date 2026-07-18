@@ -89,6 +89,12 @@ const Quest = (() => {
     const def = defOf(kind, id);
     if (!def) return;
     const face = faceOf(kind, id, def);
+    // 基地のゲート解放には、別の土地の物語が前提のものがある(合言葉・紹介・導き)。
+    // 場所を見つけただけでは解放できず、しかるべき物語を経て初めて話が進む
+    if (kind === 'base' && def.requiresStory && !(SaveSys.data.story || {})[def.requiresStory]) {
+      Game.dialog(def.npcName, face, [def.lockedLine || '…今は取り合ってもらえないようだ。'], null);
+      return;
+    }
     if (kind === 'side') {
       if ((SaveSys.data.sideDone || {})[id]) {
         Game.dialog(def.npcName, face, [def.done[def.done.length - 1]], null);   // 後日談
