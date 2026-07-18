@@ -47,6 +47,20 @@ function foeMats(){
   for (const k in DATA.ENEMIES) for (const d of DATA.ENEMIES[k].drops || []) _foeMats.add(d.m);
   return _foeMats;
 }
+// ティアごとの素材一覧(遅延構築)。レアなオブジェクト/魔物専用の素材は
+// 自動要求には使わない(手書きのコストでのみ登場する)
+let _tierPool = null;
+function tierPool(){
+  if (_tierPool) return _tierPool;
+  _tierPool = {};
+  const skip = { amber:1, pearl:1, prism:1 };
+  for (const m in DATA.MATERIALS) {
+    if (skip[m]) continue;
+    const t = DATA.MATERIALS[m].tier || 0;
+    (_tierPool[t] = _tierPool[t] || []).push(m);
+  }
+  return _tierPool;
+}
 function matCost(lv, base, extras){
   // base: {mat: qty} lv1時 / extras: [{from: lv, mat, qty}]
   // 魔物素材はレベルごとに約1.6倍へ跳ね上がる(狩りの周回が要る)。
@@ -61,6 +75,18 @@ function matCost(lv, base, extras){
       const mul = foeMats().has(e.mat) ? Math.pow(1.6, lv - e.from) : 1 + (lv - e.from) * 0.5;
       c[e.mat] = Math.ceil(e.qty * mul);
     }
+  }
+  // レベルの節目ごとに「新しい種類の素材」が要る。高レベルほど高ティア=遠い土地の素材で、
+  // どの素材かはスキルごとに固定(素材構成のハッシュで決まる)
+  const seed = Object.keys(base).join(',');
+  let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
+  const steps = [[3, 1], [5, 2], [7, 3], [9, 4]];   // [lv節目, 素材ティア]
+  for (const [from, tier] of steps) {
+    if (lv < from) continue;
+    const pool = (tierPool()[tier] || []).filter(m => !(m in c));
+    if (!pool.length) continue;
+    const m = pool[Math.abs(h + from * 7) % pool.length];
+    c[m] = Math.ceil(2 * Math.pow(1.6, lv - from));
   }
   return c;
 }

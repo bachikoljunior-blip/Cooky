@@ -11,20 +11,21 @@ const Quest = (() => {
   let actives = [];   // [{ kind, id, def, loc, phase:'go'|'return', killed, timer, near }]
 
   function persist(){
-    SaveSys.data.questsActive = actives.map(a => ({ kind:a.kind, id:a.id, phase:a.phase, killed:a.killed, timer:a.timer }));
+    SaveSys.data.questsActive = actives.map(a => ({ kind:a.kind, id:a.id, phase:a.phase, killed:a.killed, timer:a.timer, seed:a.seed }));
     SaveSys.save();
   }
   function rebuild(s){
-    const def = defOf(s.kind, s.id);
+    const def = defOf(s.kind, s.id, s.seed);
     if (!def) return null;
     return { kind:s.kind, id:s.id, def, loc: locOf(s.kind === 'port' ? 'port' : 'base', s.id),
-             phase: s.phase || 'go', killed: s.killed || 0,
+             phase: s.phase || 'go', killed: s.killed || 0, seed: s.seed,
              timer: (s.timer != null ? s.timer : (def.time || 0)), near:false };
   }
-  // 周回開始時: 進行中クエストをセーブから復元(達成度は周回を跨いで保持)
+  // 周回開始時: 進行中クエストをセーブから復元(達成度は周回を跨いで保持)。
+  // 依頼板の依頼も受けた時の内容のまま持ち越せる(受注時のseedで内容を固定)
   function reset(){
     actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean)
-      .filter(a => a.def.type !== 'escort' && a.kind !== 'board');   // 護送と依頼板は周回内で完結
+      .filter(a => a.def.type !== 'escort');   // 護送だけは周回内で完結(婆を連れ越せない)
   }
   function activeFor(kind, id){ return actives.find(a => a.kind === kind && a.id === id) || null; }
   function hasActive(){ return actives.length > 0; }
@@ -52,16 +53,17 @@ const Quest = (() => {
     return kind === 'port' ? World.ports.find(p => p.id === id)
                            : DATA.BASES.find(b => b.id === id);
   }
-  function defOf(kind, id){
+  function defOf(kind, id, seed){
     if (kind === 'side') { const s = sideOf(id); return s ? s.def : null; }
-    if (kind === 'board') return makeBoard(id);
+    if (kind === 'board') return makeBoard(id, seed);
     return kind === 'base2' ? DATA.QUESTS2[id] : DATA.QUESTS[id];
   }
-  // 依頼板: 村ごとの小口の反復依頼。内容は周回ごとに変わる(使い捨てにならない村の生計)
-  function makeBoard(baseId){
+  // 依頼板: 村ごとの小口の反復依頼。内容は周回ごとに変わる(使い捨てにならない村の生計)。
+  // seedを渡すと受注時の内容を再現できる(周回を跨いでも依頼が変わらない)
+  function makeBoard(baseId, seed){
     const b = DATA.BASES.find(x => x.id === baseId);
     if (!b) return null;
-    let h = (SaveSys.data.stats.runs + 1) * 131;
+    let h = (seed !== undefined ? seed : SaveSys.data.stats.runs + 1) * 131;
     for (let i = 0; i < baseId.length; i++) h = (h * 31 + baseId.charCodeAt(i)) | 0;
     h = Math.abs(h);
     const pool = ['slime','bat','goblin','wolf','boar','skeleton'];
@@ -145,7 +147,8 @@ const Quest = (() => {
 
   function startActive(kind, id, def){
     const a = { kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
-                phase:'go', killed:0, timer: def.time || 0, near:false };
+                phase:'go', killed:0, timer: def.time || 0, near:false,
+                seed: kind === 'board' ? SaveSys.data.stats.runs + 1 : undefined };
     actives.push(a);
     if (def.type === 'escort') Run.startEscort(tagOf(a), a.loc, def);
     persist();

@@ -138,6 +138,18 @@ const Game = (() => {
     if (!q) return;
     // 2段階目クエスト進行中ならクエスト側の会話(報告・途中経過)
     if (Quest.activeFor('base2', baseId)) { Quest.atNpc('base2', baseId); return; }
+    // 施設解放クエストが残っているなら、雑談を挟まず真っ先にその話をする
+    {
+      const q2p = DATA.QUESTS2[baseId];
+      const done2p = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
+      if (q2p && !done2p) {
+        dialogChoice(q.npcName, q.npc, q2p.offer, [
+          { label:'話を聞く', cb(){ Quest.offer('base2', baseId); } },
+          { label:'また今度', sub:true },
+        ]);
+        return;
+      }
+    }
     const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
     const lines = [];
     // エピローグ: 果ての城の物語を見届けた後は、世界の語りが変わる
