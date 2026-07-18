@@ -566,8 +566,8 @@ DATA.CONTINENTS = [
     parts:[
       { dx:-58000, dy:20000,  r:37000, sx:1.2,  sy:0.9,  rot:-0.2,  lobes:5, amp:0.15 },
       { dx:-4000,  dy:-4000,  r:33000, sx:1.25, sy:0.85, rot:-0.35, lobes:6, amp:0.15 },
-      { dx:46000,  dy:-32000, r:26000, sx:1.3,  sy:0.75, rot:-0.5,  lobes:6, amp:0.16 },
-      { dx:86000,  dy:-54000, r:16000, sx:1.5,  sy:0.6,  rot:-0.55, lobes:4, amp:0.2 },
+      { dx:44000,  dy:-26000, r:27000, sx:1.25, sy:0.8,  rot:-0.45, lobes:6, amp:0.16 },
+      { dx:82000,  dy:-46000, r:20000, sx:1.3,  sy:0.7,  rot:-0.5,  lobes:4, amp:0.17 },
     ] },
   // 黄昏: 西の隣人。北の湾を抱く三日月の弧
   { id:'west', x:-133000, y:30000, seed:37, name:'黄昏の大陸', biome:'twilight', lobes:6, amp:0.16, r:54000,
@@ -575,13 +575,13 @@ DATA.CONTINENTS = [
       { dx:35000,  dy:-8000,  r:29000, sx:1.0,  sy:1.0,  rot:0.3,  lobes:5, amp:0.16 },
       { dx:5000,   dy:22000,  r:32000, sx:1.2,  sy:0.85, rot:0.15, lobes:6, amp:0.15 },
       { dx:-40000, dy:12000,  r:29000, sx:1.05, sy:0.95, rot:0.4,  lobes:7, amp:0.16 },
-      { dx:-72000, dy:-15000, r:21000, sx:0.9,  sy:1.1,  rot:0.5,  lobes:5, amp:0.18 },
+      { dx:-66000, dy:-10000, r:23000, sx:0.95, sy:1.05, rot:0.45, lobes:5, amp:0.17 },
     ] },
   // 星嵐: 北の隣人。南北二つの膨らみを細いくびれが繋ぐ
   { id:'north', x:45000, y:-150000, seed:41, name:'星嵐の大陸', biome:'frost', lobes:6, amp:0.16, r:58000,
     parts:[
       { dx:-12000, dy:52000,  r:28000, sx:1.1,  sy:0.9,  rot:0.1,  lobes:5, amp:0.16 },
-      { dx:2000,   dy:8000,   r:19000, sx:0.85, sy:1.2,  rot:0.05, lobes:6, amp:0.18 },
+      { dx:1000,   dy:6000,   r:24000, sx:0.95, sy:1.15, rot:0.05, lobes:6, amp:0.16 },
       { dx:15000,  dy:-48000, r:30000, sx:1.05, sy:1.05, rot:0.2,  lobes:6, amp:0.15 },
     ] },
   // 深緑: 南の隣人。広い胴から南西へ垂れる房と、東へ突き出す岬
@@ -589,11 +589,11 @@ DATA.CONTINENTS = [
     parts:[
       { dx:-8000,  dy:-32000, r:26000, sx:1.15, sy:0.9,  rot:-0.1, lobes:6, amp:0.15 },
       { dx:-25000, dy:15000,  r:33000, sx:1.15, sy:1.0,  rot:-0.3, lobes:7, amp:0.15 },
-      { dx:-42000, dy:55000,  r:25000, sx:1.05, sy:0.95, rot:-0.2, lobes:5, amp:0.16 },
-      { dx:28000,  dy:8000,   r:15000, sx:1.3,  sy:0.7,  rot:0.2,  lobes:4, amp:0.2 },
+      { dx:-38000, dy:48000,  r:26000, sx:1.05, sy:0.95, rot:-0.2, lobes:5, amp:0.16 },
+      { dx:24000,  dy:6000,   r:18000, sx:1.2,  sy:0.8,  rot:0.2,  lobes:4, amp:0.17 },
     ] },
   // --- 拠点のある小島(一拠点だけの特別な土地。小さいぶん海岸はごつごつ) ---
-  { id:'i_mist',  x:105000, y:-120000, r:9500,  seed:83,  name:'霧の小島',       biome:'mist',    lobes:3, amp:0.4, sx:1.3, sy:0.7, rot:0.6 },
+  { id:'i_mist',  x:105000, y:-120000, r:9500,  seed:83,  name:'霧の小島',       biome:'mist',    lobes:3, amp:0.3, sx:1.25, sy:0.75, rot:0.6 },
   { id:'i_ember', x:40000,  y:160000,  r:10000, seed:97,  name:'燃えさしの小島', biome:'volcano', lobes:6, amp:0.2,
     coast:[{ a:1.5, w:0.4, d:0.3 }] },   // 南へ溶岩流の舌
   { id:'i_frost', x:-35000, y:-125000, r:8500,  seed:101, name:'霜の小島',       biome:'frost',   lobes:5, amp:0.3, sx:0.55, sy:1.5, rot:-0.5 },
@@ -607,15 +607,15 @@ DATA.CONTINENTS = [
   // 虚無: 対角の二枚がかろうじて繋がる、砕けかけた形
   { id:'r3_void', x:-282000, y:105000, seed:131, name:'虚無の大陸', biome:'void', lobes:8, amp:0.25, r:30000,
     parts:[
-      { dx:-12000, dy:-14000, r:20000, sx:0.9, sy:1.2, rot:0.8, lobes:8, amp:0.25 },
-      { dx:14000,  dy:16000,  r:18000, sx:1.1, sy:0.9, rot:0.6, lobes:7, amp:0.25 },
+      { dx:-9000,  dy:-10000, r:20000, sx:0.95, sy:1.15, rot:0.8, lobes:8, amp:0.22 },
+      { dx:10000,  dy:12000,  r:18000, sx:1.05, sy:0.95, rot:0.6, lobes:7, amp:0.22 },
     ] },
   // 最果て: 牙のような板が寄り集まった禍々しい群島大陸
   { id:'r4_end', x:95000, y:-430000, seed:137, name:'最果ての大陸', biome:'end', lobes:9, amp:0.28, r:30000,
     parts:[
-      { dx:-15000, dy:5000,   r:20000, lobes:8, amp:0.28 },
-      { dx:12000,  dy:-12000, r:22000, lobes:9, amp:0.28 },
-      { dx:18000,  dy:14000,  r:16000, lobes:7, amp:0.3 },
+      { dx:-13000, dy:4000,   r:20000, lobes:8, amp:0.22 },
+      { dx:10000,  dy:-10000, r:22000, lobes:9, amp:0.22 },
+      { dx:15000,  dy:12000,  r:17000, lobes:7, amp:0.24 },
     ] },
   // --- 無人の小島(海路の景色。拠点はない) ---
   { id:'sk1', x:52000,   y:-52000,  r:4500, seed:141, name:'岩礁の小島', biome:'grass',  lobes:4, amp:0.35 },
