@@ -152,7 +152,7 @@ body.pad-visible #touch-buttons { display:flex; }
   .buy-btn { padding:12px 14px; }
   #ally-view { top:64px; }
   .stab { font-size:12px; padding:8px 1px; white-space:nowrap; }
-  #skill-tabs { gap:4px; }
+  #skill-tabs { gap:4px; overflow-x:auto; }   /* 狭い画面ではタブを横スクロール(見切れ対策) */
   .scat { padding:5px 9px; font-size:12px; }
 }
 
