@@ -399,7 +399,8 @@ const Run = (() => {
     Sfx.hurt();
     // 被弾の記録(死因リキャップ用)と、被弾方向の画面フラッシュ
     R.dmgLog = R.dmgLog || [];
-    R.dmgLog.push({ t:R.time, name: src ? (src.bossName || (src.def && src.def.name) || '???') : '???', d:Math.round(d) });
+    R.dmgLog.push({ t:R.time, d:Math.round(d),
+      name: src ? (src.bossName || (src.def && ((src.rank > 0 ? '色違いの' : '') + src.def.name)) || '???') : '???' });
     while (R.dmgLog.length > 60) R.dmgLog.shift();
     R.hitFlashT = 0.35;
     R.hitDir = (src && src.x !== undefined) ? Math.atan2(src.y - p.y, src.x - p.x) : null;
