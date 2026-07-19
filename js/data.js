@@ -1413,7 +1413,8 @@ Object.assign(DATA.QUESTS2, {
       npcName: DATA.QUESTS[b.id].npcName,
       offer: f[2].split('。')[0] + '。どうか力を貸してほしい。',
       type: 'hunt', enemy: f[0], count: f[1],
-      intro: [f[2], DATA.ENEMIES[f[0]].name + 'を' + f[1] + '体、頼む。'],
+      intro: ['相手は' + DATA.ENEMIES[f[0]].name + '。' + f[1] + '体、頼みたい。',
+              '片付けば、施設も目を覚ますはずだ。'],
       done: [f[3], '(この基地のパワーアップ施設が使えるようになった!)'],
       reward: { coins: 200, mats: {} },
     };
