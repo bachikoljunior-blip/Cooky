@@ -360,9 +360,9 @@ const World = (() => {
       for (const b of bases) if (SaveSys.data.bases[b.id] || seen[b.id]) consider(b.x, b.y);
       for (const p of ports) if (SaveSys.data.ports[p.id] || seen[p.id]) consider(p.x, p.y);
       consider(cx, cy);
-      // 拠点ヒント(複数)も必ず地図に収まるように
+      // 拠点・港ヒント(複数)も必ず地図に収まるように
       for (const hid in SaveSys.data.hints || {}) {
-        const wh = bases.find(b => b.id === hid);
+        const wh = bases.find(b => b.id === hid) || ports.find(p => p.id === hid);
         if (wh) consider(wh.x, wh.y);
       }
       const wh0 = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
@@ -381,7 +381,7 @@ const World = (() => {
     let ext = LOCAL_EXTENT;
     let lhD = Infinity;
     const consider2 = (b) => { if (b) { const d = Math.hypot(b.x - cx, b.y - cy); if (d < lhD) lhD = d; } };
-    for (const hid in SaveSys.data.hints || {}) consider2(bases.find(b => b.id === hid));
+    for (const hid in SaveSys.data.hints || {}) consider2(bases.find(b => b.id === hid) || ports.find(p => p.id === hid));
     consider2(SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint));
     if (lhD < Infinity) ext = Math.max(ext, lhD * 1.15);
     ext = Math.min(ext, B.w / 2);

@@ -2352,6 +2352,7 @@ const Run = (() => {
       for (const b of World.bases) {
         if (!SaveSys.data.seen[b.id] && Math.hypot(p.x - b.x, p.y - b.y) < 900) {
           SaveSys.data.seen[b.id] = true;
+          if (SaveSys.data.hints) delete SaveSys.data.hints[b.id];   // 見当(?)は実際の発見で確定に変わる
           R.warnMsg = '🏘 「' + b.name + '」を見つけた!(全体図に記した)';
           R.warnColor = '#7ee787'; R.warnT = 5;
           Sfx.skill();
@@ -2360,6 +2361,7 @@ const Run = (() => {
       for (const pt of World.ports) {
         if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) {
           SaveSys.data.seen[pt.id] = true;
+          if (SaveSys.data.hints) delete SaveSys.data.hints[pt.id];
           R.warnMsg = '⚓ 「' + pt.name + '」を見つけた!(全体図に記した)';
           R.warnColor = '#76e3ea'; R.warnT = 5;
           Sfx.skill();
@@ -2666,6 +2668,52 @@ const Run = (() => {
       g.beginPath(); g.arc(tb.x, tb.y, tb.r, 0, 7); g.stroke();
     }
 
+    // 灯台の光: 港の灯りは夜通し回っていて、長い光の筋が地を掃く。
+    // 海岸や海から光の筋を「目で見て」港を見つけるための目印(地図やテキストに頼らない)
+    const lighthouses = World.ports.slice();
+    { const wl = World.bases.find(b => b.id === 'b_white'); if (wl) lighthouses.push(wl); }
+    for (const lh of lighthouses) {
+      const ld = Math.hypot(lh.x - p.x, lh.y - p.y);
+      if (ld > 3800) continue;
+      const la = R.time * 0.4 + (lh.angle !== undefined ? lh.angle * 3.7 : 1.3);
+      const beamLen = 3000;
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      // 港全体のほのかな灯り(光条の合間でも「あそこに何かある」と分かる)
+      const amb = g.createRadialGradient(lh.x, lh.y, 10, lh.x, lh.y, 260);
+      amb.addColorStop(0, 'rgba(255,224,130,0.20)');
+      amb.addColorStop(1, 'rgba(255,224,130,0)');
+      g.fillStyle = amb;
+      g.beginPath(); g.arc(lh.x, lh.y, 260, 0, 7); g.fill();
+      // 対の光条(灯台の双眼レンズ): 反対向きの2本が回る
+      const grad = g.createRadialGradient(lh.x, lh.y, 24, lh.x, lh.y, beamLen);
+      grad.addColorStop(0, 'rgba(255,236,160,0.42)');
+      grad.addColorStop(0.5, 'rgba(255,236,160,0.15)');
+      grad.addColorStop(1, 'rgba(255,236,160,0)');
+      g.fillStyle = grad;
+      for (const ba of [la, la + Math.PI]) {
+        g.beginPath();
+        g.moveTo(lh.x, lh.y);
+        g.arc(lh.x, lh.y, beamLen, ba - 0.085, ba + 0.085);
+        g.closePath(); g.fill();
+      }
+      // 灯室の明かり
+      g.fillStyle = 'rgba(255,236,160,' + (0.5 + 0.2 * Math.sin(R.time * 3 + lh.x)) + ')';
+      g.beginPath(); g.arc(lh.x, lh.y - 30, 7, 0, 7); g.fill();
+      g.restore();
+    }
+    // 集落の炊事の煙: 村や基地からは煙の柱が高く立ちのぼり、遠目にも人の営みが分かる
+    for (const b of World.bases) {
+      if (Math.abs(b.x - p.x) > 3000 || Math.abs(b.y - p.y) > 3000) continue;
+      for (let i = 0; i < 6; i++) {
+        const ph = (R.time * 0.045 + i * 0.167 + (b.x % 7) * 0.1) % 1;
+        const sx = b.x + 20 + Math.sin(ph * 8 + i * 2) * 20 + ph * 150;   // 風に流れる
+        const sy = b.y - 44 - ph * 940;
+        g.fillStyle = 'rgba(206,212,220,' + ((1 - ph) * 0.34).toFixed(3) + ')';
+        g.beginPath(); g.arc(sx, sy, 11 + ph * 46, 0, 7); g.fill();
+      }
+    }
+
     // 港町・基地・停泊船
     for (const port of World.ports) {
       // 港は船着き場だけでなく小さな港町: 内陸側に家々、桟橋のそばに積み荷
@@ -2943,12 +2991,13 @@ const Run = (() => {
     const hints = [];
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (hintSet[b.id]) hints.push(b);   // ヒント(複数可)は最後に大きく描く
-      else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
+      else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);   // 実際に見つけた場所は正確な点
+      else if (hintSet[b.id]) hints.push(b);   // 聞いただけの場所は見当(?)。最後に大きく描く
     }
     for (const port of World.ports) {
       if (SaveSys.data.ports[port.id]) dot(port.x, port.y, '#76e3ea', 2.5);
       else if (seen[port.id]) dot(port.x, port.y, '#d29922', 2.5);
+      else if (hintSet[port.id]) hints.push(port);
     }
     if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
     // 進行中のvisit依頼の目的地(📍): ここへ行くと自然と新しい場所が見つかる
@@ -2960,28 +3009,42 @@ const Run = (() => {
       g.fillText('📍', x0 + q.x * mmScale, y0 + q.y * mmScale + 3);
     }
     dot(R.player.x, R.player.y, '#fff', 3.5);
-    // 拠点ヒント: 自分のマークに埋もれない大きさで、最後に(一番上に)描く
+    // 拠点ヒント: 話に聞いただけの場所は「おおよその見当」。正確な位置ではなく
+    // 少しずれた所に?を描く ― 現地では煙や灯台の光を目で探して見つける
     const pulse = 0.65 + 0.35 * Math.sin(R.time * 5);
     for (const b of hints) {
-      if (!view.inView(b.x, b.y)) continue;
-      const q = view.toMM(b.x, b.y);
+      const off = hintOffset(b.id);
+      const bx = b.x + off.x, by = b.y + off.y;
+      if (!view.inView(bx, by)) continue;
+      const q = view.toMM(bx, by);
       if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) continue;
       const hx = x0 + q.x * mmScale, hy = y0 + q.y * mmScale, hr = 8 * mk;
-      g.globalAlpha = pulse; g.fillStyle = '#ffd766';
+      const isPort = !!b.repair;   // 港エントリはrepairを持つ
+      g.globalAlpha = pulse; g.fillStyle = isPort ? '#76e3ea' : '#ffd766';
       g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.fill();
       g.globalAlpha = 1;
-      g.lineWidth = Math.max(1.5, 2 * mk); g.strokeStyle = '#3d2b00';
+      g.lineWidth = Math.max(1.5, 2 * mk); g.strokeStyle = isPort ? '#062a2e' : '#3d2b00';
       g.beginPath(); g.arc(hx, hy, hr, 0, 7); g.stroke();
-      g.fillStyle = '#3d2b00'; g.font = 'bold ' + Math.round(11 * mk) + 'px sans-serif';
+      g.fillStyle = isPort ? '#062a2e' : '#3d2b00'; g.font = 'bold ' + Math.round(11 * mk) + 'px sans-serif';
       g.textAlign = 'center'; g.textBaseline = 'middle';
-      g.fillText('?', hx, hy + 0.5);
+      g.fillText(isPort ? '⚓' : '?', hx, hy + 0.5);
       g.textBaseline = 'alphabetic';
-      // 行き先が複数ある時に選べるように、その土地の危険度を添える
-      const dg = b.danger || 0;
-      g.font = 'bold ' + Math.round(9 * mk) + 'px sans-serif';
-      g.fillStyle = dg <= 2 ? '#7ee787' : dg <= 6 ? '#ffa657' : '#ff7b72';
-      g.fillText('危険度' + dg, hx, hy + hr + 10 * mk);
+      // 行き先が複数ある時に選べるように、その土地の危険度を添える(港は危険度なし)
+      if (!isPort) {
+        const dg = b.danger || 0;
+        g.font = 'bold ' + Math.round(9 * mk) + 'px sans-serif';
+        g.fillStyle = dg <= 2 ? '#7ee787' : dg <= 6 ? '#ffa657' : '#ff7b72';
+        g.fillText('危険度' + dg, hx, hy + hr + 10 * mk);
+      }
     }
+  }
+  // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ1.4〜2.4kmずれる)
+  function hintOffset(id){
+    let h = 0;
+    for (let i = 0; i < id.length; i++) h = ((h * 131) + id.charCodeAt(i)) >>> 0;
+    const ang = (h % 628) / 100;
+    const dist = 1400 + (h % 997);
+    return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist };
   }
   function drawMinimap(g, W){
     // マップは最初から所持している

@@ -228,15 +228,9 @@ const Quest = (() => {
     if (kind === 'port') {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
-      // 船大工は海沿いの同業を知っている: 両隣の港の場所も教わる(会話のmate行と対応)
-      SaveSys.data.seen = SaveSys.data.seen || {};
-      const ring = DATA.PORTS.slice().sort((a, b) => a.angle - b.angle);
-      const ri = ring.findIndex(q => q.id === id);
-      let told = 0;
-      if (ri >= 0) for (const nb of [ring[(ri + 1) % ring.length], ring[(ri + ring.length - 1) % ring.length]]) {
-        if (!SaveSys.data.seen[nb.id]) { SaveSys.data.seen[nb.id] = true; told++; }
-      }
-      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ' + (told ? '(隣の港も地図に載った)' : '');
+      // 隣の港のことは船大工が会話で語る(mate行)だけ。地図には載らない ―
+      // 海岸沿いに灯台の光を目で追って、自分で見つける
+      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ';
     } else if (kind === 'side') {
       SaveSys.data.sideDone = SaveSys.data.sideDone || {};
       SaveSys.data.sideDone[id] = true;
@@ -246,10 +240,12 @@ const Quest = (() => {
       for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
       if (rw.story) { SaveSys.data.story = SaveSys.data.story || {}; SaveSys.data.story[rw.story] = true; }
       SaveSys.data.seen = SaveSys.data.seen || {};
-      if (rw.hintBase) { SaveSys.data.seen[rw.hintBase] = true; SaveSys.data.nextHint = rw.hintBase;
+      // 物語のヒントは「おおよその見当(?)」が地図に付くだけ。正確な場所は
+      // 現地で煙や灯台の光を目で見つける(seenは実際に近づいた時にだけ付く)
+      if (rw.hintBase) { SaveSys.data.nextHint = rw.hintBase;
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintBase] = true;   // ヒントは複数持てる(行き先を選べる)
-        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所');
-        // 海の向こうの基地なら、渡るための港(方角の合うもの)も一緒に教えてもらえる
+        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」のおおよその場所');
+        // 海の向こうの基地なら、渡るための港(方角の合うもの)の噂も一緒に聞ける
         if (hb && hb.cont && hb.cont !== 'main') {
           const ba = Math.atan2(hb.y, hb.x);
           let best = null, bd = 1e9;
@@ -259,13 +255,14 @@ const Quest = (() => {
             while (da < -Math.PI) da += Math.PI * 2;
             if (Math.abs(da) < bd) { bd = Math.abs(da); best = pt; }
           }
-          if (best && !SaveSys.data.seen[best.id]) {
-            SaveSys.data.seen[best.id] = true;
+          if (best && !SaveSys.data.seen[best.id] && !SaveSys.data.ports[best.id]) {
+            SaveSys.data.hints[best.id] = true;
             txt.push('⚓「' + best.name + '」から船が出るらしい');
           }
         } }
-      if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
-        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
+      if (rw.hintPort && !SaveSys.data.seen[rw.hintPort]) {
+        SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」のおおよその場所'); }
       // 船の下賜/出資: 富豪や王がその港の船を用意してくれる(修理と同じ扱いで航海可能に)
       if (rw.port) { SaveSys.data.ports[rw.port] = true; SaveSys.data.seen[rw.port] = true;
         const gp = DATA.PORTS.find(p => p.id === rw.port); txt.push('⚓「' + (gp ? gp.name : '') + '」の船'); }
@@ -289,8 +286,9 @@ const Quest = (() => {
       const txt = [];
       if (rw.coins) { R.coins += rw.coins; txt.push('🪙' + rw.coins); }
       for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
-      if (rw.hintPort) { SaveSys.data.seen = SaveSys.data.seen || {}; SaveSys.data.seen[rw.hintPort] = true;
-        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
+      if (rw.hintPort && !(SaveSys.data.seen || {})[rw.hintPort]) {
+        SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」のおおよその場所'); }
       R.warnMsg = '🎁 依頼達成! 報酬: ' + txt.join('・');
     } else {
       SaveSys.data.bases[id] = true;
@@ -316,10 +314,14 @@ const Quest = (() => {
     const hs = SaveSys.data.hints = SaveSys.data.hints || {};
     if (SaveSys.data.nextHint) hs[SaveSys.data.nextHint] = true;
     for (const id in hs) {
-      if (SaveSys.data.bases[id] || !DATA.BASES.some(b => b.id === id)) delete hs[id];   // 解放済み/実在しない先の掃除
+      const isBase = DATA.BASES.some(b => b.id === id);
+      const isPort = DATA.PORTS.some(p => p.id === id);
+      // 掃除: 解放/修理済み・実在しない先・実際に見つけた(seenになった)先
+      if ((isBase && SaveSys.data.bases[id]) || (isPort && SaveSys.data.ports[id]) ||
+          (!isBase && !isPort) || SaveSys.data.seen[id]) delete hs[id];
     }
     const cur = SaveSys.data.nextHint;
-    if (cur && !hs[cur]) SaveSys.data.nextHint = Object.keys(hs)[0] || null;
+    if (cur && !hs[cur]) SaveSys.data.nextHint = Object.keys(hs).find(id => DATA.BASES.some(b => b.id === id)) || null;
     delete SaveSys.data.allHints;   // 旧セーブの「全基地ヒント」は廃止(場所は物語で知る)
     SaveSys.save();
   }
