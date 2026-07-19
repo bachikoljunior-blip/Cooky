@@ -2150,7 +2150,11 @@ const Run = (() => {
       cb(){ Skills.mats()[sellMat] -= 10; R.coins += sellPrice; Sfx.buy();
             popup(R.player.x, R.player.y - 30, '🪙' + sellPrice + 'で売れた', '#ffd766'); } });
     opts.push({ label:'やめる', sub:true });
-    Game.dialogChoice(who || '貿易商', 'npc_scholar', '見ての通り、相場は日々変わる。今日の取引はこれだ。', opts);
+    // 港の貿易商と街道の行商人は別人。口上も別に(口調の使い回しをしない)
+    const greeting = who === '行商人'
+      ? 'へい、いらっしゃい。歩き売りの身でね、荷は軽いが目利きは確かだよ。今日はこれだ。'
+      : '見ての通り、相場は日々変わる。今日の取引はこれだ。';
+    Game.dialogChoice(who || '貿易商', 'npc_scholar', greeting, opts);
   }
 
   function boardBoat(x, y, port){

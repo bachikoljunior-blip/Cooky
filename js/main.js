@@ -160,7 +160,8 @@ const Game = (() => {
     else if (deaths >= 15) lines.push('また戻ったな。お前が何度でも帰ってくるの、この村はもう驚かなくなったよ。');
     else if (deaths >= 5) lines.push('…また戻ったのか。死に戻りとは聞いていたが、本当に、戻ってくるのだな。');
     lines.push(...(q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。']));
-    lines.push('「' + tip + '」');
+    // 豆知識は話者の口調と混ざらないよう、地の文(見聞きした噂)として添える
+    lines.push('(別れ際、こんな噂話も聞かせてくれた ―「' + tip + '」)');
     const q2 = DATA.QUESTS2[baseId];
     const done2 = SaveSys.data.quests2 && SaveSys.data.quests2[baseId];
     dialog(q.npcName, q.npc, lines, () => {
