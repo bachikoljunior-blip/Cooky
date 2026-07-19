@@ -137,7 +137,10 @@ const Quest = (() => {
     }
     // このNPCの依頼が進行中なら報告/経過。他の依頼を抱えていても新規は受けられる(同時進行OK)
     if (activeFor(kind, id)) { atNpc(kind, id); return; }
-    Game.dialog(def.npcName, face, def.intro.slice(), () => {
+    const introLines = def.intro.slice();
+    // 施設解放クエスト: 果たせば眠っている強化施設が目を覚ますことが、受ける前から分かるように
+    if (kind === 'base2') introLines.push('(この頼みを果たせば、この基地の眠っている強化施設が目を覚ますようだ)');
+    Game.dialog(def.npcName, face, introLines, () => {
       if (def.type === 'delivery') deliveryChoice(kind, id, def);
       else {
         Game.dialogChoice(def.npcName, face, '『' + objSummary(def, locOf(locKind(kind), id)) + '』― 引き受けるか?', [

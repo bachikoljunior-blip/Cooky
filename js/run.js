@@ -295,7 +295,7 @@ const Run = (() => {
     R.kills++;
     if (e.boss) { R.bossKills++; if (R.bossAlive === e) R.bossAlive = null; }
     if (e.def.isReaper) R.reaperKills++;
-    if (e.def.rare) { R.rareKills++; R.warnMsg = '✨ レアモンスターを倒した!'; R.warnT = 3; }
+    if (e.def.rare) R.rareKills++;
     Quest.notifyKill(e.defKey, e.rank || 0, e.markId);   // 討伐クエストの進行(色違い/指名討伐にも対応)
     const st = R.stats;
     // コイン(遠くの敵ほど多く落とす: 遠征の資金源)
@@ -319,9 +319,9 @@ const Run = (() => {
     if (Math.random() < st.potion) dropPickup(e.x, e.y, { type:'potion' });
     // 吸血の刻印: 撃破時回復
     if (st.killHeal > 0) R.player.hp = Math.min(st.maxHp, R.player.hp + st.killHeal);
-    // 仲間勧誘(ボス/リーパー以外)。強い敵ほど仲間になりにくい
-    const tf = [1, 0.7, 0.5, 0.35, 0.25][Math.min(4, e.def.tier || 0)];
-    if (!e.boss && !e.def.isReaper && R.allies.length < st.allyCap && Math.random() < st.recruit * tf) {
+    // 仲間勧誘(リーパー以外)。強い敵ほど仲間になりにくく、ボスはさらに低確率
+    const tf = e.boss ? 0.12 : [1, 0.7, 0.5, 0.35, 0.25][Math.min(4, e.def.tier || 0)];
+    if (!e.def.isReaper && R.allies.length < st.allyCap && Math.random() < st.recruit * tf) {
       recruitAlly(e);
     }
     effect('burst', e.x, e.y, { color:e.def.isReaper ? '#f85149' : '#ffd766', r:e.def.r + 8 });
@@ -345,8 +345,8 @@ const Run = (() => {
     const st = R.stats;
     const hpMul = st.allyHp * (wb ? wb.hp : 1);
     R.allies.push({
-      def: e.def, key: e.defKey,
-      rank: e.rank || 0, sizeMul: e.sizeMul || 1,   // 色違いと大きさは仲間になっても保つ
+      def: e.def, key: e.defKey, bossName: e.bossName,
+      rank: e.rank || 0, sizeMul: e.sizeMul || 1,   // 色違いと大きさは仲間になっても保つ(ボスはボスの姿のまま)
       x: e.x, y: e.y,
       // 初期値は敵だった時と同じHP・攻撃。ただし速さは主人公と同じくらいにして
       // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
@@ -362,7 +362,7 @@ const Run = (() => {
     R.recruits++;
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
     Sfx.recruit();
-    popup(e.x, e.y - 22, '仲間になった!', '#7ee787');
+    popup(e.x, e.y - 22, e.bossName ? '「' + e.bossName + '」が軍門に降った!' : '仲間になった!', '#7ee787');
   }
 
   function damagePlayer(dmg, src){
