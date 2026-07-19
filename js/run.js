@@ -876,10 +876,9 @@ const Run = (() => {
     for (const b of DATA.BOSSES) {
       if (min >= b.at && !R.bossDone[b.at]) {
         R.bossDone[b.at] = true;
+        // ボスは告知なしで現れる(名前は頭上に出る。BGMも変えない)
         const e = spawnEnemy(b.base, { boss:true, bossName:b.name, hpMul:b.hpMul, dmgMul:b.dmgMul, coin:b.coin, dist:620 });
         if (e) { e.def = Object.assign({}, e.def, { sprite: b.sprite }); }
-        R.warnMsg = '⚠ ' + b.name + ' が現れた!'; R.warnT = 4; R.warnColor = null;
-        Sfx.boss();
       }
     }
     // 終焉の刻

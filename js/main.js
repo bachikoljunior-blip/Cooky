@@ -262,8 +262,7 @@ const Game = (() => {
       Run.draw(g, W, H);
       Run.updateHud(dt);
       Sfx.setScene(R.time >= DATA.REAPER_AT ? 'reaper'
-        : (R.bossAlive && !R.bossAlive.dead) ? 'boss'
-        : Sfx.biomeScene(R.curBiome || 'grass'));
+        : Sfx.biomeScene(R.curBiome || 'grass'));   // ボスでBGMは変えない(終焉の刻のみ)
       if (R.over && overlay !== 'result') endRun(false);
     } else if (state === 'hub') {
       if (!overlay) Hub.update(dt);

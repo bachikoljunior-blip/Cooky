@@ -72,8 +72,8 @@ const Quest = (() => {
     const count = 6 + (h >> 3) % 5;
     const ring = Math.floor(Math.hypot(b.x, b.y) / DATA.DIST_RING);
     const coins = Math.round((50 + ring * 4) / 10) * 10;
-    return { npcName:'依頼板', type:'hunt', enemy, count, board:true, reward:{ coins },
-      intro:['(村の依頼板。今日の依頼が貼り出されている)','「' + DATA.ENEMIES[enemy].name + 'を' + count + '体退治。報酬🪙' + coins + '。村のみんなより」'],
+    return { npcName:'依頼板', type:'hunt', nearLoc:true, enemy, count, board:true, reward:{ coins },
+      intro:['(村の依頼板。今日の依頼が貼り出されている)','「' + DATA.ENEMIES[enemy].name + 'を' + count + '体、村の近くで退治してほしい。報酬🪙' + coins + '。村のみんなより」'],
       done:['(討伐を報告した。張り紙の裏に報酬が挟んであった)'] };
   }
   // visit型の目的地(座標指定 or 港指定)
@@ -87,10 +87,11 @@ const Quest = (() => {
     return def.npc || (DATA.QUESTS[id] && DATA.QUESTS[id].npc) || 'npc_elder';
   }
 
-  function objSummary(def){
+  function objSummary(def, loc){
     if (def.type === 'mark') return '「' + def.markName + '」を討つ(マップに📍)';
     if (def.type === 'escort') return '「' + (def.dest.label || '目的地') + '」まで護衛する(📍)';
-    if (def.type === 'hunt') return (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
+    if (def.type === 'hunt') return (def.nearLoc && loc && loc.name ? '「' + loc.name + '」の近くで' : '') +
+      (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
     if (def.type === 'survive') return 'この場所の近くで' + def.time + '秒間守り抜く';
     if (def.type === 'delivery') return '素材とコインを届ける';
     if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(マップに📍)';
@@ -99,7 +100,8 @@ const Quest = (() => {
   function oneObjText(a){
     const d = a.def;
     if (a.phase === 'return') return '📜 ' + d.npcName + 'に報告';
-    if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + (d.minRank ? '色違いの' : '') + DATA.ENEMIES[d.enemy].name + ')';
+    if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + (d.minRank ? '色違いの' : '') + DATA.ENEMIES[d.enemy].name +
+      (d.nearLoc && a.loc && a.loc.name ? '・' + a.loc.name + 'の近く' : '') + ')';
     if (d.type === 'survive') {
       const near = a.near ? '' : '(場所に近づけ!)';
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
@@ -138,7 +140,7 @@ const Quest = (() => {
     Game.dialog(def.npcName, face, def.intro.slice(), () => {
       if (def.type === 'delivery') deliveryChoice(kind, id, def);
       else {
-        Game.dialogChoice(def.npcName, face, '『' + objSummary(def) + '』― 引き受けるか?', [
+        Game.dialogChoice(def.npcName, face, '『' + objSummary(def, locOf(locKind(kind), id)) + '』― 引き受けるか?', [
           { label:'依頼を受ける', cb(){ startActive(kind, id, def); } },
           { label:'やめておく', sub:true },
         ]);
@@ -155,7 +157,7 @@ const Quest = (() => {
     if (def.type === 'escort' && Run.state.player) Run.startEscort(tagOf(a), a.loc, def);
     persist();
     const R = Run.state;
-    R.warnMsg = '📜 依頼開始: ' + objSummary(def);
+    R.warnMsg = '📜 依頼開始: ' + objSummary(def, a.loc);
     R.warnColor = '#ffd766'; R.warnT = 4;
   }
 
@@ -334,6 +336,9 @@ const Quest = (() => {
       }
       if (a.phase !== 'go' || a.def.type !== 'hunt' || a.def.enemy !== defKey) continue;
       if (a.def.minRank && (rank || 0) < a.def.minRank) continue;   // 色違い指定の依頼は通常個体を数えない
+      // 物語で場所が決まっている討伐(畑を荒らす・砦を襲う等)は、その土地の近くの討伐だけ数える
+      if (a.def.nearLoc && a.loc &&
+          Math.hypot(Run.state.player.x - a.loc.x, Run.state.player.y - a.loc.y) > (a.def.nearRadius || 4500)) continue;
       a.killed++; changed = true;
       if (a.killed >= a.def.count) {
         a.phase = 'return';
@@ -413,8 +418,14 @@ const Quest = (() => {
   // 討伐依頼中は対象の敵が近くに湧きやすくなる。
   // 進行中の「全ての」討伐対象を返す ― どの土地でも対象が出現しない事態を防ぐ
   // (通常の湧きはバイオドームの顔ぶれだが、依頼対象はそれを飛び越えて混ざる)。
+  // 場所指定の討伐は、その土地の近くにいる時だけ「対象」として扱う(湧き保証も同様)
+  function huntActiveHere(a){
+    if (a.phase !== 'go' || a.def.type !== 'hunt') return false;
+    if (!a.def.nearLoc || !a.loc) return true;
+    return Math.hypot(Run.state.player.x - a.loc.x, Run.state.player.y - a.loc.y) <= (a.def.nearRadius || 4500);
+  }
   function wantSpawn(){
-    const list = actives.filter(a => a.phase === 'go' && a.def.type === 'hunt').map(a => a.def.enemy);
+    const list = actives.filter(huntActiveHere).map(a => a.def.enemy);
     return list.length ? list : null;
   }
 
@@ -422,7 +433,7 @@ const Quest = (() => {
   function wantRank(key){
     let r = 0;
     for (const a of actives)
-      if (a.phase === 'go' && a.def.type === 'hunt' && a.def.enemy === key)
+      if (huntActiveHere(a) && a.def.enemy === key)
         r = Math.max(r, a.def.minRank || 0);
     return r;
   }
