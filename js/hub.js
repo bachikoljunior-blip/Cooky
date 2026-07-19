@@ -14,7 +14,7 @@ const Hub = (() => {
   function bounds(){
     return H.area === 'main'
       ? { x0:-800, y0:-360, x1:800, y1:400 }
-      : { x0:-460, y0:-360, x1:460, y1:400 };
+      : { x0:-640, y0:-380, x1:640, y1:400 };   // 住民が増えても全員に届く広さ
   }
 
   function stations(){
