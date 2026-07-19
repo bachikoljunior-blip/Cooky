@@ -2874,10 +2874,12 @@ const Run = (() => {
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
     // 場所を知る手段は物語のヒント(?)・visit依頼の📍・実際に近づくこと、だけ。
     const seen = SaveSys.data.seen || {};
+    const hintSet = Object.assign({}, SaveSys.data.hints || {});
+    if (SaveSys.data.nextHint) hintSet[SaveSys.data.nextHint] = true;
     const hints = [];
     for (const b of World.bases) {
       if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (SaveSys.data.nextHint === b.id) hints.push(b);   // ヒントは最後に大きく描く
+      else if (hintSet[b.id]) hints.push(b);   // ヒント(複数可)は最後に大きく描く
       else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);
     }
     for (const port of World.ports) {
@@ -2910,6 +2912,11 @@ const Run = (() => {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText('?', hx, hy + 0.5);
       g.textBaseline = 'alphabetic';
+      // 行き先が複数ある時に選べるように、その土地の危険度を添える
+      const dg = b.danger || 0;
+      g.font = 'bold ' + Math.round(9 * mk) + 'px sans-serif';
+      g.fillStyle = dg <= 2 ? '#7ee787' : dg <= 6 ? '#ffa657' : '#ff7b72';
+      g.fillText('危険度' + dg, hx, hy + hr + 10 * mk);
     }
   }
   function drawMinimap(g, W){

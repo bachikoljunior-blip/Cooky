@@ -29,7 +29,7 @@ const Hub = (() => {
         { kind:'stats',  x:-620, y:240 },
         // ストーリーで移り住んでくる住民たち
         ...((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
-          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:-300 + i * 300, y:60 })),
+          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:-450 + i * 300, y:40 })),
       ];
     }
     // 基地エリア: 特別強化施設 + NPC + ゲート(周回中に転移してきた時も同じマップ)
@@ -40,10 +40,12 @@ const Hub = (() => {
       const x = (i - (present.length - 1) / 2) * 260;
       list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
     });
-    if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-250 });
+    if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-330 });
     // 住民(サイドクエスト): しに戻り後もここで依頼を受けられる
+    // 住民は依頼NPC(x:0)と重ならないよう左右交互に並べる
     (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).filter(sq => Quest.sideVisible(sq)).forEach((sq, i) => {
-      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:(i + 1) * 240 - 480, y:-250 });
+      const sx = (i % 2 === 0 ? 1 : -1) * (Math.floor(i / 2) + 1) * 260;
+      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:sx, y:-330 });
     });
     list.push({ kind:'board', x:-320, y:260 });   // 依頼板(周回ごとに変わる小口の依頼)
     list.push({ kind:'gate', x:0, y:260 });
@@ -104,9 +106,7 @@ const Hub = (() => {
     H.time = (H.time || 0) + dt;
     for (const s of H.list) {
       if (s.kind === 'npc' || s.kind === 'sidenpc' || s.kind === 'villager') {
-        const ph = (s.x * 13 + s.y * 7) % 10;
-        s.ox = Math.sin(H.time * 0.5 + ph) * 34;
-        s.oy = Math.sin(H.time * 1.7 + ph * 2) * 2;   // 作業の上下ゆれ
+        s.ox = 0; s.oy = 0;   // 住民は定位置に立つ(ふらふら漂わない)
       }
     }
     H.interact = null;
@@ -129,8 +129,7 @@ const Hub = (() => {
       const b = DATA.BASES.find(b => b.id === s.st);
       const name = st ? st.name : (b ? b.name + 'の' : '') + (fac ? fac.name : '特別強化');
       if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) {
-        const fs = (DATA.FAC_STATE || {})[s.st];
-        return name + '(' + (fs ? fs.tag : '力を失っている') + ')';
+        return name + '(扉は固く閉ざされている)';
       }
       if (H.fromRun) return name + '(周回中は強化できない)';
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');

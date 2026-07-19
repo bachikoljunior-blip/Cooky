@@ -730,36 +730,36 @@ DATA.BIOMES = {
 // 基地: unlock条件=8秒チャネリング。解放するとワープ出撃+専用強化が開く
 DATA.BASES = [
   // 始まりの大陸(最初の目標。足が遅いうちはここまでも命がけ)
-  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村', spr:'base_fort' },
-  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy' },
-  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring' },
-  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge' },
+  { id:'b_north', name:'北の砦',     x:400,    y:-8500,  cont:'main', kind:'砦の村', spr:'base_fort', danger:0 },
+  { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy', danger:1 },
+  { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring', danger:1 },
+  { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge', danger:2 },
   // 竜骨の大陸(東北東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
-  { id:'b_dragon',name:'竜骨の前哨', x:102000,  y:5000,   cont:'east', kind:'狩人の集落', spr:'base_lodge' },
-  { id:'b_white', name:'白亜の灯台', x:206000,  y:-43000, cont:'east', kind:'港街', spr:'base_port' },
-  { id:'b_forge', name:'鍛冶神の工房', x:240000, y:-60000,  cont:'east', kind:'工房都市', spr:'base_factory' },
+  { id:'b_dragon',name:'竜骨の前哨', x:102000,  y:5000,   cont:'east', kind:'狩人の集落', spr:'base_lodge', danger:4 },
+  { id:'b_white', name:'白亜の灯台', x:206000,  y:-43000, cont:'east', kind:'港街', spr:'base_port', danger:6 },
+  { id:'b_forge', name:'鍛冶神の工房', x:240000, y:-60000,  cont:'east', kind:'工房都市', spr:'base_factory', danger:8 },
   // 黄昏の大陸(西南西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
-  { id:'b_dusk',  name:'黄昏の前哨', x:-60000,  y:87000,  cont:'west', kind:'詩人の隠れ里', spr:'base_poet' },
-  { id:'b_black', name:'黒曜の祠',   x:-90000,  y:117000, cont:'west', kind:'祠の村', spr:'base_shrine' },
-  { id:'b_bones', name:'骨の祭場',   x:-135000, y:107000, cont:'west', kind:'野営地', spr:'base_camp' },
-  { id:'b_moon',  name:'月影の社',   x:-161000, y:85000,  cont:'west', kind:'月の修道院', spr:'base_abbey' },
+  { id:'b_dusk',  name:'黄昏の前哨', x:-60000,  y:87000,  cont:'west', kind:'詩人の隠れ里', spr:'base_poet', danger:4 },
+  { id:'b_black', name:'黒曜の祠',   x:-90000,  y:117000, cont:'west', kind:'祠の村', spr:'base_shrine', danger:6 },
+  { id:'b_bones', name:'骨の祭場',   x:-135000, y:107000, cont:'west', kind:'野営地', spr:'base_camp', danger:7 },
+  { id:'b_moon',  name:'月影の社',   x:-161000, y:85000,  cont:'west', kind:'月の修道院', spr:'base_abbey', danger:8 },
   // 星嵐の大陸(北北東の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
-  { id:'b_star',  name:'星降りの祭壇', x:138000, y:-108000, cont:'north', kind:'星見の村', spr:'base_star' },
-  { id:'b_storm', name:'嵐の塔',     x:165000,  y:-206000, cont:'north', kind:'塔の街', spr:'base_tower' },
+  { id:'b_star',  name:'星降りの祭壇', x:138000, y:-108000, cont:'north', kind:'星見の村', spr:'base_star', danger:5 },
+  { id:'b_storm', name:'嵐の塔',     x:165000,  y:-206000, cont:'north', kind:'塔の街', spr:'base_tower', danger:9 },
   // 深緑の大陸(南南西の縦長の大陸): 北岸の社から南端の弔いの村まで
-  { id:'b_green', name:'深緑の社',   x:47000,   y:58000,  cont:'south', kind:'森の集落', spr:'base_grove' },
-  { id:'b_grave', name:'墓標の祭壇', x:17000,   y:138000, cont:'south', kind:'弔いの村', spr:'base_grave' },
+  { id:'b_green', name:'深緑の社',   x:47000,   y:58000,  cont:'south', kind:'森の集落', spr:'base_grove', danger:3 },
+  { id:'b_grave', name:'墓標の祭壇', x:17000,   y:138000, cont:'south', kind:'弔いの村', spr:'base_grave', danger:7 },
   // 小島(一拠点だけの特別な土地)
-  { id:'b_mist',  name:'霧の観測所', x:95000,   y:-60000, cont:'i_mist', kind:'観測の村', spr:'base_mist' },
-  { id:'b_ember', name:'燃えさしの炉', x:105000, y:115000, cont:'i_ember', kind:'火の民の村', spr:'base_ember' },
-  { id:'b_frost', name:'霜の祠',     x:45000,   y:-170000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost' },
+  { id:'b_mist',  name:'霧の観測所', x:95000,   y:-60000, cont:'i_mist', kind:'観測の村', spr:'base_mist', danger:5 },
+  { id:'b_ember', name:'燃えさしの炉', x:105000, y:115000, cont:'i_ember', kind:'火の民の村', spr:'base_ember', danger:5 },
+  { id:'b_frost', name:'霜の祠',     x:45000,   y:-170000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost', danger:7 },
   // 遠環の特別な地(一拠点のみ)
-  { id:'b_sun',   name:'太陽の神殿', x:305000,  y:-110000, cont:'r3_sun', kind:'神殿都市', spr:'base_temple' },
-  { id:'b_void',  name:'虚無の門',   x:-239000, y:120000, cont:'r3_void', kind:'隠者の庵', spr:'base_hermit' },
+  { id:'b_sun',   name:'太陽の神殿', x:305000,  y:-110000, cont:'r3_sun', kind:'神殿都市', spr:'base_temple', danger:10 },
+  { id:'b_void',  name:'虚無の門',   x:-239000, y:120000, cont:'r3_void', kind:'隠者の庵', spr:'base_hermit', danger:10 },
   // 海のただ中(環礁の下に沈んだ都)
-  { id:'b_sea',   name:'沈み都',     x:-95000,  y:-180000, cont:'i_sea', kind:'海底都市', spr:'base_sunken' },
+  { id:'b_sea',   name:'沈み都',     x:-95000,  y:-180000, cont:'i_sea', kind:'海底都市', spr:'base_sunken', danger:8 },
   // 最果て
-  { id:'b_end',   name:'最果ての碑', x:85000,   y:-378000, cont:'r4_end', kind:'最果ての城', spr:'base_castle' },
+  { id:'b_end',   name:'最果ての碑', x:85000,   y:-378000, cont:'r4_end', kind:'最果ての城', spr:'base_castle', danger:12 },
 ];
 
 // 港: 始まりの大陸の沿岸8方位。ship修理条件は港ごとに異なる

@@ -356,9 +356,13 @@ const World = (() => {
       for (const b of bases) if (SaveSys.data.bases[b.id] || seen[b.id]) consider(b.x, b.y);
       for (const p of ports) if (SaveSys.data.ports[p.id] || seen[p.id]) consider(p.x, p.y);
       consider(cx, cy);
-      // 次の拠点ヒントも必ず地図に収まるように
-      const wh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
-      if (wh) consider(wh.x, wh.y);
+      // 拠点ヒント(複数)も必ず地図に収まるように
+      for (const hid in SaveSys.data.hints || {}) {
+        const wh = bases.find(b => b.id === hid);
+        if (wh) consider(wh.x, wh.y);
+      }
+      const wh0 = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
+      if (wh0) consider(wh0.x, wh0.y);
       let side = Math.min(B.w, Math.max(x1 - x0, y1 - y0) * 1.08);
       let bx0 = (x0 + x1) / 2 - side / 2, by0 = (y0 + y1) / 2 - side / 2;
       bx0 = Math.max(B.x0, Math.min(B.x0 + B.w - side, bx0));
@@ -369,10 +373,13 @@ const World = (() => {
         inView(x, y){ return x > bx0 && x < bx0 + side && y > by0 && y < by0 + side; },
       };
     }
-    // 周辺図: プレイヤー中心。次の拠点ヒントがあれば、それが必ず収まるまで範囲を広げる
+    // 周辺図: プレイヤー中心。拠点ヒントがあれば「一番近いもの」が必ず収まるまで範囲を広げる
     let ext = LOCAL_EXTENT;
-    const lh = SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint);
-    if (lh) ext = Math.max(ext, Math.hypot(lh.x - cx, lh.y - cy) * 1.15);
+    let lhD = Infinity;
+    const consider2 = (b) => { if (b) { const d = Math.hypot(b.x - cx, b.y - cy); if (d < lhD) lhD = d; } };
+    for (const hid in SaveSys.data.hints || {}) consider2(bases.find(b => b.id === hid));
+    consider2(SaveSys.data.nextHint && bases.find(b => b.id === SaveSys.data.nextHint));
+    if (lhD < Infinity) ext = Math.max(ext, lhD * 1.15);
     ext = Math.min(ext, B.w / 2);
     const sw = Math.min(WM_RES, ext * 2 * scale);
     const sx = Math.max(0, Math.min(WM_RES - sw, (cx - B.x0) * scale - sw / 2));
@@ -462,7 +469,30 @@ const World = (() => {
   }
 
   // 距離リング(敵の強さ)
-  function ringOf(x, y){ return Math.floor(Math.hypot(x, y) / DATA.DIST_RING); }
+  // 危険度: 「始まりからの距離の同心円」が基調(境界は方角ごとに揺らいだ自然な形)。
+  // 遠方は圧縮してなだらかにし、基地の周りはその基地の「物語上の危険度」(danger)へ
+  // ブレンドする ― 後半の基地の近くほど高く、序盤の基地の周りは遠くでも比較的安全。
+  // 基地領域の縁も揺らぎ、極端な段差にはならない。
+  function ringOf(x, y){
+    const a = Math.atan2(y, x);
+    const w = 1 + 0.14 * Math.sin(a * 3 + 1.3) + 0.09 * Math.sin(a * 5 - 0.7) + 0.06 * Math.sin(a * 9 + 2.1);
+    const raw = Math.hypot(x, y) * w / DATA.DIST_RING;
+    let r = raw < 5 ? raw : 5 + Math.sqrt(raw - 5) * 0.9;   // 荒野は距離とともにゆるやかに上がる
+    // 最も影響の強い基地の危険度へブレンド
+    let bt = 0, bd = 0;
+    for (const b of bases) {
+      if (b.danger == null) continue;
+      const dx = x - b.x, dy = y - b.y;
+      if (Math.abs(dx) > 26000 || Math.abs(dy) > 26000) continue;
+      const ba = Math.atan2(dy, dx);
+      const rad = 17000 * (1 + 0.22 * Math.sin(ba * 3 + b.x * 0.0007) + 0.14 * Math.sin(ba * 5 + b.y * 0.0007));
+      const d = Math.hypot(dx, dy);
+      if (d < rad) { const t = 1 - d / rad; if (t > bt) { bt = t; bd = b.danger; } }
+    }
+    const tt = Math.min(1, bt * 1.6);
+    r = r * (1 - tt) + bd * tt;
+    return Math.floor(Math.max(0, r));
+  }
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops,

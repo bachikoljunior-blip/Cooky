@@ -232,6 +232,7 @@ const Quest = (() => {
       if (rw.story) { SaveSys.data.story = SaveSys.data.story || {}; SaveSys.data.story[rw.story] = true; }
       SaveSys.data.seen = SaveSys.data.seen || {};
       if (rw.hintBase) { SaveSys.data.seen[rw.hintBase] = true; SaveSys.data.nextHint = rw.hintBase;
+        SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintBase] = true;   // ヒントは複数持てる(行き先を選べる)
         const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所'); }
       if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
@@ -279,8 +280,14 @@ const Quest = (() => {
   // だけ。ここではヒントの整合(解放済み・実在しない先を指すヒントの掃除)のみ行う。
   function refreshHint(){
     SaveSys.data.seen = SaveSys.data.seen || {};
+    // ヒントは複数持てる(物語の分岐で行き先を選べる)。nextHintは旧セーブ互換で集合へ移す
+    const hs = SaveSys.data.hints = SaveSys.data.hints || {};
+    if (SaveSys.data.nextHint) hs[SaveSys.data.nextHint] = true;
+    for (const id in hs) {
+      if (SaveSys.data.bases[id] || !DATA.BASES.some(b => b.id === id)) delete hs[id];   // 解放済み/実在しない先の掃除
+    }
     const cur = SaveSys.data.nextHint;
-    if (cur && (SaveSys.data.bases[cur] || !DATA.BASES.some(b => b.id === cur))) SaveSys.data.nextHint = null;
+    if (cur && !hs[cur]) SaveSys.data.nextHint = Object.keys(hs)[0] || null;
     delete SaveSys.data.allHints;   // 旧セーブの「全基地ヒント」は廃止(場所は物語で知る)
     SaveSys.save();
   }
