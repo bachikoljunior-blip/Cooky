@@ -228,9 +228,20 @@ const Quest = (() => {
     if (kind === 'port') {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
-      // 隣の港のことは船大工が会話で語る(mate行)だけ。地図には載らない ―
-      // 海岸沿いに灯台の光を目で追って、自分で見つける
-      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ';
+      // 船大工の隣港の話(mate行)は「聞いた見当」として地図に残る ―
+      // 正確な場所ではなく概略のピン。現地では灯台の光を目で追って見つける
+      SaveSys.data.seen = SaveSys.data.seen || {};
+      SaveSys.data.hints = SaveSys.data.hints || {};
+      const ring = DATA.PORTS.slice().sort((a, b) => a.angle - b.angle);
+      const ri = ring.findIndex(q => q.id === id);
+      let told = 0;
+      if (ri >= 0) for (const nb of [ring[(ri + 1) % ring.length], ring[(ri + ring.length - 1) % ring.length]]) {
+        if (!SaveSys.data.seen[nb.id] && !SaveSys.data.ports[nb.id] && !SaveSys.data.hints[nb.id]) {
+          SaveSys.data.hints[nb.id] = true; told++;
+        }
+      }
+      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ' +
+        (told ? '(隣の港の話を聞いた ― 見当を地図に記した)' : '');
     } else if (kind === 'side') {
       SaveSys.data.sideDone = SaveSys.data.sideDone || {};
       SaveSys.data.sideDone[id] = true;
