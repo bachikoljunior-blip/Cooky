@@ -555,13 +555,13 @@ const Run = (() => {
       const a = opts.ang !== undefined ? opts.ang : Math.random() * Math.PI * 2;
       const dist = opts.dist || rnd(560, 760);
       x = p.x + Math.cos(a) * dist; y = p.y + Math.sin(a) * dist;
-      // 環境の合う場所へ補正(数回試行)
-      for (let i = 0; i < 6; i++) {
+      // 環境の合う場所へ補正(海岸沿いでは半分が海に落ちるため、多めに試行)
+      for (let i = 0; i < 14; i++) {
         const land = World.isLand(x, y);
         if ((def.env === 'land' && land) || (def.env === 'sea' && !land) || def.env === 'both') break;
         const a2 = Math.random() * Math.PI * 2;
         x = p.x + Math.cos(a2) * dist; y = p.y + Math.sin(a2) * dist;
-        if (i === 5) return null;
+        if (i === 13) return null;
       }
       // 掃討したばかりの場所(1分以内)には環境の敵を湧かせない
       if (opts.ambient && isClearedCell(x, y)) return null;
