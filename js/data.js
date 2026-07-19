@@ -497,7 +497,9 @@ PASSIVE_DEFS.forEach(([id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat], 
     name, icon: 'sk_' + id, cat: cat || 'kokoroe',
     desc: `【心得】${effDesc} ${unit}/Lv。`,
     cost: (lv) => {
-      const c = matCost(lv, { [ma]: qa, [mb]: qb });
+      // 心得は数が多く、安いと中盤に一気に取り切れてしまう。基本素材は1.5倍で
+      // 「1周回に数件ずつ」のペースに調整(序盤の主力スキルには影響しない)
+      const c = matCost(lv, { [ma]: Math.ceil(qa * 1.5), [mb]: Math.ceil(qb * 1.5) });
       if (lv >= 2) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 2) * 0.5);
       if (lv >= 7 && flux2 !== flux1) c[flux2] = (c[flux2] || 0) + Math.ceil(1 + (lv - 7) * 0.5);
       return c;
