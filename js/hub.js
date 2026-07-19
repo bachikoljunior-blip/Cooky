@@ -17,6 +17,20 @@ const Hub = (() => {
       : { x0:-640, y0:-380, x1:640, y1:400 };   // 住民が増えても全員に届く広さ
   }
 
+  // 段階解放: 魂の広場の施設は歩みに応じて順に開く(基準はPACING参照)
+  function stationLock(st){
+    const s = SaveSys.data.stats;
+    if (st === 'lab'  && (s.matsCollected || 0) < 30)
+      return { need:'素材を累計30個集める', now:(s.matsCollected || 0) + '/30',
+               line:'研究所の扉は閉まっている。「素材が集まったら開けるよ」と張り紙がある。' };
+    if (st === 'camp' && (s.recruits || 0) < 8)
+      return { need:'仲間を累計8体つくる', now:(s.recruits || 0) + '/8',
+               line:'宿舎はまだ空き家だ。住む仲間が増えたら、灯りがともるのだろう。' };
+    if (st === 'lib'  && Object.keys(SaveSys.data.skillsSeen || {}).length < 3)
+      return { need:'スキルを3種類おぼえる', now:Object.keys(SaveSys.data.skillsSeen || {}).length + '/3',
+               line:'書庫の扉は固い。「読み手の素養が要る」と刻まれている。' };
+    return null;
+  }
   function stations(){
     if (H.area === 'main') {
       return [
@@ -124,6 +138,8 @@ const Hub = (() => {
 
   function interactLabel(s){
     if (s.kind === 'meta') {
+      const lk = !s.fac && stationLock(s.st);
+      if (lk) { const st0 = DATA.STATIONS[s.st]; return (st0 ? st0.name : '施設') + '(閉まっている ― ' + lk.need + ' ' + lk.now + ')'; }
       const st = DATA.STATIONS[s.st];
       const fac = s.fac && DATA.BASE_FACS[s.fac];
       const b = DATA.BASES.find(b => b.id === s.st);
@@ -148,6 +164,11 @@ const Hub = (() => {
     const s = H.interact;
     if (!s) return;
     if (s.kind === 'meta') {
+      // 魂の広場の施設: 歩みが条件に届くまで閉まっている(段階解放)
+      if (!s.fac) {
+        const lk = stationLock(s.st);
+        if (lk) { Game.dialog('', null, [lk.line, '(' + lk.need + ' ― いま ' + lk.now + ')'], null); return; }
+      }
       // 基地の施設は施設クエスト(ゲート解放後にNPCから)を果たすまで使えない。
       // 調べた時は説明書きではなく、施設の状態そのものを描写する(直し方は村人の話から分かる)
       if (s.fac && !(SaveSys.data.quests2 || {})[s.st]) {
@@ -248,7 +269,14 @@ const Hub = (() => {
       '🗡 武器庫 ― 攻撃手段はここで選ぶ ― 🪙 ' + fmtNum(SaveSys.data.coins);
     const body = document.getElementById('station-body');
     let h = '<p class="small">主人公の攻撃手段は周回中のスキルでは手に入らない。ここで購入・強化し、どれか1つを選んで出撃する。</p>';
-    for (const id in DATA.WEAPONS) {
+    // 段階解放: 並ぶのは「所持している武器 + 安い順に次の3種」だけ。残りは件数だけ予告
+    const wAll = Object.keys(DATA.WEAPONS);
+    const wVisible = new Set(wAll.filter(id => SaveSys.weaponLv(id) > 0));
+    wAll.filter(id => !wVisible.has(id)).sort((a, b) => DATA.WEAPONS[a].buy - DATA.WEAPONS[b].buy)
+      .slice(0, 3).forEach(id => wVisible.add(id));
+    const wHidden = wAll.length - wVisible.size;
+    for (const id of wAll) {
+      if (!wVisible.has(id)) continue;
       const def = DATA.WEAPONS[id];
       const lv = SaveSys.weaponLv(id);
       const max = SaveSys.weaponMax(id);
@@ -293,6 +321,7 @@ const Hub = (() => {
         <button class="buy-btn" data-wup="${id}" ${canUp ? '' : 'disabled'}>${maxed ? 'MAX' : '🪙 ' + fmtNum(cost)}</button>
       </div>`;
     }
+    if (wHidden > 0) h += `<p class="small" style="opacity:.75">…奥の棚に、あと${wHidden}種の武器が眠っている(買い揃えると並ぶ)</p>`;
     body.innerHTML = h;
     body.querySelectorAll('[data-wbuy]').forEach(b => {
       b.onclick = () => { if (SaveSys.buyWeapon(b.dataset.wbuy)) { Sfx.buy(); renderArmory(); } else Sfx.deny(); };
@@ -331,10 +360,22 @@ const Hub = (() => {
         });
       if (chains.length) h += `<div class="sec-head">🌿 スキル系統図</div><p class="small">${chains.join('<br>')}</p>`;
     }
-    for (const id in DATA.META) {
+    // 段階解放: 見えるのは「育成中(Lv1以上)+次の2件」だけ。残りは件数だけ予告する
+    // (一気に全部並べず、強化を進めるたびに次の選択肢が現れる)
+    const all = Object.keys(DATA.META).filter(id => {
+      const d = DATA.META[id];
+      return d.st === stKey && (!fac || d.fac === fac);
+    });
+    const visible = new Set();
+    let slots = 2;
+    for (const id of all) {
+      if (SaveSys.metaLv(id) > 0) { visible.add(id); continue; }
+      if (slots > 0) { visible.add(id); slots--; }
+    }
+    const hiddenN = all.length - visible.size;
+    for (const id of all) {
+      if (!visible.has(id)) continue;
       const def = DATA.META[id];
-      if (def.st !== stKey) continue;
-      if (fac && def.fac !== fac) continue;
       // 実績で解放される項目
       if (def.unlockAch && !SaveSys.data.ach[def.unlockAch]) {
         const ach = DATA.ACHIEVEMENTS.find(a => a.id === def.unlockAch);
@@ -384,6 +425,7 @@ const Hub = (() => {
         }
       }
     }
+    if (hiddenN > 0) h += `<p class="small" style="opacity:.75">…この施設には、あと${hiddenN}件の強化が眠っている(いまある強化を育てると現れる)</p>`;
     body.innerHTML = h;
     body.querySelectorAll('[data-hide]').forEach(b => {
       b.onclick = () => {
