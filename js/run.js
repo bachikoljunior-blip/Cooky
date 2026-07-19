@@ -53,7 +53,7 @@ const Run = (() => {
       allySpeed: (1 + 0.05*m('camp_swift')),    // 仲間の移動速度(パワーアップ・スキルで加速)
       allyReviveChance: m('camp_revive') * 0.06,
       coinMul: (1 + 0.1*m('lab_coin')) * (1 + 0.15*m('g_white_gold')) * (1 + 0.08*m('m_invest')),
-      dropMul: 6 * (0.1 + 0.1*m('lab_drop')),   // 素材ドロップ率6倍(初期60%、採集の心得で上げる)
+      dropMul: 6 * (0.1 + 0.02*m('lab_drop')),   // 素材ドロップ率(初期60%)。パワーアップは+2%/Lv、心得は乗算で効く
       luck2: 0.04*m('lab_luck'),
       thorns: 5*m('g_north_thorn'),
       bossDmg: (1 + 0.08*m('g_west_boss')) * (1 + 0.05*m('m_bosslore')),
@@ -542,10 +542,13 @@ const Run = (() => {
   // rank1=金(HP4倍) rank2=紅(16倍) rank3=紫(64倍) rank4=青白(256倍)。同じ種類+ランクなら常に同じ強さ。
   const RANK_HP = [1, 4, 16, 64, 256], RANK_DMG = [1, 1.7, 2.9, 4.9, 8.3];
   const RANK_MAX = 4;
-  function pickRank(){
+  function escalNow(){
     const min = R.time / 60;
     const ring = World.ringOf(R.player.x, R.player.y);
-    const escal = (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig) + (R.worldEvent === 'variant' ? 0.4 : 0);   // 星読みの加護で緩和/色違いの活性
+    return (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig) + (R.worldEvent === 'variant' ? 0.4 : 0);   // 星読みの加護で緩和/色違いの活性
+  }
+  function pickRank(){
+    const escal = escalNow();
     let rank = 0;
     for (let k = 1; k <= RANK_MAX; k++) {
       // 段kの通過率: 初期3%、進行(escal)が段の高さを越えるごとに+22%/段、最大55%
@@ -553,6 +556,19 @@ const Run = (() => {
       if (Math.random() < p) rank = k; else break;
     }
     return rank;
+  }
+  // 大きさの段階(並/大/巨)。時間・危険度で大きい個体が増える。
+  // 色(rank)と組み合わさって強さのグラデーションを作る:
+  //   並r0=1 < 大r0=1.9 < 巨r0=3.4 < 並r1=4 < 大r1=7.6 < 巨r1=13.6 < 並r2=16 …(HP比)
+  const SIZE_VIS = [1, 1.32, 1.65];      // 見た目の倍率
+  const SIZE_HP  = [1, 1.9, 3.4];
+  const SIZE_DMG = [1, 1.35, 1.8];
+  const SIZE_COIN = [1, 1.4, 2];
+  function pickSize(){
+    const escal = escalNow();
+    if (Math.random() < Math.min(0.28, 0.01 + Math.max(0, escal - 0.8) * 0.07)) return 2;   // 巨
+    if (Math.random() < Math.min(0.5, 0.04 + escal * 0.11)) return 1;                        // 大
+    return 0;
   }
 
   function spawnEnemy(defKey, opts = {}){
@@ -578,12 +594,14 @@ const Run = (() => {
     let rank = (opts.boss || def.isReaper) ? 0 : (opts.rank !== undefined ? opts.rank : pickRank());
     // 色違いの討伐依頼中: 依頼対象として湧く個体は依頼のランク以上で出る(対象が出ない事故を防ぐ)
     if (opts.qMinRank && rank < opts.qMinRank) rank = Math.min(RANK_MAX, opts.qMinRank);
+    // 大きさの段階(ボス・リーパーは対象外。ボスは元々巨躯)
+    const sizeTier = (opts.boss || def.isReaper) ? 0 : (opts.sizeTier !== undefined ? opts.sizeTier : pickSize());
     const e = {
       def, defKey,
       x, y,
-      maxHp: def.hp * RANK_HP[rank] * (opts.hpMul || 1),
-      dmg: def.dmg * RANK_DMG[rank] * (opts.dmgMul || 1),
-      coin: opts.coin || def.coin,
+      maxHp: def.hp * RANK_HP[rank] * SIZE_HP[sizeTier] * (opts.hpMul || 1),
+      dmg: def.dmg * RANK_DMG[rank] * SIZE_DMG[sizeTier] * (opts.dmgMul || 1),
+      coin: (opts.coin || def.coin) * SIZE_COIN[sizeTier],
       boss: !!opts.boss, bossName: opts.bossName,
       hp: 0, flash: 0, slowUntil: 0, slowMul: 1, frozenUntil: 0,
       burn: 0, burnT: 0, shred: 0, contactCd: 0, shootCd: rnd(0.5, 2), healCd: 1,
@@ -596,7 +614,8 @@ const Run = (() => {
     };
     e.hp = e.maxHp;
     e.rank = rank;   // 色違いランク(見た目は色+大きさで表現)
-    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.2);   // 色違いは大きさでも見分く(金1.2倍/紅1.4倍)
+    e.sizeTier = sizeTier;
+    e.sizeMul = (opts.boss ? 2.2 : 1) * (1 + rank * 0.2) * SIZE_VIS[sizeTier];   // 色違い×大きさで見た目も段階的に
     // 色違いの特性: 種類×色×大きさの組み合わせで決まる(同じ組は常に同じ特性)。
     // 「金のウルフは疾いが、金のゴーレムは弾ける」― 出会いながら覚えられる
     if (rank > 0 && !opts.boss && !def.isReaper) {
@@ -623,32 +642,31 @@ const Run = (() => {
     return pool[traitHash(key, rank) % pool.length];
   }
 
-  // その時・その場所に湧く敵の種類を1体ぶん抽選する
+  // その時・その場所に湧く敵の種類を1体ぶん抽選する。
+  // 顔ぶれは「そのバイオドームで固定」― 時間や危険度で種類は変わらない。
+  // 強さの変化は色違い(pickRank)と大きさ(pickSize)が担う
   function pickEnemyKey(){
-    const tier = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
-    // バイオドームごとの敵プールから抽選 ― 場所が変わると顔ぶれも変わる。
-    // その場所の許容ティアに合う敵がプールに無ければ全体から拾う(空湧き防止)。
     let keys;
     if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
     else {
       const bd = World.biodomeAt(R.player.x, R.player.y);
       keys = DATA.BIOME_FAUNA[bd.biome] || Object.keys(DATA.ENEMIES);
     }
-    const inTier = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
-      d.tier <= tier && d.tier >= tier - 2 && (onSea ? d.env !== 'land' : d.env !== 'sea'); };
+    const okKey = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
+      (onSea ? d.env !== 'land' : d.env !== 'sea'); };
     // 逃げる敵(ヒーラー等)はあくまで「一部」: 生存数が上限に達していたら湧かせない
     // (逃げ回って死なずに溜まり、まわりが回復役だらけになるのを防ぐ)
     const kiteAlive = R.enemies.reduce((n, e) => n + (!e.dead && e.def.move === 'kite' && !e.def.rare ? 1 : 0), 0);
-    let candidates = keys.filter(inTier);
+    let candidates = keys.filter(okKey);
     if (kiteAlive >= 3) candidates = candidates.filter(k => DATA.ENEMIES[k].move !== 'kite');
-    if (!candidates.length) candidates = Object.keys(DATA.ENEMIES).filter(inTier);   // フォールバック
+    if (!candidates.length) candidates = Object.keys(DATA.ENEMIES).filter(okKey);   // フォールバック
     const pool = [];
     const kites = [];   // 逃げる敵(ヒーラー等 move:'kite')は別枠で希少に
     let baseW = 0;
     for (const k of candidates) {
       const d = DATA.ENEMIES[k];
-      const w = 1 + d.tier * 1.6 + (d.tier === tier ? 2 : 0);
+      const w = [1, 0.8, 0.55, 0.35, 0.22][Math.min(4, d.tier || 0)];   // 大物ほど少数(構成比は固定)
       if (d.move === 'kite') kites.push({ k, w });
       else { pool.push({ k, w }); baseW += w; }
     }
@@ -691,42 +709,31 @@ const Run = (() => {
   }
   // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく。
   // alerted: 1体でも気づくと群れ全体が襲ってくる(updateEnemiesで連鎖)。
-  // 群れ: 「そのティアだけ」で構成される。どのティアの群れが出るかは
-  // 通常湧きと同じ時間・危険度の式(allowedTier + ティア重み)で決まる。
-  function pickHerdTier(){
-    const top = allowedTier();
-    const onSea = !World.isLand(R.player.x, R.player.y);
-    let keys;
-    if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
-    else keys = DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES);
-    // この土地に存在するティアだけを候補に、pickEnemyKeyと同じ重み付けで抽選
-    // (逃げ回る敵=ヒーラー等は群れを組まない。狩れない群れが溜まるのを防ぐ)
-    const tiers = [...new Set(keys.map(k => DATA.ENEMIES[k]).filter(d => d && !d.isReaper && !d.rare && d.move !== 'kite')
-      .map(d => d.tier || 0))].filter(t => t <= top && t >= top - 2);
-    if (!tiers.length) return 0;
-    const ws = tiers.map(t => 1 + t * 1.6 + (t === top ? 2 : 0));
-    let r2 = Math.random() * ws.reduce((a, b) => a + b, 0);
-    for (let i = 0; i < tiers.length; i++) { r2 -= ws[i]; if (r2 <= 0) return tiers[i]; }
-    return tiers[tiers.length - 1];
-  }
+  // 群れ: 同種で構成される。種はその土地の顔ぶれから固定の構成比で選ばれる。
   function spawnHerd(mad){
-    const tier = pickHerdTier();
+    // 群れも顔ぶれはそのバイオドームで固定 ― 種はその土地の面々から1種(逃げる敵とレアは除く)
     const onSea = !World.isLand(R.player.x, R.player.y);
     const keys = (onSea ? ((DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA)
       : DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES))
       .filter(k => { const dd = DATA.ENEMIES[k];
-        return dd && !dd.isReaper && !dd.rare && dd.move !== 'kite' && (dd.tier || 0) === tier &&
+        return dd && !dd.isReaper && !dd.rare && dd.move !== 'kite' &&
                (onSea ? dd.env !== 'land' : dd.env !== 'sea'); });
     if (!keys.length) return;
+    // 大物ほど群れは小さく: 種の抽選は通常湧きと同じ固定の構成比
+    const ws = keys.map(k => [1, 0.8, 0.55, 0.35, 0.22][Math.min(4, DATA.ENEMIES[k].tier || 0)]);
+    let rw = Math.random() * ws.reduce((x, y) => x + y, 0);
+    let pickIdx = 0;
+    for (let i = 0; i < keys.length; i++) { rw -= ws[i]; if (rw <= 0) { pickIdx = i; break; } }
+    const tier = DATA.ENEMIES[keys[pickIdx]].tier || 0;
     const offR = R.offscreenR || 500;
     const a = Math.random() * Math.PI * 2, hd = offR + rnd(30, 200);   // 画面外だが近く(退場圏内)
     const c = { x: R.player.x + Math.cos(a) * hd, y: R.player.y + Math.sin(a) * hd };
     const herd = { x: c.x, y: c.y, dir: Math.random() * Math.PI * 2, t: rnd(2, 5), alerted: !!mad };
-    const mig = R.worldEvent === 'migration' && R.evSpecies &&
-                (DATA.ENEMIES[R.evSpecies].tier || 0) === tier && !onSea;
+    const mig = R.worldEvent === 'migration' && R.evSpecies && !onSea &&
+                keys.includes(R.evSpecies);   // その土地に居る種の大移動だけ
     let n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4) + (mig ? 3 : 0);   // 低ティアほど大所帯/大移動は+3
     if (R.time < 120) n = Math.max(3, Math.round(n * 0.6));   // 開始直後は小さめの群れ
-    const herdKey = keys[Math.floor(Math.random() * keys.length)];   // 群れは同種で構成
+    const herdKey = keys[pickIdx];   // 群れは同種で構成(上で抽選済み)
     for (let i = 0; i < n; i++) {
       const key = (mig && Math.random() < 0.7) ? R.evSpecies : herdKey;
       const ex = c.x + rnd(-70, 70), ey = c.y + rnd(-70, 70);
@@ -2245,12 +2252,11 @@ const Run = (() => {
     }
     return null;
   }
-  // 行商人の現在位置(基地の小道を行ったり来たりしている)
+  // 行商人の位置(基地の小道の途中に立って店を広げている。動き回らない)
   function peddlerPos(b){
     const rd = World.roadOf(b.id);
     if (!rd) return null;
-    const t = 0.5 + 0.45 * Math.sin(R.time * 0.11 + b.x * 0.001);
-    return { x: rd.x1 + (rd.x2 - rd.x1) * t, y: rd.y1 + (rd.y2 - rd.y1) * t, rd };
+    return { x: rd.x1 + (rd.x2 - rd.x1) * 0.55, y: rd.y1 + (rd.y2 - rd.y1) * 0.55, rd };
   }
 
   function update(dt){

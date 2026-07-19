@@ -793,7 +793,7 @@ DATA.META = {
   altar_range:  { st:'altar', name:'眼力',         desc:'攻撃の射程 +4%',        max:20, cost:gcost(40,1.4) },
   altar_revive: { st:'altar', name:'不死鳥の羽',   desc:'周回中に1回復活(HP50%)', max:3,  cost:gcost(3000,6) },
   // --- 素材研究所(経済) ---
-  lab_drop:     { st:'lab', name:'採集の心得',     desc:'素材ドロップ率 +10%',   max:30, cost:gcost(25,1.36) },
+  lab_drop:     { st:'lab', name:'採集の心得',     desc:'素材ドロップ率 +2%',    max:30, cost:gcost(25,1.36) },
   lab_coin:     { st:'lab', name:'金運',           desc:'コイン獲得量 +10%',     max:30, cost:gcost(25,1.36) },
   lab_magnet:   { st:'lab', name:'磁力',           desc:'アイテム回収範囲 +12%', max:15, cost:gcost(20,1.45) },
   lab_luck:     { st:'lab', name:'幸運',           desc:'素材が2個落ちる確率 +4%', max:20, cost:gcost(60,1.4) },
