@@ -1249,7 +1249,7 @@ const Run = (() => {
           if ((dx * ax2.x + dy * ax2.y) / (dl * al) < -0.15) tgt = null;
         }
       }
-      let dest, spd = a.speed * spdMul * (sigActive() ? 1.3 : 1);   // 突撃の号令: 足も速まる
+      let dest, spd = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1);   // 突撃の号令/歩きの加速: 足も速まる
       if (tgt && a.def.ranged) {
         // 弓兵は敵を追いかけず、陣形へ戻りながら(移動しながら)撃つ。destは決めない=陣形追従
         a.shootCd -= dt;
@@ -2308,6 +2308,7 @@ const Run = (() => {
     if ((ax.x || ax.y) && !p.onBoat) R.moveRampT = Math.min(4, (R.moveRampT || 0) + dt);
     else R.moveRampT = 0;
     const rampMul = 1 + (R.moveRampT / 4) * 0.3;
+    R.rampMul = rampMul;   // 仲間も同じ歩調で加速する(軍勢が置いていかれない)
     const spd = (p.onBoat ? st.boatSpeed : st.speed * rampMul) * rushMul * terrMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {

@@ -228,7 +228,15 @@ const Quest = (() => {
     if (kind === 'port') {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
-      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ';
+      // 船大工は海沿いの同業を知っている: 両隣の港の場所も教わる(会話のmate行と対応)
+      SaveSys.data.seen = SaveSys.data.seen || {};
+      const ring = DATA.PORTS.slice().sort((a, b) => a.angle - b.angle);
+      const ri = ring.findIndex(q => q.id === id);
+      let told = 0;
+      if (ri >= 0) for (const nb of [ring[(ri + 1) % ring.length], ring[(ri + ring.length - 1) % ring.length]]) {
+        if (!SaveSys.data.seen[nb.id]) { SaveSys.data.seen[nb.id] = true; told++; }
+      }
+      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ' + (told ? '(隣の港も地図に載った)' : '');
     } else if (kind === 'side') {
       SaveSys.data.sideDone = SaveSys.data.sideDone || {};
       SaveSys.data.sideDone[id] = true;
@@ -281,6 +289,8 @@ const Quest = (() => {
       const txt = [];
       if (rw.coins) { R.coins += rw.coins; txt.push('🪙' + rw.coins); }
       for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
+      if (rw.hintPort) { SaveSys.data.seen = SaveSys.data.seen || {}; SaveSys.data.seen[rw.hintPort] = true;
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
       R.warnMsg = '🎁 依頼達成! 報酬: ' + txt.join('・');
     } else {
       SaveSys.data.bases[id] = true;
