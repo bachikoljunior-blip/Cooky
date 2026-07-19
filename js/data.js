@@ -778,7 +778,9 @@ DATA.PORTS = [
 
 // ---------------- 魂の広場(死後フィールド)の恒久強化 ----------------
 // cost(lv): 次のレベルの金額 (lv=現在Lv, 0開始)
-function gcost(base, growth){ return (lv)=>Math.floor(base*Math.pow(growth,lv)); }
+// パワーアップの価格。項目数が多く入口が安いと1周回で一気に買えてしまうため、
+// 基本価格は1.5倍で「1周回に数レベルずつ」のペースに調整(伸び率は据え置き)
+function gcost(base, growth){ return (lv)=>Math.floor(base*1.5*Math.pow(growth,lv)); }
 
 DATA.META = {
   // --- 強化の祭壇(戦闘) ---
