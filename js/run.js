@@ -3038,12 +3038,14 @@ const Run = (() => {
       }
     }
   }
-  // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ1.4〜2.4kmずれる)
+  // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ0.9〜1.5kmずれる)。
+  // 見当の地点に立てば、煙・灯台の光・名前ラベルが目に入る距離 ―
+  // 「探せば必ず見つかる」範囲に収める(プレイで詰まらないための上限)
   function hintOffset(id){
     let h = 0;
     for (let i = 0; i < id.length; i++) h = ((h * 131) + id.charCodeAt(i)) >>> 0;
     const ang = (h % 628) / 100;
-    const dist = 1400 + (h % 997);
+    const dist = 900 + (h % 600);
     return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist };
   }
   function drawMinimap(g, W){
@@ -3063,6 +3065,13 @@ const Run = (() => {
     drawMapInto(g, x0, y0, sz, 'world');
     g.fillStyle = '#c9d1d9'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center';
     g.fillText('全体図 [タップで閉じる]', W / 2, y0 + sz + 28);
+    // 見当ピンの読み方(ヒントを持っている間だけ表示。場所は教えず「探し方」だけ教える)
+    if (Object.keys(SaveSys.data.hints || {}).length || SaveSys.data.nextHint) {
+      g.fillStyle = 'rgba(5,8,14,0.72)';
+      g.fillRect(x0, y0 + sz - 26, sz, 26);
+      g.fillStyle = '#adbac7'; g.font = '12px sans-serif';
+      g.fillText('「?」「⚓」は話に聞いたおおよその見当 ― 近くで立ちのぼる煙や灯台の光を探そう', W / 2, y0 + sz - 9);
+    }
   }
   function toggleMap(){ R.mapFull = !R.mapFull; }
   // ミニマップ/全体図のタップ処理(処理したらtrue)

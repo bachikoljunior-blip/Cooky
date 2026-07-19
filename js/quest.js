@@ -92,7 +92,7 @@ const Quest = (() => {
     if (def.type === 'escort') return '「' + (def.dest.label || '目的地') + '」まで護衛する(📍)';
     if (def.type === 'hunt') return (def.nearLoc && loc && loc.name ? '「' + loc.name + '」の近くで' : '') +
       (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
-    if (def.type === 'survive') return 'この場所の近くで' + def.time + '秒間守り抜く';
+    if (def.type === 'survive') return (loc && loc.name ? '「' + loc.name + '」' : 'この場所') + 'の近くで' + def.time + '秒間守り抜く';
     if (def.type === 'delivery') return '素材とコインを届ける';
     if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(マップに📍)';
     return '依頼をこなす';
@@ -103,7 +103,7 @@ const Quest = (() => {
     if (d.type === 'hunt') return '📜 討伐: ' + a.killed + ' / ' + d.count + '(' + (d.minRank ? '色違いの' : '') + DATA.ENEMIES[d.enemy].name +
       (d.nearLoc && a.loc && a.loc.name ? '・' + a.loc.name + 'の近く' : '') + ')';
     if (d.type === 'survive') {
-      const near = a.near ? '' : '(場所に近づけ!)';
+      const near = a.near ? '' : '(「' + (a.loc && a.loc.name ? a.loc.name : 'その場所') + '」に近づくと始まる)';
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
     }
     if (d.type === 'visit') return '📜 目的地へ: ' + (d.visit.label || '') + '(マップの📍)';
