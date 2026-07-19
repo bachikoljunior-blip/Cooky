@@ -9,7 +9,6 @@ const Skills = (() => {
   let owned = {};      // id -> lv
   let mats = {};       // mat -> count
   let revealed = {};   // 一度素材が揃って表示されたスキル(SaveSysに永続化: 周回をまたいでも表示され続ける)
-  let revealBudget = 3;   // この周回で新たに開示できる残り件数(段階解放)
   let seenReady = {};  // パネルを開いた時点で取得可能だったもの(バッジの既読管理)
   let pinned = [];     // 一番上に固定表示するスキル(先頭ほど上。新しく固定するほど前のは下へ)
   let listSeen = {};   // 一度リストで見たスキル。まだ見ていない(=ピン後に新登場)スキルは最上段に出す
@@ -37,7 +36,6 @@ const Skills = (() => {
   function reset(){
     owned = {};   // 攻撃手段は武器庫(魂の広場)管理になり、スキルは補助・仲間・敵干渉・心得
     mats = {};
-    revealBudget = 3;   // 段階解放: 新スキルの開示は1周回に最大3件(残りは次の周回へ)
     SaveSys.data.skillsRevealed = SaveSys.data.skillsRevealed || {};
     revealed = SaveSys.data.skillsRevealed;
     SaveSys.data.skillPins = SaveSys.data.skillPins || [];
@@ -150,10 +148,9 @@ const Skills = (() => {
     for (const id in DATA.SKILLS) {
       if (revealed[id]) continue;
       if (lv(id) > 0) { revealed[id] = true; changed = true; continue; }
-      if (revealBudget <= 0) continue;   // 段階解放: この周回の開示枠を使い切ったら次の周回で
       if (!skillUnlocked(id) || !reqMet(id)) continue;
       const cost = nextCost(id);
-      if (cost && costMet(cost)) { revealed[id] = true; changed = true; revealBudget--; }
+      if (cost && costMet(cost)) { revealed[id] = true; changed = true; }
     }
     if (changed) SaveSys.save();
   }
