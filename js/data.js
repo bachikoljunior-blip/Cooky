@@ -1052,7 +1052,7 @@ DATA.SIDEQUESTS = {
       intro:['トトさんの地図のおかげで分かったんです。この装置、東の大陸と共鳴してる!','水晶6つあれば共鳴先を特定できます。お願いできますか?'],
       done:['…見えた!共鳴先は東の大海の向こう、竜骨の大陸の「竜骨の前哨」。','狩人の集落があるはずです。地図に印を付けますね。'],
       reward:{ coins:100, hintBase:'b_dragon', story:'east_engine' } },
-    { id:'sq_tetsu', npc:'npc_sailor', npcName:'行商のテツ', type:'visit', visit:{ x:-2000, y:11600, label:'南の泉のほとり' },
+    { id:'sq_tetsu', npc:'npc_sailor', npcName:'行商のテツ', type:'visit', visit:{ x:-2100, y:11750, label:'南の泉のほとり' },
       intro:['俺は行商でな。ここの学者先生たちに紙とインクを卸してる。','仕入れ先は南西の泉のほとりにある巡礼の村なんだが、道中の魔物が増えて隊商が出せねえ。','様子を見てきてくれないか?泉が見えたら、そのほとりだ。'],
       done:['おお、村は無事だったか!泉の巫女様のいる「南の泉」だ。','地図に描いておこう。これでまた商売に行ける。恩に着るぜ。'],
       reward:{ coins:90, hintBase:'b_south', story:'east_road' } },

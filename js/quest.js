@@ -449,11 +449,11 @@ const Quest = (() => {
       if (a.phase !== 'go') continue;
       if (a.def.type === 'visit') {
         const vl = visitLoc(a.def);
-        if (vl) out.push({ x:vl.x, y:vl.y, label:a.def.visit.label || '' });
+        if (vl) out.push({ x:vl.x, y:vl.y, label:a.def.visit.label || '', t:'visit' });
       } else if (a.def.type === 'mark' && a.def.mark) {
-        out.push({ x:a.def.mark.x, y:a.def.mark.y, label:a.def.markName });
+        out.push({ x:a.def.mark.x, y:a.def.mark.y, label:a.def.markName, t:'mark' });
       } else if (a.def.type === 'escort' && a.def.dest) {
-        out.push({ x:a.def.dest.x, y:a.def.dest.y, label:a.def.dest.label || '' });
+        out.push({ x:a.def.dest.x, y:a.def.dest.y, label:a.def.dest.label || '', t:'escort' });
       }
     }
     return out;

@@ -199,7 +199,15 @@ const Run = (() => {
         variant:   () => '🌍 今日の世界: 色違いの活性 ― 色を変えた魔物が現れやすい',
         calm:      () => '🌍 今日の世界: 凪 ― 海が穏やかで、潮の流れが速い',
       }[R.worldEvent];
-      if (evMsg) setTimeout(() => { if (!R.over) { R.warnMsg = evMsg(); R.warnColor = '#a5d8ff'; R.warnT = 5; } }, 2500);
+      // 告知枠が空くのを待ってから出す(発見の報せ等、他の大事な告知を上書きしない)
+      if (evMsg) {
+        const tryAnnounce = () => {
+          if (R.over) return;
+          if ((R.warnT || 0) > 0.3) { setTimeout(tryAnnounce, 1200); return; }
+          R.warnMsg = evMsg(); R.warnColor = '#a5d8ff'; R.warnT = 5;
+        };
+        setTimeout(tryAnnounce, 2500);
+      }
     }
     R.foeMap = new Map();         // マップ用の敵目撃情報 cellKey -> {x,y,t,boss}(離れて消えても保持)
     R.foeScanT = 0;
@@ -2321,13 +2329,24 @@ const Run = (() => {
     if (R.exploreAcc <= 0) {
       R.exploreAcc = 0.4;
       World.recordExplore(p.x, p.y, st.exploreRad);
-      // 基地・港の発見記録(近づくとマップに載る)
+      // 基地・港の発見記録(近づくとマップに載る)。無言で載せず、見つけたことをちゃんと告げる
+      // (物語側は「お前が見つけた」前提で話すため、体験と一致させる)
       SaveSys.data.seen = SaveSys.data.seen || {};
       for (const b of World.bases) {
-        if (!SaveSys.data.seen[b.id] && Math.hypot(p.x - b.x, p.y - b.y) < 900) SaveSys.data.seen[b.id] = true;
+        if (!SaveSys.data.seen[b.id] && Math.hypot(p.x - b.x, p.y - b.y) < 900) {
+          SaveSys.data.seen[b.id] = true;
+          R.warnMsg = '🏘 「' + b.name + '」を見つけた!(全体図に記した)';
+          R.warnColor = '#7ee787'; R.warnT = 5;
+          Sfx.skill();
+        }
       }
       for (const pt of World.ports) {
-        if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) SaveSys.data.seen[pt.id] = true;
+        if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) {
+          SaveSys.data.seen[pt.id] = true;
+          R.warnMsg = '⚓ 「' + pt.name + '」を見つけた!(全体図に記した)';
+          R.warnColor = '#76e3ea'; R.warnT = 5;
+          Sfx.skill();
+        }
       }
       // バイオドーム進入バナー(≈1分ごとに別のバイオドームへ入ると表示)
       const L = World.landAt(p.x, p.y);
@@ -2337,22 +2356,23 @@ const Run = (() => {
       R.curBiome = L ? bd.biome : 'sea';
       if (cid !== R.curCont) {
         R.curCont = cid;
+        // 発見や依頼の報せが出ている間は、環境バナーで上書きしない(頻出の情報より重要)
+        const warnBusy = (R.warnT || 0) > 0.3 && !/^―/.test(R.warnMsg || '');
         // 表示する素材はその土地の敵(fauna)のドロップテーブル由来 ― 実際に出るものだけ
         const faunaMats = (keys) => [...new Set(keys.flatMap(k => (DATA.ENEMIES[k].drops || []).map(d => d.m)))]
           .filter(m => Skills.matUnlocked(m)).slice(0, 4).map(m => DATA.MATERIALS[m].name).join('・');
         if (L) {
           const bio = DATA.BIOMES[bd.biome] || DATA.BIOMES.grass;
           const mm = faunaMats(DATA.BIOME_FAUNA[bd.biome] || []);
-          R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          if (!warnBusy) R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
           R.bioFxT = 2.4; R.bioFxColors = bio.deco;   // 越境の演出(その土地の色の粒子)
         } else {
           const sb = DATA.SEA_BIOMES[seaKey] || { name:'海', fauna: DATA.SEA_FAUNA };
           const mm = faunaMats(sb.fauna || []);
-          R.warnMsg = '― 海域 <' + sb.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          if (!warnBusy) R.warnMsg = '― 海域 <' + sb.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
           R.bioFxT = 2.4; R.bioFxColors = ['#e6edf3', sb.c1 || '#58a6ff', '#76e3ea'];
         }
-        R.warnColor = '#a5d8ff';
-        R.warnT = 4;
+        if (!warnBusy) { R.warnColor = '#a5d8ff'; R.warnT = 4; }
       }
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
@@ -2596,6 +2616,23 @@ const Run = (() => {
         Sprites.draw(g, 'npc_scholar', pp.x, pp.y - 6, 30);
         g.fillStyle = '#e6edf3'; g.font = '10px sans-serif'; g.textAlign = 'center';
         g.fillText('行商人', pp.x, pp.y - 28);
+      }
+    }
+    // 訪問依頼の目的地: 実体のある目印(石積みの標)を立てる。📍だけの何もない空き地にしない
+    // (「測量点を調べてきた」「墓標に祈った」が、実際にそこに在るものへの行動になる)
+    for (const vt of Quest.visitTargets()) {
+      if (vt.t === 'mark') continue;   // 指名討伐は敵そのものが現れる(標は立てない)
+      if (Math.abs(vt.x - R.player.x) > 1500 || Math.abs(vt.y - R.player.y) > 1000) continue;
+      g.fillStyle = '#57606a';
+      g.beginPath(); g.ellipse(vt.x, vt.y + 9, 17, 7, 0, 0, 7); g.fill();
+      g.fillStyle = '#768390';
+      g.beginPath(); g.ellipse(vt.x - 6, vt.y + 3, 8, 6, 0, 0, 7); g.fill();
+      g.beginPath(); g.ellipse(vt.x + 6, vt.y + 2, 7, 6, 0, 0, 7); g.fill();
+      g.fillStyle = '#adbac7';
+      g.beginPath(); g.ellipse(vt.x, vt.y - 6, 7, 9, 0, 0, 7); g.fill();
+      if (vt.label) {
+        g.fillStyle = '#e6edf3'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
+        g.fillText(vt.label, vt.x, vt.y - 22);
       }
     }
     // 護送中のNPC
