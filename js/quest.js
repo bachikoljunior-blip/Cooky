@@ -14,18 +14,19 @@ const Quest = (() => {
     SaveSys.data.questsActive = actives.map(a => ({ kind:a.kind, id:a.id, phase:a.phase, killed:a.killed, timer:a.timer, seed:a.seed }));
     SaveSys.save();
   }
+  function locKind(kind){ return kind === 'port' ? 'port' : kind === 'side' ? 'side' : 'base'; }
   function rebuild(s){
     const def = defOf(s.kind, s.id, s.seed);
     if (!def) return null;
-    return { kind:s.kind, id:s.id, def, loc: locOf(s.kind === 'port' ? 'port' : 'base', s.id),
+    return { kind:s.kind, id:s.id, def, loc: locOf(locKind(s.kind), s.id),
              phase: s.phase || 'go', killed: s.killed || 0, seed: s.seed,
              timer: (s.timer != null ? s.timer : (def.time || 0)), near:false };
   }
   // 周回開始時: 進行中クエストをセーブから復元(達成度は周回を跨いで保持)。
-  // 依頼板の依頼も受けた時の内容のまま持ち越せる(受注時のseedで内容を固定)
+  // 依頼板の依頼も受けた時の内容のまま持ち越せる(受注時のseedで内容を固定)。
+  // 護衛も残る: 婆は依頼元の基地で待っていて、近づくと合流して歩き出す
   function reset(){
-    actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean)
-      .filter(a => a.def.type !== 'escort');   // 護送だけは周回内で完結(婆を連れ越せない)
+    actives = (SaveSys.data.questsActive || []).map(rebuild).filter(Boolean);
   }
   function activeFor(kind, id){ return actives.find(a => a.kind === kind && a.id === id) || null; }
   function hasActive(){ return actives.length > 0; }
@@ -146,11 +147,12 @@ const Quest = (() => {
   }
 
   function startActive(kind, id, def){
-    const a = { kind, id, def, loc: locOf(kind === 'port' ? 'port' : 'base', id),
+    const a = { kind, id, def, loc: locOf(locKind(kind), id),
                 phase:'go', killed:0, timer: def.time || 0, near:false,
                 seed: kind === 'board' ? SaveSys.data.stats.runs + 1 : undefined };
     actives.push(a);
-    if (def.type === 'escort') Run.startEscort(tagOf(a), a.loc, def);
+    // 護衛は周回のフィールドでのみ歩き出せる(村・広場で受けた場合はtickで遅延開始)
+    if (def.type === 'escort' && Run.state.player) Run.startEscort(tagOf(a), a.loc, def);
     persist();
     const R = Run.state;
     R.warnMsg = '📜 依頼開始: ' + objSummary(def);
@@ -371,6 +373,13 @@ const Quest = (() => {
       // 護送: 対象の到着/力尽きを監視(本体の移動はRun側)
       if (a.phase === 'go' && a.def.type === 'escort') {
         const st2 = Run.escortState(tagOf(a));
+        // まだ歩き出していない(村で受けた/しに戻った後): 依頼元の基地に近づくと合流して歩き出す
+        if (st2 === 'gone' && a.loc && Math.hypot(R.player.x - a.loc.x, R.player.y - a.loc.y) < 700) {
+          Run.startEscort(tagOf(a), a.loc, a.def);
+          R.warnMsg = '📜 ' + a.def.npcName + 'と合流した。「' + (a.def.dest.label || '目的地') + '」まで護衛しよう';
+          R.warnColor = '#ffd766'; R.warnT = 4;
+          continue;
+        }
         if (st2 === 'arrived') {
           a.phase = 'return';
           R.warnMsg = '📜 送り届けた!' + a.def.npcName + 'に報告しよう';

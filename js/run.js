@@ -1930,7 +1930,7 @@ const Run = (() => {
         const oy = p.y + Math.sin(a) * ob.radius * R.stats.area;
         for (const e of R.enemies) {
           if (e.dead) continue;
-          if (Math.hypot(e.x-ox, e.y-oy) < ob.size + e.def.r && R.time - e.orbitHit > 0.5) {
+          if (Math.hypot(e.x-ox, e.y-oy) < ob.size + e.def.r && R.time - (e.orbitHit || 0) > 0.5) {
             e.orbitHit = R.time;
             dealDamage(e, ob.dmg);
           }
