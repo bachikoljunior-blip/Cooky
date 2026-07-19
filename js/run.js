@@ -2076,7 +2076,7 @@ const Run = (() => {
       if (!R.interact) {
         for (const port of World.ports) {
           if (!SaveSys.data.ports[port.id]) continue;
-          if (Math.hypot(p.x - (port.x - 52), p.y - (port.y + 18)) < 55) {
+          if (Math.hypot(p.x - (port.x - 118), p.y - (port.y + 34)) < 55) {
             R.interact = { type:'trader', port, label:'E: 貿易商と取引(' + port.name + ')' };
             break;
           }
@@ -2614,10 +2614,10 @@ const Run = (() => {
       Sprites.draw(g, 'ob_dock', port.x, port.y, 56);
       Sprites.draw(g, 'npc_sailor', port.x + 36, port.y - 14, 30);
       if (SaveSys.data.ports[port.id]) {   // 修理済みの港町には貿易商が店を開く
-        Sprites.draw(g, 'ob_crate', port.x - 66, port.y + 26, 20);
-        Sprites.draw(g, 'npc_scholar', port.x - 52, port.y + 12, 30);
+        Sprites.draw(g, 'ob_crate', port.x - 132, port.y + 42, 20);
+        Sprites.draw(g, 'npc_scholar', port.x - 118, port.y + 28, 30);
         g.fillStyle = '#c9d1d9'; g.font = '10px sans-serif'; g.textAlign = 'center';
-        g.fillText('貿易商', port.x - 52, port.y - 8);
+        g.fillText('貿易商', port.x - 118, port.y + 8);
       }
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
       else Sprites.draw(g, 'ob_wreck', port.seaX, port.seaY, 44);
