@@ -418,7 +418,7 @@ const World = (() => {
     fogCv = document.createElement('canvas');
     fogCv.width = WM_RES; fogCv.height = WM_RES;
     fogG = fogCv.getContext('2d');
-    fogG.fillStyle = 'rgba(5,9,18,0.93)';
+    fogG.fillStyle = '#050912';   // 未踏の地は完全に見えない(うっすら透けない)
     fogG.fillRect(0, 0, WM_RES, WM_RES);
     for (const k of exSet) punch(k);
     return fogCv;

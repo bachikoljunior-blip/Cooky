@@ -2210,6 +2210,12 @@ const Run = (() => {
   // ---------------- 更新メイン ----------------
   // ---- 指名討伐: 印の場所に「名前つきの色違い」が現れる ----
   function hasMark(tag){ return R.enemies.some(e => e.markId === tag && !e.dead); }
+  // 防衛クエストの襲撃ウェーブ: 対象種のmad個体を画面外から差し向ける
+  function spawnQuestWave(enemyKey, n){
+    for (let i = 0; i < n; i++) {
+      spawnEnemy(enemyKey, { mad: true, dist: (R.offscreenR || 500) + rnd(20, 160) });
+    }
+  }
   function spawnMark(tag, def){
     const e = spawnEnemy(def.enemy, { x:def.mark.x + rnd(-60, 60), y:def.mark.y + rnd(-60, 60),
       rank: def.rank || 1, aggro: 260 });
@@ -2298,7 +2304,11 @@ const Run = (() => {
       const nb = nearestRoadBase(p.x, p.y);
       if (nb) terrMul = 1.1;
     }
-    const spd = (p.onBoat ? st.boatSpeed : st.speed) * rushMul * terrMul;
+    // 歩き続けると足が乗ってくる: 4秒かけて最大+30%(立ち止まるとリセット。船は海流が担当)
+    if ((ax.x || ax.y) && !p.onBoat) R.moveRampT = Math.min(4, (R.moveRampT || 0) + dt);
+    else R.moveRampT = 0;
+    const rampMul = 1 + (R.moveRampT / 4) * 0.3;
+    const spd = (p.onBoat ? st.boatSpeed : st.speed * rampMul) * rushMul * terrMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
@@ -3138,6 +3148,6 @@ const Run = (() => {
   }
 
   return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap,
-           warcry, startEscort, escortState, hasMark, spawnMark,
+           warcry, startEscort, escortState, hasMark, spawnMark, spawnQuestWave,
            get state(){ return R; } };
 })();

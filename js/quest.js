@@ -240,7 +240,22 @@ const Quest = (() => {
       SaveSys.data.seen = SaveSys.data.seen || {};
       if (rw.hintBase) { SaveSys.data.seen[rw.hintBase] = true; SaveSys.data.nextHint = rw.hintBase;
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintBase] = true;   // ヒントは複数持てる(行き先を選べる)
-        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所'); }
+        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の場所');
+        // 海の向こうの基地なら、渡るための港(方角の合うもの)も一緒に教えてもらえる
+        if (hb && hb.cont && hb.cont !== 'main') {
+          const ba = Math.atan2(hb.y, hb.x);
+          let best = null, bd = 1e9;
+          for (const pt of World.ports) {
+            let da = Math.atan2(pt.y, pt.x) - ba;
+            while (da > Math.PI) da -= Math.PI * 2;
+            while (da < -Math.PI) da += Math.PI * 2;
+            if (Math.abs(da) < bd) { bd = Math.abs(da); best = pt; }
+          }
+          if (best && !SaveSys.data.seen[best.id]) {
+            SaveSys.data.seen[best.id] = true;
+            txt.push('⚓「' + best.name + '」から船が出るらしい');
+          }
+        } }
       if (rw.hintPort) { SaveSys.data.seen[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の場所'); }
       // 船の下賜/出資: 富豪や王がその港の船を用意してくれる(修理と同じ扱いで航海可能に)
@@ -404,6 +419,18 @@ const Quest = (() => {
       const secBefore = Math.ceil(a.timer);
       a.near = Math.hypot(R.player.x - a.loc.x, R.player.y - a.loc.y) < 800;
       if (a.near) {
+        // 基地に近づいた時だけ防衛が始まる。開始の合図を出し、対象の魔物が襲ってくる
+        if (!a.defStarted) {
+          a.defStarted = true;
+          R.warnMsg = '🛡 防衛開始!' + DATA.ENEMIES[a.def.enemy].name + 'の襲撃から守り抜け(' + Math.ceil(a.timer) + '秒)';
+          R.warnColor = '#ff7b72'; R.warnT = 4;
+          Sfx.horde();
+        }
+        a.waveT = (a.waveT || 0) - dt;
+        if (a.waveT <= 0) {
+          a.waveT = 3.2;
+          Run.spawnQuestWave(a.def.enemy, 2 + (Math.random() < 0.5 ? 1 : 0));
+        }
         a.timer -= dt;
         if (Math.ceil(a.timer) !== secBefore) persistNeeded = true;   // 1秒ごとに進捗保存
         if (a.timer <= 0) {
