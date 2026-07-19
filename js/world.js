@@ -96,7 +96,11 @@ const World = (() => {
           + 0.6 * Math.sin((cx + cy) * f * 0.5 + 2.1) + 0.4 * Math.sin((cx - cy) * f * 0.7 + 5.3);
     v = (v / 2.6 + 1) / 2;                       // ~[0,1] に正規化
     v = Math.max(0, Math.min(0.999, v));
-    return Math.floor(v * BIO_ORDER.length);
+    // バイオドームも一気に開かない: 始まりに近いほど「穏やかな並びの先頭」だけが使われ、
+    // 遠くへ行くほど種類が増える(段階の導入。セルの形・条件は不変)
+    const ring = Math.hypot(cx, cy) * BIODOME_W / DATA.DIST_RING;
+    const avail = Math.min(BIO_ORDER.length, 4 + Math.max(0, Math.floor((ring - 4) / 3)) * 2);
+    return Math.floor(v * avail);
   }
   // ジッタード・ボロノイのセル判定(ワープ済み座標で最も近い中心の領域に属させる)
   function domeCellAt(x, y){
