@@ -2258,7 +2258,8 @@ const Run = (() => {
         if (tb.t <= 0) {
           effect('burst', tb.x, tb.y, { color:'#f85149', r:tb.r });
           const p0 = R.player;
-          if (Math.hypot(p0.x - tb.x, p0.y - tb.y) < tb.r + 10) damagePlayer(tb.dmg, { x:tb.x, y:tb.y, def:{ name:'弾ける色違いの爆発' } });
+          // 爆発は「避けなかった罰」程度: 主人公へのダメージは最大10まで
+          if (Math.hypot(p0.x - tb.x, p0.y - tb.y) < tb.r + 10) damagePlayer(Math.min(10, tb.dmg), { x:tb.x, y:tb.y, def:{ name:'弾ける色違いの爆発' } });
         }
       }
       R.traitBursts = R.traitBursts.filter(tb => tb.t > 0);
