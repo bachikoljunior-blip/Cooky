@@ -1173,7 +1173,7 @@ const Run = (() => {
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
     // 当たり判定が体の1/3なので、この間隔でも中心は重ならない(密集感は保ちつつ少し緩め)
-    const rad = 20 + ring * 17;
+    const rad = 27 + ring * 22;   // 仲間がほぼ重ならない間隔(密集感は保つ)
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -1389,7 +1389,7 @@ const Run = (() => {
       units.push(e);
     }
     for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining) {   // 合流中はすり抜け
-      a._r = a.def.r / 3;
+      a._r = a.def.r * 0.55;   // 仲間同士はある程度体を保つ(ほぼ重なる密着はしない)
       a._m = 1 + (a.def.tier || 0) * 0.6;
       a._ally = true;
       units.push(a);
@@ -1428,7 +1428,7 @@ const Run = (() => {
             const sameSide = v !== pl && u !== pl && !!u._ally === !!v._ally;
             // 仲間同士・主人公↔仲間=両側から2回処理される(従来どおりの係数)。
             // 敵↔仲間=仲間側の1回だけなので2倍で補正
-            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : (u === pl || v === pl ? 0.32 : 0.64));
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.12 : (u === pl || v === pl ? 0.32 : 0.64));
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
@@ -2126,27 +2126,17 @@ const Run = (() => {
       }
     }
 
-    // 港
+    // 港: 近づくと港町マップへ転移(船大工・貿易商は町の中)。
+    // 修理済みの船には桟橋の先(海側)から乗る
     if (!p.onBoat) {
       for (const port of World.ports) {
-        const d = Math.hypot(p.x - port.x, p.y - port.y);
-        if (d < 80) {
-          if (SaveSys.data.ports[port.id]) {
-            R.interact = { type:'board', port, label:'E: 「' + port.name + '」から出航する' };
-          } else {
-            R.interact = { type:'portquest', port, label:'E: 船大工と話す(' + port.name + ')' };
-          }
+        if (Math.hypot(p.x - port.x, p.y - port.y) < 110) {
+          R.interact = { type:'enterport', port, label:'E: 港町「' + port.name + '」に入る' };
           break;
         }
-      }
-      // 港の貿易商(修理済みの港町に立つ。素材⇄コインの相場は周回ごとに変わる)
-      if (!R.interact) {
-        for (const port of World.ports) {
-          if (!SaveSys.data.ports[port.id]) continue;
-          if (Math.hypot(p.x - (port.x - 118), p.y - (port.y + 34)) < 55) {
-            R.interact = { type:'trader', port, label:'E: 貿易商と取引(' + port.name + ')' };
-            break;
-          }
+        if (SaveSys.data.ports[port.id] && Math.hypot(p.x - port.seaX, p.y - port.seaY) < 100) {
+          R.interact = { type:'board', port, label:'E: 「' + port.name + '」から出航する' };
+          break;
         }
       }
       // 基地の小道を歩く行商人
@@ -2174,7 +2164,7 @@ const Run = (() => {
     const p = R.player;
     const it = R.interact;
     if (!it) return;
-    if (it.type === 'portquest') Quest.offer('port', it.port.id);
+    if (it.type === 'enterport') Game.enterPortFromRun(it.port.id);
     else if (it.type === 'trader') openTrade('port_' + it.port.id, '貿易商');
     else if (it.type === 'peddler') openTrade('ped_' + it.base.id, '行商人');
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
@@ -3287,7 +3277,7 @@ const Run = (() => {
     return R.settled;
   }
 
-  return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap,
+  return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap, openTrade,
            warcry, startEscort, escortState, hasMark, spawnMark, spawnQuestWave,
            get state(){ return R; } };
 })();

@@ -32,6 +32,17 @@ const Hub = (() => {
           .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:-450 + i * 300, y:40 })),
       ];
     }
+    // 港町エリア: 船大工・(修理後)貿易商・住民・ゲート。船は実寸大で桟橋に停泊
+    if (H.area.startsWith('port:')) {
+      const pid = H.area.slice(5);
+      const plist = [
+        { kind:'portnpc', port: pid, x:-300, y:-60 },
+        { kind:'gate', x:-420, y:250 },
+        { kind:'villager', v: DATA.VILLAGERS[4], x:340, y:-120 },   // 渡りの漁師
+      ];
+      if (SaveSys.data.ports[pid]) plist.push({ kind:'trader', port: pid, x:-120, y:-140 });
+      return plist;
+    }
     // 基地エリア: 特別強化施設 + NPC + ゲート(周回中に転移してきた時も同じマップ)
     const list = [];
     const facs = Object.keys(DATA.BASE_FACS);
@@ -62,6 +73,10 @@ const Hub = (() => {
 
   function areaName(){
     if (H.area === 'main') return '魂の広場';
+    if (H.area.startsWith('port:')) {
+      const pp = DATA.PORTS.find(p => p.id === H.area.slice(5));
+      return pp ? '港町「' + pp.name + '」' : '港町';
+    }
     const b = DATA.BASES.find(b => b.id === H.area);
     return b ? '拠点「' + b.name + '」' : '拠点';
   }
@@ -94,6 +109,9 @@ const Hub = (() => {
 
   function update(dt){
     const p = H.player;
+    // 施設一覧は状態変化(船の修理完了など)を拾うため定期的に組み直す
+    H.listT = (H.listT || 0) + dt;
+    if (H.listT > 1) { H.listT = 0; H.list = stations(); }
     const ax = Input.axis();
     const b = bounds();
     p.x += ax.x * 240 * dt;
@@ -135,6 +153,8 @@ const Hub = (() => {
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
+    if (s.kind === 'portnpc') return SaveSys.data.ports[s.port] ? '船大工と話す' : '船大工と話す(船の修理)';
+    if (s.kind === 'trader') return '貿易商と取引(相場は周回ごとに変わる)';
     if (s.kind === 'sidenpc') return s.name + 'と話す';
     if (s.kind === 'villager') return s.v.name + 'と話す';
     if (s.kind === 'board') return (Run.state.boardDone || {})[H.area] ? '依頼板(今日の依頼は達成済み)' : '依頼板を見る';
@@ -161,6 +181,11 @@ const Hub = (() => {
       if (!SaveSys.data.bases[s.base]) Quest.offer('base', s.base);   // 未解放: 解放依頼(受注/報告)
       else Game.npcTalk(s.base);
     }
+    else if (s.kind === 'portnpc') {
+      if (!SaveSys.data.ports[s.port]) Quest.offer('port', s.port);   // 未修理: 修理依頼(納品)
+      else { const q = DATA.QUESTS[s.port]; Game.dialog('船大工', 'npc_sailor', [q.done[1]], null); }   // 修理後は締めの一言
+    }
+    else if (s.kind === 'trader') Run.openTrade('port_' + s.port, '貿易商');
     else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
     else if (s.kind === 'villager') {
       const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
@@ -502,6 +527,8 @@ const Hub = (() => {
 
   // ---------------- 描画 ----------------
   function stationVisual(s){
+    if (s.kind === 'portnpc') return { spr:'npc_sailor', label:'船大工', short:'船大工' };
+    if (s.kind === 'trader') return { spr:'npc_scholar', label:'貿易商', short:'貿易' };
     if (s.kind === 'meta') {
       const stDef = DATA.STATIONS[s.st];
       if (stDef) return { spr: stDef.sprite, label: stDef.name, short: stDef.name.slice(-2) };
@@ -542,7 +569,33 @@ const Hub = (() => {
 
     // 基地マップ: 集落の実景(中央に本殿=シンボルの元、周りに家々)。
     // 周回マップのシンボルはこの実景を縮小デフォルメしたもの。
-    if (H.area !== 'main') {
+    if (H.area.startsWith('port:')) {
+      const pid = H.area.slice(5);
+      const pp = DATA.PORTS.find(q => q.id === pid);
+      // 右半分は海。桟橋が突き出し、船が実寸大で停泊している
+      g.fillStyle = '#0d2b3d';
+      g.fillRect(60, bnd.y0, bnd.x1 - 60, bnd.y1 - bnd.y0);
+      g.strokeStyle = 'rgba(230,237,243,0.15)'; g.lineWidth = 2;
+      const wt = performance.now() / 1000;
+      for (let i = 0; i < 7; i++) {
+        const wy = bnd.y0 + 60 + i * 100 + Math.sin(wt + i) * 6;
+        g.beginPath(); g.moveTo(120 + (i % 3) * 60, wy); g.lineTo(200 + (i % 3) * 60, wy + 4); g.stroke();
+      }
+      // 桟橋(陸から海へ)
+      g.fillStyle = '#6b4f2e'; g.fillRect(-80, 120, 400, 90);
+      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2;
+      for (let px2 = -60; px2 < 320; px2 += 40) { g.beginPath(); g.moveTo(px2, 122); g.lineTo(px2, 208); g.stroke(); }
+      // 船: 実寸大。修理済みなら帆船、未修理なら壊れた残骸
+      Sprites.draw(g, SaveSys.data.ports[pid] ? 'boat' : 'ob_wreck', 400, 90, 300);
+      // 陸側: 家々と積み荷
+      Sprites.draw(g, 'ob_house', -470, bnd.y0 + 120, 104);
+      Sprites.draw(g, 'ob_house2', -230, bnd.y0 + 108, 90);
+      Sprites.draw(g, 'ob_crate', -360, 60, 34);
+      Sprites.draw(g, 'ob_crate', -310, 84, 26);
+      g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
+      g.fillText('― 港町「' + (pp ? pp.name : '') + '」 ―', -200, bnd.y0 + 200);
+    }
+    else if (H.area !== 'main') {
       const bd = DATA.BASES.find(b => b.id === H.area);
       if (bd) {
         Sprites.draw(g, bd.spr || 'st_warp', 0, bounds().y0 + 90, 190);

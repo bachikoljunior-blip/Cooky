@@ -66,6 +66,14 @@ const Game = (() => {
     Hub.enterFromRun(baseId);
     Sfx.setScene('hub');
   }
+  // 周回中に港へ着いた: 港町マップへ転移(周回は裏で保持)
+  function enterPortFromRun(portId){
+    state = 'hub'; overlay = null;
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
+    el('interact-hint').classList.add('hidden');
+    Hub.enterFromRun('port:' + portId);
+    Sfx.setScene('hub');
+  }
   // 拠点マップのゲートから周回へ復帰(Run.startは呼ばず状態を維持)
   function resumeRun(){
     state = 'run'; overlay = null;
@@ -371,6 +379,6 @@ const Game = (() => {
   setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成
   requestAnimationFrame(loop);
 
-  return { startRun, enterBaseFromRun, resumeRun, pauseFor, closeStation, toHub, npcTalk, dialog, dialogChoice,
+  return { startRun, enterBaseFromRun, enterPortFromRun, resumeRun, pauseFor, closeStation, toHub, npcTalk, dialog, dialogChoice,
            advanceDialog: advanceRunDialog, get state(){ return state; } };
 })();
