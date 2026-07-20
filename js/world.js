@@ -472,6 +472,53 @@ const World = (() => {
     return Math.max(0, (Math.abs(v) - 1.35)) / 1.15;   // 0(流れなし)〜1(強い潮)
   }
 
+  // ---- 航路の早瀬: 港と大陸を結ぶ「海の道」。陸の小道の海版で、
+  // 素の船足(徒歩と同じ)でも、早瀬に乗れば大陸間を渡れる。
+  // 物語の順路に沿って敷かれている(港→隣接大陸、大陸の岸→さらに先)
+  const ROUTE_DEFS = [
+    ['p_e', 'b_dragon'], ['p_se', 'b_green'], ['p_s', 'b_green'], ['p_sw', 'b_dusk'],
+    ['p_ne', 'b_star'], ['p_n', 'b_frost'], ['p_nw', 'b_sea'], ['p_w', 'b_void'],
+    ['b_dragon', 'b_mist'], ['b_green', 'b_ember'], ['b_star', 'b_frost'],
+    ['b_forge', 'b_sun'], ['b_moon', 'b_void'], ['b_grave', 'b_void'],
+    ['b_storm', 'b_end'], ['b_void', 'b_end'],
+  ];
+  const ROUTE_W = 2400;
+  let seaRoutes = null;
+  function anchorOf(id, towards){
+    const pt = ports.find(p => p.id === id);
+    if (pt) return { x: pt.seaX, y: pt.seaY };
+    const b = DATA.BASES.find(q => q.id === id);
+    // 基地から相手方向へ歩いて、海に出た所が船着き(早瀬の起点)
+    const d0 = Math.hypot(towards.x - b.x, towards.y - b.y) || 1;
+    const ux = (towards.x - b.x) / d0, uy = (towards.y - b.y) / d0;
+    for (let d = 0; d < d0; d += 300) {
+      if (!isLand(b.x + ux * d, b.y + uy * d)) return { x: b.x + ux * (d + 400), y: b.y + uy * (d + 400) };
+    }
+    return { x: b.x, y: b.y };
+  }
+  function buildRoutes(){
+    seaRoutes = [];
+    for (const [fromId, toId] of ROUTE_DEFS) {
+      const tb = DATA.BASES.find(q => q.id === toId);
+      if (!tb) continue;
+      const a = anchorOf(fromId, tb);
+      const bb = anchorOf(toId, a);   // 相手側も海岸まで
+      seaRoutes.push({ x1: a.x, y1: a.y, x2: bb.x, y2: bb.y });
+    }
+  }
+  function routeCurrentAt(x, y){
+    if (!seaRoutes) buildRoutes();
+    let best = 0;
+    for (const r of seaRoutes) {
+      const dx = r.x2 - r.x1, dy = r.y2 - r.y1;
+      const L2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - r.x1) * dx + (y - r.y1) * dy) / L2));
+      const d = Math.hypot(x - (r.x1 + dx * t), y - (r.y1 + dy * t));
+      if (d < ROUTE_W) { const st = 1 - d / ROUTE_W; if (st > best) best = st; }
+    }
+    return best;
+  }
+
   // 距離リング(敵の強さ)
   // 危険度: 「始まりからの距離の同心円」が基調(境界は方角ごとに揺らいだ自然な形)。
   // 遠方は圧縮してなだらかにし、基地の周りはその基地の「物語上の危険度」(danger)へ
@@ -502,5 +549,5 @@ const World = (() => {
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
-           biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt };
+           biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt };
 })();

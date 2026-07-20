@@ -29,7 +29,7 @@ const Run = (() => {
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
       speed: 42 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
-      boatSpeed: 560 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),
+      boatSpeed: 42 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),   // 素の船足は徒歩と同じ。速さは帆の強化と「航路の早瀬」で得る
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
@@ -933,12 +933,21 @@ const Run = (() => {
 
   function updateEnemies(dt){
     const p = R.player;
+    const baseDt = dt;
+    R.lodTick = (R.lodTick || 0) + 1;
+    const lodR = (R.offscreenR || 500) + 160;   // 画面の外にいる敵は判定を粗くする
     for (let i = R.enemies.length - 1; i >= 0; i--) {
       const e = R.enemies[i];
       if (e.dead) { R.enemies.splice(i, 1); continue; }
       // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
+      // 画面外の敵は1フレームおきに更新(飛ばした時間は次回まとめて進めるので、
+      // 動きの速さ・タイマーは画面内と変わらない ― 判定だけ粗くなる)
+      if (pd > lodR && !e.boss) {
+        if (((i + R.lodTick) & 1) === 0) { e._lodDt = (e._lodDt || 0) + baseDt; continue; }
+        dt = baseDt + (e._lodDt || 0); e._lodDt = 0;
+      } else { dt = baseDt + (e._lodDt || 0); e._lodDt = 0; }
       // 大群とボスは消えず、完全に画面外へ出た(見えなくなった)瞬間に前方へ回り込む。
       // しきい値は回り込み先(offR+30〜160)より外なので、回り込み直後に再発動しない
       if ((e.fromHorde || e.boss) && pd > (R.offscreenR || 500) + 180) {
@@ -1118,6 +1127,7 @@ const Run = (() => {
         }
       }
     }
+    dt = baseDt;   // 敵ループ内のLODで書き換えたdtを戻す(以降は等倍)
     // 敵弾: 仲間の壁で必ず止まる(貫通しない)。仲間を先に判定 → その後プレイヤー
     for (let i = R.eprojs.length - 1; i >= 0; i--) {
       const b = R.eprojs[i];
@@ -1173,7 +1183,7 @@ const Run = (() => {
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
     // 当たり判定が体の1/3なので、この間隔でも中心は重ならない(密集感は保ちつつ少し緩め)
-    const rad = 27 + ring * 22;   // 仲間がほぼ重ならない間隔(密集感は保つ)
+    const rad = 20 + ring * 17;
     return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
   }
   function formationRadius(n){
@@ -1389,7 +1399,10 @@ const Run = (() => {
       units.push(e);
     }
     for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining) {   // 合流中はすり抜け
-      a._r = a.def.r * 0.55;   // 仲間同士はある程度体を保つ(ほぼ重なる密着はしない)
+      // 一番小さい仲間は従来どおりの密集度。体の大きい仲間ほど当たり判定が広がり、
+      // 巨体同士が全身重なることはない
+      const re = a.def.r * (a.sizeMul || 1);
+      a._r = re / 3 + Math.max(0, re - 12) * 0.35;
       a._m = 1 + (a.def.tier || 0) * 0.6;
       a._ally = true;
       units.push(a);
@@ -1428,7 +1441,7 @@ const Run = (() => {
             const sameSide = v !== pl && u !== pl && !!u._ally === !!v._ally;
             // 仲間同士・主人公↔仲間=両側から2回処理される(従来どおりの係数)。
             // 敵↔仲間=仲間側の1回だけなので2倍で補正
-            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.12 : (u === pl || v === pl ? 0.32 : 0.64));
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : (u === pl || v === pl ? 0.32 : 0.64));
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
@@ -2213,7 +2226,6 @@ const Run = (() => {
     p.onBoat = true;
     p.x = x; p.y = y;
     p.boatAnchor = null;
-    R.boatRampT = 0;   // 漕ぎ出しはゆっくり ― 帆が風を掴むまで数秒かけて加速する
     Sfx.boat();
     // 陸の仲間は待機
     const spot = port ? { x:port.x, y:port.y } : { x:p.x, y:p.y };
@@ -2338,9 +2350,11 @@ const Run = (() => {
     const rushMul = (R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1;   // 月光の疾走
     let terrMul = 1;
     if (p.onBoat) {
-      // 海流: 帯状の速い潮に乗ると船が速い(凪の日はさらに)
+      // 航路の早瀬(海の道): 乗ると潮が船を大きく押す ― 素の船足でも大陸間を渡れる。
+      // 自然の潮(帯状のむら)は従来どおり控えめな追い風
+      const rc = World.routeCurrentAt(p.x, p.y);
       const cur = World.currentAt(p.x, p.y);
-      if (cur > 0) terrMul = 1 + cur * (R.worldEvent === 'calm' ? 0.65 : 0.45);
+      terrMul = 1 + rc * (R.worldEvent === 'calm' ? 8.5 : 7.0) + cur * 0.45;
     } else {
       // 基地から延びる小道の上は歩きやすい
       const nb = nearestRoadBase(p.x, p.y);
@@ -2351,10 +2365,7 @@ const Run = (() => {
     else R.moveRampT = 0;
     const rampMul = 1 + (R.moveRampT / 4) * 0.3;
     R.rampMul = rampMul;   // 仲間も同じ歩調で加速する(軍勢が置いていかれない)
-    // 船は一気に全速にならない: 漕ぎ出し35%から、帆が風を掴む6秒で全速へ
-    if (p.onBoat && (ax.x || ax.y)) R.boatRampT = Math.min(6, (R.boatRampT || 0) + dt);
-    const boatMul = 0.35 + 0.65 * ((R.boatRampT || 0) / 6);
-    const spd = (p.onBoat ? st.boatSpeed * boatMul : st.speed * rampMul) * rushMul * terrMul;
+    const spd = (p.onBoat ? st.boatSpeed : st.speed * rampMul) * rushMul * terrMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);
