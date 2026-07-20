@@ -178,7 +178,7 @@ const Run = (() => {
     R.enemies = []; R.allies = []; R.projs = []; R.eprojs = []; R.pickups = [];
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
-    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(150, 210); R.hordeWaves = [];
+    R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
     R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
     R.dmgLog = []; R.hitFlashT = 0; R.hitDir = null; R.traitBursts = [];
     R.sigCd = 0; R.sigUntil = 0; R.bioFxT = 0; R.bioFxColors = null; R.boardDone = {}; R.escort = null;
@@ -239,7 +239,7 @@ const Run = (() => {
     const p = R.player;
     const offR = R.offscreenR || 500;
     const ring0 = Math.min(12, World.ringOf(p.x, p.y));
-    const target = Math.round((192 + ring0 * 12) * 0.6);   // directorの漸増開始値と同じ(開始直後は薄め)
+    const target = Math.round(192 + ring0 * 12);   // directorの目標数と同じ(最初から通常の密度)
     let placed = 0;
     for (let i = 0; i < target * 3 && placed < target; i++) {
       const a = Math.random() * Math.PI * 2;
@@ -734,7 +734,6 @@ const Run = (() => {
     const mig = R.worldEvent === 'migration' && R.evSpecies && !onSea &&
                 keys.includes(R.evSpecies);   // その土地に居る種の大移動だけ
     let n = Math.max(4, 8 - tier) + Math.floor(Math.random() * 4) + (mig ? 3 : 0);   // 低ティアほど大所帯/大移動は+3
-    if (R.time < 120) n = Math.max(3, Math.round(n * 0.6));   // 開始直後は小さめの群れ
     const herdKey = keys[pickIdx];   // 群れは同種で構成(上で抽選済み)
     for (let i = 0; i < n; i++) {
       const key = (mig && Math.random() < 0.7) ? R.evSpecies : herdKey;
@@ -763,8 +762,8 @@ const Run = (() => {
   // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる。
   function startHordeEvent(){
     const min = R.time / 60;
-    const total = Math.round(14 * (1 + min * 0.8));   // 初回(~3分)は40体前後、時間経過で増えていく
-    const waves = Math.min(14, 1 + Math.floor(min / 2));   // 早めに複数波へ分かれる(1波あたりを軽く)
+    const total = Math.round(20 * (1 + min));   // 初回~45体、時間経過(分×1)でどんどん増える
+    const waves = Math.min(14, 1 + Math.floor(min / 4));   // 最初は一波のみ、時間経過で波数が増える
     const perWave = Math.ceil(total / waves);
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
     R.hordeWaves = R.hordeWaves || [];
@@ -829,8 +828,7 @@ const Run = (() => {
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1)
-                     * Math.min(1, 0.6 + min * 0.2));   // 開始2分はまわりの数も漸増
+    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1));
     // 直前に通って倒した場所は1分間リスポーンしない ― 周辺の「掃討済み」格子の割合ぶん目標数を下げる
     if (R.clearedCells && R.clearedCells.size) {
       let tot = 0, clr = 0;
@@ -847,9 +845,7 @@ const Run = (() => {
     // 移動中は前方の分が間引かれていくぶん補充を速める(移動しても敵密度が薄くならない)
     const pSpd = Math.hypot(p.vx || 0, p.vy || 0);
     const moveBoost = 1 + Math.min(2.2, pSpd / 60);
-    // 開始直後は環境圧を漸増(素の状態でも最初の基地まで歩ける)。2分で通常の圧になる
-    const warmup = Math.min(1, 0.55 + min * 0.225);
-    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost * warmup;
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost;
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
     const moveA = pSpd > 20 ? Math.atan2(p.vy, p.vx) : null;
@@ -869,7 +865,7 @@ const Run = (() => {
     if (R.spawnAcc > 12) R.spawnAcc = 12;
 
     // --- ティアごとの群れ: 密度と関係なく定期的に必ず出会う(その土地のティアで構成) ---
-    if (R.herdT === undefined) R.herdT = rnd(45, 75);   // 初回は少し歩いてから出会う
+    if (R.herdT === undefined) R.herdT = rnd(14, 22);
     R.herdT -= dt;
     if (R.herdT <= 0 && !isReaperTime && R.enemies.length < 850) {
       spawnHerd(false);
@@ -877,7 +873,7 @@ const Run = (() => {
     }
 
     // --- 時間ごとの大群(何波にも分けて押し寄せる) ---
-    if (R.hordeT === undefined) R.hordeT = rnd(150, 210);
+    if (R.hordeT === undefined) R.hordeT = rnd(60, 90);
     if (!isReaperTime) {
       R.hordeT -= dt;
       if (R.hordeT <= 0) { startHordeEvent(); R.hordeT = rnd(75, 120); }
