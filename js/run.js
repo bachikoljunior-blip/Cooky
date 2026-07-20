@@ -339,8 +339,9 @@ const Run = (() => {
     // 色違いの特性(死亡時): 弾ける(予兆つき爆発)/仲間を呼んで果てる
     if (e.trait === 'burst') {
       R.traitBursts = R.traitBursts || [];
-      R.traitBursts.push({ x:e.x, y:e.y, t:0.55, r:46 + 26 * e.rank, dmg:e.dmg * 1.4 });
-      effect('ring', e.x, e.y, { color:'#f85149', r:46 + 26 * e.rank });
+      const br = (46 + 26 * e.rank) * 0.25;   // 爆発の範囲は控えめ(元の1/4)
+      R.traitBursts.push({ x:e.x, y:e.y, t:0.55, r:br, dmg:e.dmg * 1.4 });
+      effect('ring', e.x, e.y, { color:'#f85149', r:br });
     }
     if (e.trait === 'summon' && R.enemies.length < 850) {
       for (let i = 0; i < Math.min(3, 1 + e.rank); i++)
