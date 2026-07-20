@@ -404,8 +404,11 @@ const Run = (() => {
     if (p.hp < st.maxHp * 0.3) armor = Math.min(0.85, armor + st.wall);
     d *= (1 - armor);
     if (src && src.def && src.def.isReaper) d *= (1 - st.reaperRes);
+    // どんな強敵でも一撃は最大HPの3割まで ― 「気づいたら即死」を無くす。
+    // 死ぬのは囲まれて連打を浴びた時だけ(そこは立ち回りで避けられる)
+    d = Math.min(d, st.maxHp * 0.3);
     p.hp -= d;
-    p.invuln = 0.35 + st.invulnPlus; // 影歩き: 被弾後の無敵延長
+    p.invuln = 0.55 + st.invulnPlus; // 被弾後は少しの間無敵(点滅)。連撃で溶けないための反応猶予
     Sfx.hurt();
     // 被弾の記録(死因リキャップ用)と、被弾方向の画面フラッシュ
     R.dmgLog = R.dmgLog || [];
