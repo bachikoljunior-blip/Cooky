@@ -76,17 +76,24 @@ function matCost(lv, base, extras){
       c[e.mat] = Math.ceil(e.qty * mul);
     }
   }
-  // レベルの節目ごとに「新しい種類の素材」が要る。高レベルほど高ティア=遠い土地の素材で、
-  // どの素材かはスキルごとに固定(素材構成のハッシュで決まる)
+  // レベルが上がるたびに「新しい種類の素材」が一つ加わる(Lv2から毎レベル)。
+  // 高レベルほど高ティア=遠い土地の素材で、どの素材かはスキルごとに固定
+  // (素材構成のハッシュで決まる)。Lv2→身近な素材、Lv9以降→最果ての素材
   const seed = Object.keys(base).join(',');
   let h = 0; for (let i = 0; i < seed.length; i++) h = (h * 31 + seed.charCodeAt(i)) | 0;
-  const steps = [[3, 1], [5, 2], [7, 3], [9, 4]];   // [lv節目, 素材ティア]
-  for (const [from, tier] of steps) {
-    if (lv < from) continue;
-    const pool = (tierPool()[tier] || []).filter(m => !(m in c));
-    if (!pool.length) continue;
-    const m = pool[Math.abs(h + from * 7) % pool.length];
-    c[m] = Math.ceil(2 * Math.pow(1.6, lv - from));
+  // extrasで後から入る予定の素材は自動追加の候補から外す(先取りして種類が停滞しないように)
+  const reserved = new Set((extras || []).map(e => e.mat));
+  const usable = m => !(m in c) && !reserved.has(m);
+  for (let s = 2; s <= lv; s++) {
+    if ((extras || []).some(e => e.from === s)) continue;   // このレベルはextrasが新顔を担う
+    const tier = Math.min(4, Math.floor((s - 1) / 2));   // Lv2:T0 3:T1 4:T1 5:T2 6:T2 7:T3 8:T3 9+:T4
+    let pool = (tierPool()[tier] || []).filter(usable);
+    // そのティアが尽きたら近いティアから補う(必ず毎レベル新顔が入る)
+    for (let t2 = tier - 1; !pool.length && t2 >= 0; t2--) pool = (tierPool()[t2] || []).filter(usable);
+    for (let t2 = tier + 1; !pool.length && t2 <= 4; t2++) pool = (tierPool()[t2] || []).filter(usable);
+    if (!pool.length) break;
+    const m = pool[Math.abs(h + s * 7) % pool.length];
+    c[m] = Math.ceil(2 * Math.pow(1.6, lv - s));
   }
   return c;
 }
@@ -496,14 +503,11 @@ PASSIVE_DEFS.forEach(([id, name, effDesc, key, per, unit, ma, qa, mb, qb, cat], 
   DATA.SKILLS[id] = {
     name, icon: 'sk_' + id, cat: cat || 'kokoroe',
     desc: `【心得】${effDesc} ${unit}/Lv。`,
-    cost: (lv) => {
-      // 心得は数が多く、安いと中盤に一気に取り切れてしまう。基本素材は1.5倍で
-      // 「1周回に数件ずつ」のペースに調整(序盤の主力スキルには影響しない)
-      const c = matCost(lv, { [ma]: Math.ceil(qa * 1.5), [mb]: Math.ceil(qb * 1.5) });
-      if (lv >= 2) c[flux1] = (c[flux1] || 0) + Math.ceil(1 + (lv - 2) * 0.5);
-      if (lv >= 7 && flux2 !== flux1) c[flux2] = (c[flux2] || 0) + Math.ceil(1 + (lv - 7) * 0.5);
-      return c;
-    },
+    // 心得は数が多く、安いと中盤に一気に取り切れてしまう。基本素材は1.5倍で
+    // 「1周回に数件ずつ」のペースに調整(序盤の主力スキルには影響しない)。
+    // flux素材はextras経由で渡す(matCostの自動追加と重複せず、毎レベル新顔が保たれる)
+    cost: (lv) => matCost(lv, { [ma]: Math.ceil(qa * 1.5), [mb]: Math.ceil(qb * 1.5) },
+      [{ from: 2, mat: flux1, qty: 1 }].concat(flux2 !== flux1 ? [{ from: 7, mat: flux2, qty: 1 }] : [])),
     lvText: Array.from({ length: 9 }, (_, i) => `${effDesc} ${unit}(累計${i + 2}段)`),
     stats: (lv) => ({ passive: { key, value: per * lv } }),
   };
