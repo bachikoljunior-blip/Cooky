@@ -2357,7 +2357,7 @@ const Run = (() => {
         if (!SaveSys.data.seen[b.id] && Math.abs(p.x - b.x) < dvw && Math.abs(p.y - b.y) < dvh) {
           SaveSys.data.seen[b.id] = true;
           if (SaveSys.data.hints) delete SaveSys.data.hints[b.id];   // 見当(?)は実際の発見で確定に変わる
-          R.warnMsg = '🏘 「' + b.name + '」を見つけた!(全体図に記した)';
+          R.warnMsg = '🏘「' + b.name + '」を見つけた!';
           R.warnColor = '#7ee787'; R.warnT = 5;
           Sfx.skill();
         }
@@ -2366,7 +2366,7 @@ const Run = (() => {
         if (!SaveSys.data.seen[pt.id] && Math.abs(p.x - pt.x) < dvw && Math.abs(p.y - pt.y) < dvh) {
           SaveSys.data.seen[pt.id] = true;
           if (SaveSys.data.hints) delete SaveSys.data.hints[pt.id];
-          R.warnMsg = '⚓ 「' + pt.name + '」を見つけた!(全体図に記した)';
+          R.warnMsg = '⚓「' + pt.name + '」を見つけた!';
           R.warnColor = '#76e3ea'; R.warnT = 5;
           Sfx.skill();
         }
@@ -3084,7 +3084,7 @@ const Run = (() => {
       g.fillStyle = 'rgba(5,8,14,0.72)';
       g.fillRect(x0, y0 + sz - 26, sz, 26);
       g.fillStyle = '#adbac7'; g.font = '12px sans-serif';
-      g.fillText('「?」「⚓」は話に聞いたおおよその見当 ― 近くで立ちのぼる煙や灯台の光を探そう', W / 2, y0 + sz - 9);
+      g.fillText('?・⚓は聞いた話の見当。近くの煙や灯台の光が目印', W / 2, y0 + sz - 9);
     }
   }
   function toggleMap(){ R.mapFull = !R.mapFull; }

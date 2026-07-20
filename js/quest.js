@@ -240,8 +240,8 @@ const Quest = (() => {
           SaveSys.data.hints[nb.id] = true; told++;
         }
       }
-      R.warnMsg = '⚓ ' + (p ? p.name : '') + 'の船が直った!出航できるぞ' +
-        (told ? '(隣の港の話を聞いた ― 見当を地図に記した)' : '');
+      R.warnMsg = '⚓「' + (p ? p.name : '') + '」の船が直った!出航できるぞ' +
+        (told ? '。隣の港も見当が付いた' : '');
     } else if (kind === 'side') {
       SaveSys.data.sideDone = SaveSys.data.sideDone || {};
       SaveSys.data.sideDone[id] = true;
@@ -255,7 +255,7 @@ const Quest = (() => {
       // 現地で煙や灯台の光を目で見つける(seenは実際に近づいた時にだけ付く)
       if (rw.hintBase) { SaveSys.data.nextHint = rw.hintBase;
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintBase] = true;   // ヒントは複数持てる(行き先を選べる)
-        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」のおおよその場所');
+        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の見当');
         // 海の向こうの基地なら、渡るための港(方角の合うもの)の噂も一緒に聞ける
         if (hb && hb.cont && hb.cont !== 'main') {
           const ba = Math.atan2(hb.y, hb.x);
@@ -273,7 +273,7 @@ const Quest = (() => {
         } }
       if (rw.hintPort && !SaveSys.data.seen[rw.hintPort]) {
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
-        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」のおおよその場所'); }
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の見当'); }
       // 船の下賜/出資: 富豪や王がその港の船を用意してくれる(修理と同じ扱いで航海可能に)
       if (rw.port) { SaveSys.data.ports[rw.port] = true; SaveSys.data.seen[rw.port] = true;
         const gp = DATA.PORTS.find(p => p.id === rw.port); txt.push('⚓「' + (gp ? gp.name : '') + '」の船'); }
@@ -299,7 +299,7 @@ const Quest = (() => {
       for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
       if (rw.hintPort && !(SaveSys.data.seen || {})[rw.hintPort]) {
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
-        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」のおおよその場所'); }
+        const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の見当'); }
       R.warnMsg = '🎁 依頼達成! 報酬: ' + txt.join('・');
     } else {
       SaveSys.data.bases[id] = true;
