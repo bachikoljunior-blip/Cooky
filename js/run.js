@@ -2012,9 +2012,10 @@ const Run = (() => {
           }
           dealDamage(e, b.dmg);
           if (b.blast) {
-            effect('ring', b.x, b.y, { color:'#f0883e', r:b.blast });
+            // 爆発は「当たった敵」を起点に広がる(弾の接触点=敵の縁ではなく敵の中心から)
+            effect('ring', e.x, e.y, { color:'#f0883e', r:b.blast });
             for (const o of R.enemies)
-              if (!o.dead && o !== e && Math.hypot(o.x-b.x, o.y-b.y) < b.blast + o.def.r) dealDamage(o, b.dmg * 0.7);
+              if (!o.dead && o !== e && Math.hypot(o.x-e.x, o.y-e.y) < b.blast + o.def.r) dealDamage(o, b.dmg * 0.7);
           }
           if (b.pierce > 0) { b.pierce--; (b._pierced = b._pierced || []).push(e); }
           else { hit = true; }
