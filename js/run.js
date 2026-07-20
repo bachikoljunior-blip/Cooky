@@ -2223,6 +2223,7 @@ const Run = (() => {
     p.onBoat = true;
     p.x = x; p.y = y;
     p.boatAnchor = null;
+    R.boatRampT = 0;   // 漕ぎ出しはゆっくり ― 帆が風を掴むまで数秒かけて加速する
     Sfx.boat();
     // 陸の仲間は待機
     const spot = port ? { x:port.x, y:port.y } : { x:p.x, y:p.y };
@@ -2360,7 +2361,10 @@ const Run = (() => {
     else R.moveRampT = 0;
     const rampMul = 1 + (R.moveRampT / 4) * 0.3;
     R.rampMul = rampMul;   // 仲間も同じ歩調で加速する(軍勢が置いていかれない)
-    const spd = (p.onBoat ? st.boatSpeed : st.speed * rampMul) * rushMul * terrMul;
+    // 船は一気に全速にならない: 漕ぎ出し35%から、帆が風を掴む6秒で全速へ
+    if (p.onBoat && (ax.x || ax.y)) R.boatRampT = Math.min(6, (R.boatRampT || 0) + dt);
+    const boatMul = 0.35 + 0.65 * ((R.boatRampT || 0) / 6);
+    const spd = (p.onBoat ? st.boatSpeed * boatMul : st.speed * rampMul) * rushMul * terrMul;
     p.vx = ax.x * spd; p.vy = ax.y * spd;
     if (ax.x || ax.y) {
       p.moveA = Math.atan2(ax.y, ax.x);

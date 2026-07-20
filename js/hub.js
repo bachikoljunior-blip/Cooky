@@ -200,6 +200,12 @@ const Hub = (() => {
         <div class="name">${b.name}</div><div class="desc">解放済みの基地から出撃する(危険度に注意)</div></div>
         <button class="buy-btn" data-depart="${b.id}">出撃</button></div>`;
     }
+    // 船を直した港からも出撃できる(常夜灯にゲートの分け火が灯っている)
+    for (const pt of DATA.PORTS.filter(p => SaveSys.data.ports[p.id])) {
+      h += `<div class="up-card"><div class="info">
+        <div class="name">⚓ ${pt.name}</div><div class="desc">船を直した港から出撃する(常夜灯の分け火)</div></div>
+        <button class="buy-btn" data-depart="port:${pt.id}">出撃</button></div>`;
+    }
     h += '<div class="sec-head">基地へ移動(それぞれの基地に特別強化の施設がある)</div>';
     if (H.area !== 'main') {
       h += `<div class="up-card"><div class="info">
@@ -227,6 +233,10 @@ const Hub = (() => {
         Sfx.buy();
         Game.closeStation();
         if (id === '__origin') Game.startRun({ x:0, y:0 });
+        else if (id.startsWith('port:')) {
+          const pp = World.ports.find(p => p.id === id.slice(5));
+          Game.startRun({ x:pp.x, y:pp.y + 40 });
+        }
         else { const b = DATA.BASES.find(b => b.id === id); Game.startRun({ x:b.x, y:b.y + 60 }); }
       };
     });

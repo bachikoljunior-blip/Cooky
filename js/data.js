@@ -1356,7 +1356,8 @@ for (const p of DATA.PORTS) {
     npc:'npc_sailor', npcName:'船大工', type:'delivery', need:p.repair,
     intro:[sm.open, PORT_FLAVOR[p.id] || '海はいいぞぉ。',
       sm.req || '直してほしけりゃ材料と手間賃を持ってきな。話はそれからだ。'],
-    done:[sm.fix || '…よし、直ったぜ!マストも帆も新品同様だ。', sm.close].concat(sm.mate ? [sm.mate] : []) };
+    done:[sm.fix || '…よし、直ったぜ!マストも帆も新品同様だ。', sm.close].concat(sm.mate ? [sm.mate] : [])
+      .concat(['(船と共に港の常夜灯にも火が入った ― 基地のゲートから分けられた火だ。魂の広場の転送ゲートに、この港が加わった)']) };
 }
 
 // 2段階目クエスト(基地解放後、NPCに再度話すと受けられる追加依頼。報酬つき)
