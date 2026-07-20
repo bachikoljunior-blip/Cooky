@@ -289,13 +289,16 @@ const Skills = (() => {
     sortReady(upIds); sortReady(newIds);
 
     const isReady = id => { const c = nextCost(id); return c && costMet(c); };
-    // 一度パネルを使った後に新登場したスキル(未見)を最上段に、その後に固定スキル。
+    // 並び: 未見(新登場) → 今すぐ取得/強化できるもの → それ以外。
+    // 素材が揃ったスキルはピン止めと同じ扱いで最上段に固定される(各ブロック内はピン順)。
     // 初回閲覧(まだ何も見ていない)時は全部が未見なので、通常どおりピン順で並べる。
     const engaged = Object.keys(listSeen).length > 0;
     const pinnedTop = ids => {
       const fresh = engaged ? ids.filter(id => !listSeen[id]) : [];
       const rest = engaged ? ids.filter(id => listSeen[id]) : ids;
-      return fresh.concat(applyPins(rest));
+      const ready = rest.filter(isReady);
+      const notReady = rest.filter(id => !isReady(id));
+      return fresh.concat(applyPins(ready), applyPins(notReady));
     };
     // バッジは「今、取得/強化できる数」を常に反映する(素材が揃っている限り表示)
     const upBadge = upIds.filter(isReady).length;
