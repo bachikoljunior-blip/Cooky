@@ -911,6 +911,27 @@ const Run = (() => {
     }
   }
 
+  // ---------------- 敵の近傍グリッド(弾の当たり判定・仲間の索敵を近傍だけにする) ----------------
+  const HIT_CELL = 96;
+  let hitGrid = new Map();
+  function rebuildFoeGrid(){
+    hitGrid = new Map();
+    for (const e of R.enemies) {
+      if (e.dead) continue;
+      const k = ((e.x / HIT_CELL) | 0) + ',' + ((e.y / HIT_CELL) | 0);
+      const arr = hitGrid.get(k);
+      if (arr) arr.push(e); else hitGrid.set(k, [e]);
+    }
+  }
+  function forEachFoeNear(x, y, rad, cb){
+    const c0x = ((x - rad) / HIT_CELL) | 0, c1x = ((x + rad) / HIT_CELL) | 0;
+    const c0y = ((y - rad) / HIT_CELL) | 0, c1y = ((y + rad) / HIT_CELL) | 0;
+    for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
+      const arr = hitGrid.get(cx + ',' + cy);
+      if (arr) for (const e of arr) { if (!e.dead && cb(e)) return; }
+    }
+  }
+
   // ---------------- 敵の更新 ----------------
   // 陸海判定のキャッシュ: 地形は静的なので40px格子で結果を貯める。
   // 敵・仲間の移動判定は毎フレーム数百回呼ばれるが、海岸線の距離計算は格子ごとに1回で済む
@@ -942,9 +963,10 @@ const Run = (() => {
       // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pd = Math.hypot(e.x - p.x, e.y - p.y);
-      // 画面外の敵は1フレームおきに更新(飛ばした時間は次回まとめて進めるので、
-      // 動きの速さ・タイマーは画面内と変わらない ― 判定だけ粗くなる)
-      if (pd > lodR && !e.boss) {
+      // 粗い更新の対象: 画面外の敵、および画面内でも「まだ気づいておらず(非mad)、
+      // 追撃圏から十分離れている」敵。飛ばした時間は次回まとめて進めるので、
+      // 動きの速さ・タイマーは変わらない ― 判定だけ粗くなる
+      if ((pd > lodR || (!e.mad && pd > 240)) && !e.boss) {
         if (((i + R.lodTick) & 1) === 0) { e._lodDt = (e._lodDt || 0) + baseDt; continue; }
         dt = baseDt + (e._lodDt || 0); e._lodDt = 0;
       } else { dt = baseDt + (e._lodDt || 0); e._lodDt = 0; }
@@ -1272,20 +1294,20 @@ const Run = (() => {
         a._retgtT = 0.12;
         tgt = null; td = 1e9;
         if (a.def.ranged) {
-          for (const e of R.enemies) {
-            if (e.dead || !e.mad) continue;
+          forEachFoeNear(a.x, a.y, a.def.ranged.range + 40, (e) => {
+            if (!e.mad) return false;
             const d = Math.hypot(e.x - a.x, e.y - a.y);
             if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
-          }
+            return false;
+          });
         } else {
           const engageR = a.def.r + 24 + (a.def.tier || 0) * 4;   // 追尾範囲は狭め(すぐそばの敵だけ)
-          for (const e of R.enemies) {
-            if (e.dead) continue;
+          forEachFoeNear(a.x, a.y, engageR + 90, (e) => {
             const er = e.def.r * (e.sizeMul || 1);
             const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
-            if (d > engageR) continue;
-            if (d < td) { tgt = e; td = d; }
-          }
+            if (d <= engageR && d < td) { tgt = e; td = d; }
+            return false;
+          });
         }
         a._tgt = tgt;
       }
@@ -1398,7 +1420,9 @@ const Run = (() => {
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
       units.push(e);
     }
+    let asi = 0;
     for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining) {   // 合流中はすり抜け
+      a._si = asi++;
       // 一番小さい仲間は従来どおりの密集度。体の大きい仲間ほど当たり判定が広がり、
       // 巨体同士が全身重なることはない
       const re = a.def.r * (a.sizeMul || 1);
@@ -1439,9 +1463,10 @@ const Run = (() => {
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
             const sameSide = v !== pl && u !== pl && !!u._ally === !!v._ally;
-            // 仲間同士・主人公↔仲間=両側から2回処理される(従来どおりの係数)。
-            // 敵↔仲間=仲間側の1回だけなので2倍で補正
-            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : (u === pl || v === pl ? 0.32 : 0.64));
+            if (sameSide && u._si > v._si) continue;   // 仲間同士のペアは片側だけ処理(係数2倍で等価)
+            // 主人公↔仲間=両側から2回処理される(従来どおりの係数)。
+            // 仲間同士・敵↔仲間=1回だけ処理なので2倍で補正
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.12 : (u === pl || v === pl ? 0.32 : 0.64));
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
@@ -2057,28 +2082,29 @@ const Run = (() => {
         }
       }
       b.x += b.vx * dt; b.y += b.vy * dt;
-      // 命中
+      // 命中(近傍グリッドだけ見る ― 敵が何百体いても弾のコストは一定)
       let hit = false;
-      for (const e of R.enemies) {
-        if (e.dead) continue;
-        if (b._pierced && b._pierced.includes(e)) continue;   // 貫通済みの敵に再ヒットしない
+      forEachFoeNear(b.x, b.y, b.size + 60, (e) => {
+        if (b._pierced && b._pierced.includes(e)) return false;   // 貫通済みの敵に再ヒットしない
         if (Math.hypot(e.x-b.x, e.y-b.y) < b.size + e.def.r) {
           if (b.boomerang) {
             if (!e._axeT || R.time - e._axeT > 0.5) { e._axeT = R.time; dealDamage(e, b.dmg); }
-            continue;
+            return false;   // 斧は貫通して回り続ける
           }
           dealDamage(e, b.dmg);
           if (b.blast) {
             // 爆発は「当たった敵」を起点に広がる(弾の接触点=敵の縁ではなく敵の中心から)
             effect('ring', e.x, e.y, { color:'#f0883e', r:b.blast });
-            for (const o of R.enemies)
-              if (!o.dead && o !== e && Math.hypot(o.x-e.x, o.y-e.y) < b.blast + o.def.r) dealDamage(o, b.dmg * 0.7);
+            forEachFoeNear(e.x, e.y, b.blast + 60, (o) => {
+              if (o !== e && Math.hypot(o.x-e.x, o.y-e.y) < b.blast + o.def.r) dealDamage(o, b.dmg * 0.7);
+              return false;
+            });
           }
-          if (b.pierce > 0) { b.pierce--; (b._pierced = b._pierced || []).push(e); }
-          else { hit = true; }
-          break;
+          if (b.pierce > 0) { b.pierce--; (b._pierced = b._pierced || []).push(e); return false; }
+          hit = true; return true;
         }
-      }
+        return false;
+      });
       if (hit) { R.projs.splice(i, 1); continue; }
       // オブジェクト命中
       for (const o of R.objects || []) {
@@ -2354,7 +2380,7 @@ const Run = (() => {
       // 自然の潮(帯状のむら)は従来どおり控えめな追い風
       const rc = World.routeCurrentAt(p.x, p.y);
       const cur = World.currentAt(p.x, p.y);
-      terrMul = 1 + rc * (R.worldEvent === 'calm' ? 8.5 : 7.0) + cur * 0.45;
+      terrMul = 1 + rc * (R.worldEvent === 'calm' ? 5.5 : 4.5) + cur * 0.45;
     } else {
       // 基地から延びる小道の上は歩きやすい
       const nb = nearestRoadBase(p.x, p.y);
@@ -2458,7 +2484,7 @@ const Run = (() => {
     const INIT_R = 158;
     const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
     const need = Math.max(120, formR + INIT_R);
-    const zTarget = Math.max(0.5, Math.min(3.0, (R.viewMin || 800) / (2 * need)));
+    const zTarget = Math.max(0.36, Math.min(3.0, (R.viewMin || 800) / (2 * need)));   // 大軍時はより広く引ける
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
     // 攻撃射程は「敵が追尾してくる距離(アグロ 75〜115)より少し短い」68pxを基準に、
     // しに戻り後の射程強化(眼力=altar_range)で伸びる。初期は敵のアグロ圏内でしか
@@ -2468,6 +2494,7 @@ const Run = (() => {
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
     updateEnemies(dt);
+    rebuildFoeGrid();   // 移動後の位置で近傍グリッドを組み直す
     updateAllies(dt);
     separateUnits();   // 敵・仲間が重ならない(合戦の戦線を形成)
     updateSkills(dt);
