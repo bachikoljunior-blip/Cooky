@@ -331,6 +331,11 @@ const World = (() => {
           else if (ti.t === 'sea') c = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
           else { const sm = (DATA.SEA_BIOMES[ti.sea] || {}).mm || [22, 50, 92];
                  c = [sm[0] * 0.55 | 0, sm[1] * 0.55 | 0, sm[2] * 0.62 | 0]; }
+          // 深海圏は地図上でも海の色が深く沈む(何も無い沖だと一目で分かる)
+          if (ti.t === 'sea' || ti.t === 'deep') {
+            const vf = voidFactorAt(wx, wy);
+            if (vf > 0) { const m = 1 - Math.min(0.78, vf * 0.1); c = [c[0] * m | 0, c[1] * m | 0, c[2] * m | 0]; }
+          }
           img.data[i] = c[0]; img.data[i+1] = c[1]; img.data[i+2] = c[2]; img.data[i+3] = 230;
         }
         g.putImageData(img, 0, row);
@@ -476,8 +481,8 @@ const World = (() => {
   // 素の船足(徒歩と同じ)でも、早瀬に乗れば大陸間を渡れる。
   // 物語の順路に沿って敷かれている(港→隣接大陸、大陸の岸→さらに先)
   const ROUTE_DEFS = [
-    ['p_e', 'b_dragon'], ['p_se', 'b_green'], ['p_s', 'b_green'], ['p_sw', 'b_dusk'],
-    ['p_ne', 'b_star'], ['p_n', 'b_frost'], ['p_nw', 'b_sea'], ['p_w', 'b_void'],
+    ['p_e', 'b_dragon'], ['p_se', 'b_green'], ['p_s', 'b_green'], ['p_sw', 'b_black'],
+    ['p_n', 'b_star'], ['p_ne', 'b_mist'], ['p_n', 'b_frost'], ['p_nw', 'b_sea'], ['p_w', 'b_dusk'],
     ['b_dragon', 'b_mist'], ['b_green', 'b_ember'], ['b_star', 'b_frost'],
     ['b_forge', 'b_sun'], ['b_moon', 'b_void'], ['b_grave', 'b_void'],
     ['b_storm', 'b_end'], ['b_void', 'b_end'],
@@ -519,6 +524,75 @@ const World = (() => {
     return best;
   }
 
+  // ---- 外洋の深海圏 ----
+  // どの陸からも遠い「何もない沖」は、岸から十分な余裕(START)を越えたところから
+  // 離れるほど危険が急速に増す。案内のテキストは無し ― 海の色が深く沈み、HUDの
+  // 危険度が上がり、現れる魔物が強くなることで体で分かる(引き返す猶予はある)。
+  // 大陸間の海峡は幅が狭く(岸まで常にSTART未満)発動しない。長い航路の早瀬の上と
+  // その周辺も抑制される ― 海の道を辿る限りは深海圏に呑まれない。
+  const VOID_START = 12000, VOID_RAMP = 1100, VOID_MAX = 10;
+  let extTable = null;
+  function contLand(c, x, y){
+    const ps = partsOf(c);
+    for (let i = 0; i < ps.length; i++) if (partGap(c, ps[i], i, x, y) < 0) return true;
+    return false;
+  }
+  function buildExtents(){
+    extTable = [];
+    for (const c of DATA.CONTINENTS) {
+      let R0 = 0;
+      for (const p of partsOf(c)) {
+        const m = p.r * (1 + ((p.amp != null ? p.amp : c.amp) || 0.13) * 1.3 + 0.4) *
+                  Math.max(p.sx || c.sx || 1, p.sy || c.sy || 1);
+        R0 = Math.max(R0, Math.hypot(p.dx || 0, p.dy || 0) + m);
+      }
+      const ex = new Float32Array(96);
+      for (let k = 0; k < 96; k++) {
+        const a = k / 96 * Math.PI * 2, ca = Math.cos(a), sa = Math.sin(a);
+        let last = 0;
+        for (let d = 0; d <= R0; d += 700) if (contLand(c, c.x + ca * d, c.y + sa * d)) last = d;
+        ex[k] = last;
+      }
+      extTable.push({ x: c.x, y: c.y, ex, bound: R0 });
+    }
+  }
+  // 最寄りの陸(海岸)までのおおよその距離。負=陸の上
+  function distToLand(x, y){
+    if (!extTable) buildExtents();
+    let best = 1e18;
+    for (const t of extTable) {
+      const dx = x - t.x, dy = y - t.y;
+      const d = Math.hypot(dx, dy);
+      if (d - t.bound > best) continue;
+      const af = ((Math.atan2(dy, dx) / (Math.PI * 2)) * 96 + 96) % 96;
+      const k = Math.floor(af), f = af - k;
+      const e = t.ex[k] * (1 - f) + t.ex[(k + 1) % 96] * f;
+      if (d - e < best) best = d - e;
+    }
+    return best;
+  }
+  function routeDist(x, y){
+    if (!seaRoutes) buildRoutes();
+    let best = 1e18;
+    for (const r of seaRoutes) {
+      const dx = r.x2 - r.x1, dy = r.y2 - r.y1;
+      const L2 = dx * dx + dy * dy || 1;
+      const t = Math.max(0, Math.min(1, ((x - r.x1) * dx + (y - r.y1) * dy) / L2));
+      const d = Math.hypot(x - (r.x1 + dx * t), y - (r.y1 + dy * t));
+      if (d < best) best = d;
+    }
+    return best;
+  }
+  // 深海圏の強さ 0〜VOID_MAX(危険度への加算値と同じ)
+  function voidFactorAt(x, y){
+    const gap = distToLand(x, y);
+    if (gap <= VOID_START) return 0;
+    let w = Math.min(VOID_MAX, (gap - VOID_START) / VOID_RAMP);
+    const dr = routeDist(x, y);
+    if (dr < 12000) w *= Math.max(0, (dr - 6000) / 6000);
+    return w;
+  }
+
   // 距離リング(敵の強さ)
   // 危険度: 「始まりからの距離の同心円」が基調(境界は方角ごとに揺らいだ自然な形)。
   // 遠方は圧縮してなだらかにし、基地の周りはその基地の「物語上の危険度」(danger)へ
@@ -542,6 +616,7 @@ const World = (() => {
     }
     const tt = Math.min(1, bt * 1.6);
     r = r * (1 - tt) + bd * tt;
+    r += voidFactorAt(x, y);   // 何もない沖の深海圏: 離れるほど急速に危険になる
     return Math.floor(Math.max(0, r));
   }
 
@@ -549,5 +624,5 @@ const World = (() => {
            nearbyObjects, destroyObject, objectDrops,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
-           biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt };
+           biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };
 })();

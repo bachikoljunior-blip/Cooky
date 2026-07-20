@@ -2915,6 +2915,31 @@ const Run = (() => {
     }
     g.fillStyle = vignette.grad;
     g.fillRect(0, 0, W, H);
+    // 深海圏: 何もない沖へ出るほど、海と空気が深く暗く沈む(テキストなしの体感警告)。
+    // 画面中央と四辺で深さを測り、濃くなる方向へ滑らかなグラデーションをかける
+    {
+      const vf = World.voidFactorAt;
+      const fc = vf(p.x, p.y);
+      const fxp = vf(p.x + effW / 2, p.y), fxm = vf(p.x - effW / 2, p.y);
+      const fyp = vf(p.x, p.y + effH / 2), fym = vf(p.x, p.y - effH / 2);
+      const fmax = Math.max(fc, fxp, fxm, fyp, fym);
+      if (fmax > 0.02) {
+        const alpha = (f) => Math.max(0, Math.min(0.62, f * 0.085));
+        const gx = (fxp - fxm) / 2, gy = (fyp - fym) / 2;
+        const gl = Math.hypot(gx, gy);
+        if (gl < 0.05) {
+          g.fillStyle = `rgba(4,3,14,${alpha(fc).toFixed(3)})`;
+          g.fillRect(0, 0, W, H);
+        } else {
+          const ux = gx / gl, uy = gy / gl;
+          const lg = g.createLinearGradient(W/2 - ux * W/2, H/2 - uy * H/2, W/2 + ux * W/2, H/2 + uy * H/2);
+          lg.addColorStop(0, `rgba(4,3,14,${alpha(fc - gl).toFixed(3)})`);
+          lg.addColorStop(1, `rgba(4,3,14,${alpha(fc + gl).toFixed(3)})`);
+          g.fillStyle = lg;
+          g.fillRect(0, 0, W, H);
+        }
+      }
+    }
     // 低HP警告パルス
     const hpR = Math.max(0, p.hp / R.stats.maxHp);
     if (hpR < 0.35) {
