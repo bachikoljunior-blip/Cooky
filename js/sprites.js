@@ -598,7 +598,9 @@ const Sprites = (() => {
     g.restore();
   }
 
-  // 色合成した派生スプライト(味方の色分けなどに使う)。スプライトの形だけ色を乗せる
+  // 色合成した派生スプライト(色違い・味方の色分けに使う)。
+  // 「色相だけ」を乗せて明暗は残す ― 目・口・輪郭が塗り潰されず、
+  // 色違いでもキャラの顔がちゃんと見える(ベタ塗りの丸になるのを防ぐ)
   const tintCache = {};
   function tinted(id, color, strength){
     const key = id + '|' + color + '|' + (strength || 0.5);
@@ -608,10 +610,13 @@ const Sprites = (() => {
     cv.width = src.width || 64; cv.height = src.height || 64;
     const c = cv.getContext('2d');
     c.drawImage(src, 0, 0, cv.width, cv.height);
-    c.globalCompositeOperation = 'source-atop';   // 既に描かれた画素(=キャラの形)にだけ色を乗せる
-    c.globalAlpha = strength || 0.5;
+    c.globalCompositeOperation = 'color';   // 色相・彩度だけ変える(明暗=顔のパーツは残る)
+    c.globalAlpha = Math.min(1, (strength || 0.5) * 1.8);
     c.fillStyle = color;
     c.fillRect(0, 0, cv.width, cv.height);
+    c.globalCompositeOperation = 'destination-in';   // キャラの形に切り抜き直す
+    c.globalAlpha = 1;
+    c.drawImage(src, 0, 0, cv.width, cv.height);
     tintCache[key] = cv;
     return cv;
   }

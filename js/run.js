@@ -2281,8 +2281,12 @@ const Run = (() => {
         if (tb.t <= 0) {
           effect('burst', tb.x, tb.y, { color:'#f85149', r:tb.r });
           const p0 = R.player;
-          // 爆発は「避けなかった罰」程度: 主人公へのダメージは最大10まで
-          if (Math.hypot(p0.x - tb.x, p0.y - tb.y) < tb.r + 10) damagePlayer(Math.min(10, tb.dmg), { x:tb.x, y:tb.y, def:{ name:'弾ける色違いの爆発' } });
+          // 爆発は「避けなかった罰」程度: 主人公へのダメージは最大10まで。
+          // 群れをまとめて倒した時に何発も連続で食らわないよう、2秒に1発まで
+          if (Math.hypot(p0.x - tb.x, p0.y - tb.y) < tb.r + 10 && R.time - (R.lastBurstHitT || -9) > 2) {
+            R.lastBurstHitT = R.time;
+            damagePlayer(Math.min(10, tb.dmg), { x:tb.x, y:tb.y, def:{ name:'弾ける色違いの爆発' } });
+          }
         }
       }
       R.traitBursts = R.traitBursts.filter(tb => tb.t > 0);
@@ -2794,10 +2798,16 @@ const Run = (() => {
         const a = (R.orbitA || 0) + i / ob.count * Math.PI * 2;
         const ox = p.x + Math.cos(a) * ob.radius * R.stats.area;
         const oy = p.y + Math.sin(a) * ob.radius * R.stats.area;
-        g.fillStyle = '#c084fc';
-        g.beginPath(); g.arc(ox, oy, ob.size, 0, 7); g.fill();
-        g.fillStyle = 'rgba(255,255,255,.5)';
-        g.beginPath(); g.arc(ox - 3, oy - 3, ob.size * 0.3, 0, 7); g.fill();
+        // ベタ塗りの丸ではなく「光る魔法のオーブ」: 白い核から紫へ、外は淡く発光
+        const og = g.createRadialGradient(ox - ob.size * 0.25, oy - ob.size * 0.25, 1, ox, oy, ob.size * 1.35);
+        og.addColorStop(0, '#ffffff');
+        og.addColorStop(0.35, '#d8b4fe');
+        og.addColorStop(0.8, 'rgba(160,90,240,0.55)');
+        og.addColorStop(1, 'rgba(160,90,240,0)');
+        g.fillStyle = og;
+        g.beginPath(); g.arc(ox, oy, ob.size * 1.35, 0, 7); g.fill();
+        g.strokeStyle = 'rgba(216,180,254,0.8)'; g.lineWidth = 1.5;
+        g.beginPath(); g.arc(ox, oy, ob.size * 0.85, 0, 7); g.stroke();
       }
     }
 
