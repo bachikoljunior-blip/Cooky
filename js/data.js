@@ -358,10 +358,10 @@ DATA.SKILLS = {
   },
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
-    desc:'仲間の攻撃力が上がる。【クエスト報酬】',
+    desc:'仲間の攻撃力が大きく上がる。老兵ガルドの戦術。【クエスト報酬】',
     cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:2,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
-    lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+5%(累計${(i+2)*5}%)`),
-    stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.05*lv } }),
+    lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+10%(累計${(i+2)*10}%)`),
+    stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.10*lv } }),
   },
 };
 function crystalKey(){ return 'crystal'; }
