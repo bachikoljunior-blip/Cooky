@@ -701,18 +701,41 @@ DATA.CONTINENTS = [
   { id:'sk5', x:-36700, y:-158500, r:5000, seed:157, name:'白夜の小島', biome:'frost',  lobes:5, amp:0.35 },
   { id:'sk6', x:29700, y:25000,  r:4500, seed:163, name:'黄昏れの岩礁', biome:'bones', lobes:4, amp:0.4 },
   // --- 夕凪の群島(北西の海。人は住まないが、魔物と素材の獲れる漁場) ---
-  { id:'nw1', x:-63700, y:76400,  r:12000, seed:167, name:'夕凪の島',   biome:'grass',    lobes:5, amp:0.2, sx:1.25, sy:0.85, rot:0.4 },
+  { id:'nw1', x:-105100, y:124700,  r:12000, seed:167, name:'夕凪の島',   biome:'grass',    lobes:5, amp:0.2, sx:1.25, sy:0.85, rot:0.4 },
   { id:'nw2', x:-66700, y:-53700, r:5600,  seed:173, name:'夕凪の小島', biome:'mist',     lobes:4, amp:0.3 },
   { id:'nw3', x:-45100, y:-39900, r:4000,  seed:179, name:'茜の岩礁',   biome:'chalk',    lobes:4, amp:0.35 },
   { id:'nw4', x:-58400, y:-40100,  r:4800,  seed:181, name:'残照の小島', biome:'twilight', lobes:5, amp:0.3 },
   // --- 環礁(海底都市「沈み都」の入り口が立つ、海のただ中の小さな輪) ---
   { id:'i_sea', x:-75300, y:-66500, r:4200, seed:191, name:'沈み都の環礁', biome:'chalk', lobes:6, amp:0.22 },
-  // --- 外縁の小島(大陸間の広い海の景色。人は住まないが、漁場と素材の獲れる島) ---
-  { id:'ne1', x:72000,  y:-102000, r:6500, seed:197, name:'流氷の小島', biome:'frost',   lobes:5, amp:0.3, sx:1.3, sy:0.8, rot:0.3 },
-  { id:'ne2', x:115000, y:-80000,  r:7000, seed:199, name:'竜見の島',   biome:'mist',    lobes:4, amp:0.26, sx:0.85, sy:1.2, rot:-0.4 },
-  { id:'se1', x:125000, y:35000,   r:6000, seed:211, name:'黒砂の小島', biome:'volcano', lobes:5, amp:0.3 },
-  { id:'nw5', x:-130000, y:-45000, r:7000, seed:223, name:'鯨骨の島',   biome:'bones',   lobes:4, amp:0.28, sx:1.35, sy:0.75, rot:0.5 },
-  { id:'sw1', x:-105000, y:70000,  r:6000, seed:227, name:'宵凪の小島', biome:'twilight', lobes:5, amp:0.3 },
+  // --- 荒野の大陸(対角の海の大きな無人の大陸。拠点はないが、素材と魔物の獲れる未開の地) ---
+  // 竜霧: 北東の海。竜が来たという「霧の彼方」。南西から北東へ伸びる霧の弧
+  { id:'wl1', x:112000, y:-101000, seed:229, name:'竜霧の大陸', biome:'mist', lobes:5, amp:0.18, r:43000,
+    parts:[
+      { dx:-24000, dy:14000, r:24000, sx:1.15, sy:0.9,  rot:0.3,  lobes:5, amp:0.17 },
+      { dx:2000,   dy:-4000, r:26000, sx:1.1,  sy:0.95, rot:0.1,  lobes:6, amp:0.16 },
+      { dx:26000,  dy:-20000, r:21000, sx:1.2, sy:0.8,  rot:-0.2, lobes:5, amp:0.18 },
+    ] },
+  // 鯨骨: 北西の海。巨鯨の骸のように東西へ長い荒野
+  { id:'wl2', x:-140000, y:-65000, seed:233, name:'鯨骨の大陸', biome:'bones', lobes:5, amp:0.17, r:38000,
+    parts:[
+      { dx:-26000, dy:2000,  r:20000, sx:1.3,  sy:0.75, rot:0.15, lobes:4, amp:0.17 },
+      { dx:4000,   dy:-2000, r:23000, sx:1.2,  sy:0.85, rot:0.05, lobes:6, amp:0.16 },
+      { dx:28000,  dy:4000,  r:16000, sx:1.1,  sy:0.9,  rot:-0.1, lobes:5, amp:0.18 },
+    ] },
+  // 黒砂: 南東の海。南へ黒い砂の舌が垂れる火の荒野
+  { id:'wl3', x:128000, y:66000, seed:239, name:'黒砂の大陸', biome:'volcano', lobes:6, amp:0.17, r:36000,
+    parts:[
+      { dx:-6000,  dy:-10000, r:22000, sx:1.2,  sy:0.85, rot:0.2,  lobes:6, amp:0.17 },
+      { dx:10000,  dy:12000,  r:19000, sx:0.95, sy:1.1,  rot:0.4,  lobes:5, amp:0.18 },
+      { dx:-16000, dy:16000,  r:14000, sx:1.05, sy:0.9,  rot:-0.3, lobes:4, amp:0.2 },
+    ] },
+  // 宵闇: 南西の海。北へ湾を抱く黄昏の荒野
+  { id:'wl4', x:-112000, y:86000, seed:241, name:'宵闇の大陸', biome:'twilight', lobes:5, amp:0.17, r:36000,
+    parts:[
+      { dx:-22000, dy:-6000, r:19000, sx:1.1,  sy:0.9,  rot:-0.3, lobes:5, amp:0.17 },
+      { dx:2000,   dy:6000,  r:22000, sx:1.15, sy:0.85, rot:0.1,  lobes:6, amp:0.16 },
+      { dx:24000,  dy:-2000, r:16000, sx:1.0,  sy:1.0,  rot:0.35, lobes:5, amp:0.18 },
+    ] },
 ];
 
 // バイオーム: エリアごとのフィールドの見た目(地面2色/砂浜2色/装飾色/ミニマップ色)
