@@ -707,6 +707,12 @@ DATA.CONTINENTS = [
   { id:'nw4', x:-58400, y:-40100,  r:4800,  seed:181, name:'残照の小島', biome:'twilight', lobes:5, amp:0.3 },
   // --- 環礁(海底都市「沈み都」の入り口が立つ、海のただ中の小さな輪) ---
   { id:'i_sea', x:-75300, y:-66500, r:4200, seed:191, name:'沈み都の環礁', biome:'chalk', lobes:6, amp:0.22 },
+  // --- 外縁の小島(大陸間の広い海の景色。人は住まないが、漁場と素材の獲れる島) ---
+  { id:'ne1', x:72000,  y:-102000, r:6500, seed:197, name:'流氷の小島', biome:'frost',   lobes:5, amp:0.3, sx:1.3, sy:0.8, rot:0.3 },
+  { id:'ne2', x:115000, y:-80000,  r:7000, seed:199, name:'竜見の島',   biome:'mist',    lobes:4, amp:0.26, sx:0.85, sy:1.2, rot:-0.4 },
+  { id:'se1', x:125000, y:35000,   r:6000, seed:211, name:'黒砂の小島', biome:'volcano', lobes:5, amp:0.3 },
+  { id:'nw5', x:-130000, y:-45000, r:7000, seed:223, name:'鯨骨の島',   biome:'bones',   lobes:4, amp:0.28, sx:1.35, sy:0.75, rot:0.5 },
+  { id:'sw1', x:-105000, y:70000,  r:6000, seed:227, name:'宵凪の小島', biome:'twilight', lobes:5, amp:0.3 },
 ];
 
 // バイオーム: エリアごとのフィールドの見た目(地面2色/砂浜2色/装飾色/ミニマップ色)
