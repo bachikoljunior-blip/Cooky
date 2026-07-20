@@ -3047,13 +3047,6 @@ const Run = (() => {
       g.textAlign = 'center'; g.textBaseline = 'middle';
       g.fillText(isPort ? '⚓' : '?', hx, hy + 0.5);
       g.textBaseline = 'alphabetic';
-      // 行き先が複数ある時に選べるように、その土地の危険度を添える(港は危険度なし)
-      if (!isPort) {
-        const dg = b.danger || 0;
-        g.font = 'bold ' + Math.round(9 * mk) + 'px sans-serif';
-        g.fillStyle = dg <= 2 ? '#7ee787' : dg <= 6 ? '#ffa657' : '#ff7b72';
-        g.fillText('危険度' + dg, hx, hy + hr + 10 * mk);
-      }
     }
   }
   // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ350〜650ずれる)。
