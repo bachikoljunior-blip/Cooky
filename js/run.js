@@ -2345,11 +2345,12 @@ const Run = (() => {
     if (R.exploreAcc <= 0) {
       R.exploreAcc = 0.4;
       World.recordExplore(p.x, p.y, st.exploreRad);
-      // 基地・港の発見記録(近づくとマップに載る)。無言で載せず、見つけたことをちゃんと告げる
-      // (物語側は「お前が見つけた」前提で話すため、体験と一致させる)
+      // 基地・港の発見記録。「見つけた」と言うのは実際に画面に映った時だけ
+      // (近くを通っただけでは見つけたことにならない ― 体験とテキストを一致させる)
       SaveSys.data.seen = SaveSys.data.seen || {};
+      const dvw = (R.viewHalfW || 640) - 40, dvh = (R.viewHalfH || 360) - 40;
       for (const b of World.bases) {
-        if (!SaveSys.data.seen[b.id] && Math.hypot(p.x - b.x, p.y - b.y) < 900) {
+        if (!SaveSys.data.seen[b.id] && Math.abs(p.x - b.x) < dvw && Math.abs(p.y - b.y) < dvh) {
           SaveSys.data.seen[b.id] = true;
           if (SaveSys.data.hints) delete SaveSys.data.hints[b.id];   // 見当(?)は実際の発見で確定に変わる
           R.warnMsg = '🏘 「' + b.name + '」を見つけた!(全体図に記した)';
@@ -2358,7 +2359,7 @@ const Run = (() => {
         }
       }
       for (const pt of World.ports) {
-        if (!SaveSys.data.seen[pt.id] && Math.hypot(p.x - pt.x, p.y - pt.y) < 900) {
+        if (!SaveSys.data.seen[pt.id] && Math.abs(p.x - pt.x) < dvw && Math.abs(p.y - pt.y) < dvh) {
           SaveSys.data.seen[pt.id] = true;
           if (SaveSys.data.hints) delete SaveSys.data.hints[pt.id];
           R.warnMsg = '⚓ 「' + pt.name + '」を見つけた!(全体図に記した)';
@@ -2524,6 +2525,7 @@ const Run = (() => {
     const effW = W / z, effH = H / z;
     const camX = p.x - effW/2, camY = p.y - effH/2;
     R.offscreenR = Math.hypot(effW, effH) / 2 + 140;   // これより遠い敵は「見切れた」扱い
+    R.viewHalfW = effW / 2; R.viewHalfH = effH / 2;    // 発見判定用: 実際に画面に映っている範囲
 
     g.save();
     g.scale(z, z);
@@ -2701,15 +2703,16 @@ const Run = (() => {
       g.beginPath(); g.arc(lh.x, lh.y - 30, 7, 0, 7); g.fill();
       g.restore();
     }
-    // 集落の炊事の煙: 村や基地からは煙の柱が高く立ちのぼり、遠目にも人の営みが分かる
+    // 集落の炊事の煙: 村や基地からは煙の柱が高く立ちのぼり、風で横に流れる。
+    // 画面(±290×±160程度)の何倍もの規模で描く ― 数画面離れていても目に入る目印
     for (const b of World.bases) {
-      if (Math.abs(b.x - p.x) > 3000 || Math.abs(b.y - p.y) > 3000) continue;
-      for (let i = 0; i < 6; i++) {
-        const ph = (R.time * 0.045 + i * 0.167 + (b.x % 7) * 0.1) % 1;
-        const sx = b.x + 20 + Math.sin(ph * 8 + i * 2) * 20 + ph * 150;   // 風に流れる
-        const sy = b.y - 44 - ph * 940;
+      if (Math.abs(b.x - p.x) > 3400 || Math.abs(b.y - p.y) > 3400) continue;
+      for (let i = 0; i < 7; i++) {
+        const ph = (R.time * 0.04 + i * 0.143 + (b.x % 7) * 0.1) % 1;
+        const sx = b.x + 20 + Math.sin(ph * 8 + i * 2) * 26 + ph * 420;   // 風に流れる
+        const sy = b.y - 44 - ph * 1500;
         g.fillStyle = 'rgba(206,212,220,' + ((1 - ph) * 0.34).toFixed(3) + ')';
-        g.beginPath(); g.arc(sx, sy, 11 + ph * 46, 0, 7); g.fill();
+        g.beginPath(); g.arc(sx, sy, 12 + ph * 60, 0, 7); g.fill();
       }
     }
 
@@ -2983,22 +2986,37 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
-    // 場所を知る手段は物語のヒント(?)・visit依頼の📍・実際に近づくこと、だけ。
+    // 場所を知る手段は物語のヒント(?)・visit依頼の📍・実際に画面で見ること、だけ。
+    // 見つけた場所は霧の上でもはっきり見える印+全体図では名前つき
+    const marker = (wx, wy, c, r, label) => {
+      if (!view.inView(wx, wy)) return;
+      const q = view.toMM(wx, wy);
+      if (q.x < 0 || q.x > World.MM_SIZE || q.y < 0 || q.y > World.MM_SIZE) return;
+      const mx = x0 + q.x * mmScale, my = y0 + q.y * mmScale;
+      g.fillStyle = c;
+      g.strokeStyle = '#0b0f1a'; g.lineWidth = Math.max(1, 1.2 * mk);
+      g.beginPath(); g.arc(mx, my, (r || 3.5) * mk, 0, 7); g.fill(); g.stroke();
+      if (label && mode === 'world') {
+        g.font = 'bold ' + Math.round(8.5 * mk) + 'px sans-serif'; g.textAlign = 'center';
+        g.fillStyle = '#0b0f1a'; g.fillText(label, mx + 1, my - 5.5 * mk + 1);   // 影(霧の上でも読める)
+        g.fillStyle = c; g.fillText(label, mx, my - 5.5 * mk);
+      }
+    };
     const seen = SaveSys.data.seen || {};
     const hintSet = Object.assign({}, SaveSys.data.hints || {});
     if (SaveSys.data.nextHint) hintSet[SaveSys.data.nextHint] = true;
     const hints = [];
     for (const b of World.bases) {
-      if (SaveSys.data.bases[b.id]) dot(b.x, b.y, '#7ee787', 2.5);
-      else if (seen[b.id]) dot(b.x, b.y, '#8b949e', 2.5);   // 実際に見つけた場所は正確な点
+      if (SaveSys.data.bases[b.id]) marker(b.x, b.y, '#7ee787', 4, '✦' + b.name);
+      else if (seen[b.id]) marker(b.x, b.y, '#c9d1d9', 3.5, b.name);   // 実際に見つけた場所は正確な印
       else if (hintSet[b.id]) hints.push(b);   // 聞いただけの場所は見当(?)。最後に大きく描く
     }
     for (const port of World.ports) {
-      if (SaveSys.data.ports[port.id]) dot(port.x, port.y, '#76e3ea', 2.5);
-      else if (seen[port.id]) dot(port.x, port.y, '#d29922', 2.5);
+      if (SaveSys.data.ports[port.id]) marker(port.x, port.y, '#76e3ea', 4, '⚓' + port.name);
+      else if (seen[port.id]) marker(port.x, port.y, '#d29922', 3.5, '⚓' + port.name);
       else if (hintSet[port.id]) hints.push(port);
     }
-    if (R.player.boatAnchor) dot(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 3);
+    if (R.player.boatAnchor) marker(R.player.boatAnchor.x, R.player.boatAnchor.y, '#b08968', 4, '船');
     // 進行中のvisit依頼の目的地(📍): ここへ行くと自然と新しい場所が見つかる
     for (const t of Quest.visitTargets()) {
       if (!view.inView(t.x, t.y)) continue;
@@ -3037,14 +3055,14 @@ const Run = (() => {
       }
     }
   }
-  // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ0.9〜1.5kmずれる)。
-  // 見当の地点に立てば、煙・灯台の光・名前ラベルが目に入る距離 ―
-  // 「探せば必ず見つかる」範囲に収める(プレイで詰まらないための上限)
+  // 「聞いただけの場所」の地図上の見当のずらし幅(場所ごとに決まった方向へ350〜650ずれる)。
+  // 画面に映る範囲(±290×±160程度)に対して「数画面ぶん探せば必ず見つかる」広さに収める ―
+  // 見当の地点に着いたら、煙・灯台の光を目で探して確定させる
   function hintOffset(id){
     let h = 0;
     for (let i = 0; i < id.length; i++) h = ((h * 131) + id.charCodeAt(i)) >>> 0;
     const ang = (h % 628) / 100;
-    const dist = 900 + (h % 600);
+    const dist = 350 + (h % 300);
     return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist };
   }
   function drawMinimap(g, W){
