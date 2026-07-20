@@ -404,9 +404,6 @@ const Run = (() => {
     if (p.hp < st.maxHp * 0.3) armor = Math.min(0.85, armor + st.wall);
     d *= (1 - armor);
     if (src && src.def && src.def.isReaper) d *= (1 - st.reaperRes);
-    // どんな強敵でも一撃は最大HPの3割まで ― 「気づいたら即死」を無くす。
-    // 死ぬのは囲まれて連打を浴びた時だけ(そこは立ち回りで避けられる)
-    d = Math.min(d, st.maxHp * 0.3);
     p.hp -= d;
     p.invuln = 0.55 + st.invulnPlus; // 被弾後は少しの間無敵(点滅)。連撃で溶けないための反応猶予
     Sfx.hurt();
@@ -915,9 +912,22 @@ const Run = (() => {
   }
 
   // ---------------- 敵の更新 ----------------
+  // 陸海判定のキャッシュ: 地形は静的なので40px格子で結果を貯める。
+  // 敵・仲間の移動判定は毎フレーム数百回呼ばれるが、海岸線の距離計算は格子ごとに1回で済む
+  const landCache = new Map();
+  function isLandCached(x, y){
+    const k = ((x / 40) | 0) + ',' + ((y / 40) | 0);
+    let v = landCache.get(k);
+    if (v === undefined) {
+      if (landCache.size > 30000) landCache.clear();
+      v = World.isLand(x, y);
+      landCache.set(k, v);
+    }
+    return v;
+  }
   function canStand(def, x, y){
     if (def.env === 'both') return true;
-    const land = World.isLand(x, y);
+    const land = isLandCached(x, y);
     return def.env === 'land' ? land : !land;
   }
 
@@ -1028,13 +1038,19 @@ const Run = (() => {
             }
           }
         } else {
-          // 追跡: 仲間が近ければそちらを狙うこともある
-          let tgt = null, td = pd;
-          for (const a of R.allies) {
-            if (a.waitAt) continue;
-            const d = Math.hypot(a.x - e.x, a.y - e.y);
-            if (d < td * 0.7) { tgt = a; td = d; }
+          // 追跡: 仲間が近ければそちらを狙うこともある(狙い直しは0.15秒ごと=負荷を抑える)
+          e._alT = (e._alT === undefined ? Math.random() * 0.15 : e._alT) - dt;
+          if (e._alT <= 0) {
+            e._alT = 0.15;
+            e._aTgt = null;
+            let bd = pd;
+            for (const a of R.allies) {
+              if (a.waitAt) continue;
+              const d = Math.hypot(a.x - e.x, a.y - e.y);
+              if (d < bd * 0.7) { e._aTgt = a; bd = d; }
+            }
           }
+          const tgt = (e._aTgt && !e._aTgt.dead && !e._aTgt.waitAt) ? e._aTgt : null;
           if (tgt) { tx = tgt.x; ty = tgt.y; }
           const d = Math.hypot(tx - e.x, ty - e.y) || 1;
           vx = (tx - e.x) / d; vy = (ty - e.y) / d;
@@ -1063,22 +1079,28 @@ const Run = (() => {
           break;
         }
       }
-      // 範囲攻撃(スラム): 大型エリートが周囲の主人公・仲間をまとめて叩く
+      // 範囲攻撃(スラム): 大型エリートが「攻撃対象の足元」へ振り下ろす。
+      // 潰れる範囲は敵の体より小さい(slam.radiusは「届く距離」として使う)
       if (e.def.slam && !confused && e.mad) {
         if (e.slamCd === undefined) e.slamCd = rnd(1, 2);
         e.slamCd -= dt;
         if (e.slamCd <= 0) {
-          const rad = e.def.slam.radius * (e.sizeMul || 1);
-          let anyone = pd < rad + 14;
-          if (!anyone) for (const a of R.allies) {
-            if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) { anyone = true; break; }
+          const reach = e.def.slam.radius * (e.sizeMul || 1);   // 腕の届く距離
+          const rad = e.def.r * (e.sizeMul || 1) * 0.85;        // 潰れる範囲(体より小さい)
+          // 攻撃対象: 届く範囲で一番近い相手(主人公か仲間)
+          let tgt = null, td2 = reach + 14;
+          if (pd < td2) { tgt = p; td2 = pd; }
+          for (const a of R.allies) {
+            if (a.waitAt || a.joining) continue;
+            const d2 = Math.hypot(a.x - e.x, a.y - e.y);
+            if (d2 < td2) { tgt = a; td2 = d2; }
           }
-          if (anyone) {   // 誰かが範囲内にいる時だけ振り下ろす
+          if (tgt) {   // 対象の足元に振り下ろす
             e.slamCd = e.def.slam.cd;
-            effect('ring', e.x, e.y, { color:'#ffa657', r: rad });
-            if (pd < rad + 14) damagePlayer(e.dmg, e);
+            effect('ring', tgt.x, tgt.y, { color:'#ffa657', r: rad });
+            if (Math.hypot(p.x - tgt.x, p.y - tgt.y) < rad + 10) damagePlayer(e.dmg, e);
             for (const a of R.allies) {
-              if (!a.waitAt && !a.joining && Math.hypot(a.x - e.x, a.y - e.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
+              if (!a.waitAt && !a.joining && Math.hypot(a.x - tgt.x, a.y - tgt.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
             }
           } else e.slamCd = 0.3;
         }
@@ -1223,22 +1245,39 @@ const Run = (() => {
       // ターゲット探索。近接: 「その仲間に近づいた敵」を追尾(縁距離)。
       // 弓兵: 襲ってきている敵(mad)だけを、敵の射撃と同じ基準(中心距離<射程)で狙う。
       // うろついているだけの画面外の敵を狙って「何もない方へ撃つ」ことはない。
+      // 全走査は0.12秒ごと(大軍でも軽い)。手持ちの標的は毎フレーム距離だけ検算する
       let tgt = null, td = 1e9;
-      if (a.def.ranged) {
-        for (const e of R.enemies) {
-          if (e.dead || !e.mad) continue;
-          const d = Math.hypot(e.x - a.x, e.y - a.y);
-          if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
+      const c0 = a._tgt;
+      if (c0 && !c0.dead && (!a.def.ranged || c0.mad)) {
+        if (a.def.ranged) {
+          const d = Math.hypot(c0.x - a.x, c0.y - a.y);
+          if (d < a.def.ranged.range) { tgt = c0; td = d; }
+        } else {
+          const d = Math.hypot(c0.x - a.x, c0.y - a.y) - c0.def.r * (c0.sizeMul || 1);
+          if (d <= a.def.r + 24 + (a.def.tier || 0) * 4) { tgt = c0; td = d; }
         }
-      } else {
-        const engageR = a.def.r + 24 + (a.def.tier || 0) * 4;   // 追尾範囲は狭め(すぐそばの敵だけ)
-        for (const e of R.enemies) {
-          if (e.dead) continue;
-          const er = e.def.r * (e.sizeMul || 1);
-          const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
-          if (d > engageR) continue;
-          if (d < td) { tgt = e; td = d; }
+      }
+      a._retgtT = (a._retgtT === undefined ? Math.random() * 0.12 : a._retgtT) - dt;
+      if (a._retgtT <= 0 || !tgt) {
+        a._retgtT = 0.12;
+        tgt = null; td = 1e9;
+        if (a.def.ranged) {
+          for (const e of R.enemies) {
+            if (e.dead || !e.mad) continue;
+            const d = Math.hypot(e.x - a.x, e.y - a.y);
+            if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
+          }
+        } else {
+          const engageR = a.def.r + 24 + (a.def.tier || 0) * 4;   // 追尾範囲は狭め(すぐそばの敵だけ)
+          for (const e of R.enemies) {
+            if (e.dead) continue;
+            const er = e.def.r * (e.sizeMul || 1);
+            const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
+            if (d > engageR) continue;
+            if (d < td) { tgt = e; td = d; }
+          }
         }
+        a._tgt = tgt;
       }
       // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる。
       // ただし射撃タイプ(弓など)は逃げながらでも撃ち続ける。
@@ -1360,13 +1399,18 @@ const Run = (() => {
     const pl = R.player;
     if (!pl.onBoat) { pl._r = 4; pl._m = 1e7; units.push(pl); }
     if (units.length < 2) return;
+    // グリッドには全員入れるが、ペアを列挙するのは仲間と主人公だけ。
+    // 敵は列挙しない=敵同士のペアはそもそも発生しない(大群でも軽い)。
+    // 敵↔仲間のペアは仲間側の列挙で1回だけ処理されるので、押し量は2倍で補正
+    // (従来は両側から2回処理していた)
     const cell = 64, grid = new Map();
     for (const u of units) {
       const k = ((u.x / cell) | 0) + ',' + ((u.y / cell) | 0);
       const arr = grid.get(k);
       if (arr) arr.push(u); else grid.set(k, [u]);
     }
-    for (const u of units) {
+    const movers = units.filter(u => u._ally || u === pl);
+    for (const u of movers) {
       const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
       for (let ix = gx - 1; ix <= gx + 1; ix++) {
         for (let iy = gy - 1; iy <= gy + 1; iy++) {
@@ -1375,16 +1419,16 @@ const Run = (() => {
           for (const v of arr) {
             if (v === u) continue;
             // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
-            if ((u === pl && !v._ally) || (v === pl && !u._ally)) continue;
+            if (u === pl && !v._ally) continue;
             const dx = v.x - u.x, dy = v.y - u.y;
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
-            // 同じ陣営同士は弱い押し合いだけ ― 押しのけながらすり抜けて歩ける。
-            // 敵同士は仲間同士より少し強め(重なりにくい)。敵↔仲間は強い押し合いのまま。
-            const sameSide = u !== pl && v !== pl && !!u._ally === !!v._ally;
-            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? (u._ally ? 0.06 : 0.10) : 0.32);
+            const sameSide = v !== pl && u !== pl && !!u._ally === !!v._ally;
+            // 仲間同士・主人公↔仲間=両側から2回処理される(従来どおりの係数)。
+            // 敵↔仲間=仲間側の1回だけなので2倍で補正
+            const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.06 : (u === pl || v === pl ? 0.32 : 0.64));
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
             // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
@@ -2459,10 +2503,10 @@ const Run = (() => {
       const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
       ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
     }
-    // 味方も色違い・大きさは敵だった時のまま。色違いはその色、通常はうっすら青みで敵と区別
+    // 仲間は全員統一の緑がかった色で描く ― 敵の色違い(金/紅/紫/青白)と被らず、
+    // 混戦でも敵味方がひと目で分かる。大きさ(sizeMul)は敵だった時のまま
     const asz = a.def.r * 2.6 * (a.sizeMul || 1);
-    const tint = a.rank > 0 ? RANK_COLORS[a.rank] : '#3d7bff';
-    Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, tint, a.rank > 0 ? 0.4 : 0.3);
+    Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, '#2ea043', 0.42);
     const atop = a.def.r * (a.sizeMul || 1);
     if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
     if (a.waitAt) {
@@ -2495,11 +2539,6 @@ const Run = (() => {
     if (e.hp < e.maxHp) {
       const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
       drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12, bw, e.hp / e.maxHp, '#f85149');
-    }
-    // ボスは名前を頭上に表示
-    if (e.boss) {
-      g.fillStyle = '#ffd766'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
-      g.fillText(e.bossName || 'BOSS', e.x, e.y - e.def.r * (e.sizeMul || 1) - 18);
     }
     if (e.def.heal) {
       g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
