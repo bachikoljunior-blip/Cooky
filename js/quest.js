@@ -253,24 +253,12 @@ const Quest = (() => {
       SaveSys.data.seen = SaveSys.data.seen || {};
       // 物語のヒントは「おおよその見当(?)」が地図に付くだけ。正確な場所は
       // 現地で煙や灯台の光を目で見つける(seenは実際に近づいた時にだけ付く)
+      // ヒントのピンは「その報酬で語られた場所」だけ。語られていない場所を
+      // システムが勝手に足すことはしない(港はリク・トト・ドバン・船大工などの
+      // 物語と灯台の光で知る)
       if (rw.hintBase) { SaveSys.data.nextHint = rw.hintBase;
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintBase] = true;   // ヒントは複数持てる(行き先を選べる)
-        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の見当');
-        // 海の向こうの基地なら、渡るための港(方角の合うもの)の噂も一緒に聞ける
-        if (hb && hb.cont && hb.cont !== 'main') {
-          const ba = Math.atan2(hb.y, hb.x);
-          let best = null, bd = 1e9;
-          for (const pt of World.ports) {
-            let da = Math.atan2(pt.y, pt.x) - ba;
-            while (da > Math.PI) da -= Math.PI * 2;
-            while (da < -Math.PI) da += Math.PI * 2;
-            if (Math.abs(da) < bd) { bd = Math.abs(da); best = pt; }
-          }
-          if (best && !SaveSys.data.seen[best.id] && !SaveSys.data.ports[best.id]) {
-            SaveSys.data.hints[best.id] = true;
-            txt.push('⚓「' + best.name + '」から船が出るらしい');
-          }
-        } }
+        const hb = DATA.BASES.find(b => b.id === rw.hintBase); txt.push('🗺「' + (hb ? hb.name : '') + '」の見当'); }
       if (rw.hintPort && !SaveSys.data.seen[rw.hintPort]) {
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の見当'); }
