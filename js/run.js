@@ -643,9 +643,11 @@ const Run = (() => {
   }
 
   // その時・その場所に湧く敵の種類を1体ぶん抽選する。
-  // 顔ぶれは「そのバイオドームで固定」― 時間や危険度で種類は変わらない。
-  // 強さの変化は色違い(pickRank)と大きさ(pickSize)が担う
+  // 顔ぶれは土地(バイオドーム)ごと。時間・危険度で上のティアの種類が「加わって」いき、
+  // 一度出た種類が出なくなることはない(種類は増える一方)。
+  // 個体の強さの変化は色違い(pickRank)と大きさ(pickSize)が担う
   function pickEnemyKey(){
+    const tier = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
     let keys;
     if (onSea) keys = (DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA;
@@ -654,7 +656,7 @@ const Run = (() => {
       keys = DATA.BIOME_FAUNA[bd.biome] || Object.keys(DATA.ENEMIES);
     }
     const okKey = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
-      (onSea ? d.env !== 'land' : d.env !== 'sea'); };
+      (d.tier || 0) <= tier && (onSea ? d.env !== 'land' : d.env !== 'sea'); };
     // 逃げる敵(ヒーラー等)はあくまで「一部」: 生存数が上限に達していたら湧かせない
     // (逃げ回って死なずに溜まり、まわりが回復役だらけになるのを防ぐ)
     const kiteAlive = R.enemies.reduce((n, e) => n + (!e.dead && e.def.move === 'kite' && !e.def.rare ? 1 : 0), 0);
@@ -666,7 +668,7 @@ const Run = (() => {
     let baseW = 0;
     for (const k of candidates) {
       const d = DATA.ENEMIES[k];
-      const w = [1, 0.8, 0.55, 0.35, 0.22][Math.min(4, d.tier || 0)];   // 大物ほど少数(構成比は固定)
+      const w = 1 + (d.tier || 0) * 1.6 + ((d.tier || 0) === tier ? 2 : 0);   // 解禁されたばかりの種類が主役に。古株も出続ける
       if (d.move === 'kite') kites.push({ k, w });
       else { pool.push({ k, w }); baseW += w; }
     }
@@ -709,18 +711,18 @@ const Run = (() => {
   }
   // 群れ: 同種の敵が画面外の1点に固まって湧き、一緒にうろつく。
   // alerted: 1体でも気づくと群れ全体が襲ってくる(updateEnemiesで連鎖)。
-  // 群れ: 同種で構成される。種はその土地の顔ぶれから固定の構成比で選ばれる。
+  // 群れ: 同種で構成される。種はその土地の顔ぶれのうち解禁済みティアから、
+  // 通常湧きと同じ重み(新しく加わった種類が主役・古株も出る)で選ぶ。
   function spawnHerd(mad){
-    // 群れも顔ぶれはそのバイオドームで固定 ― 種はその土地の面々から1種(逃げる敵とレアは除く)
+    const top = allowedTier();
     const onSea = !World.isLand(R.player.x, R.player.y);
     const keys = (onSea ? ((DATA.SEA_BIOMES[World.seaBiomeAt(R.player.x, R.player.y)] || {}).fauna || DATA.SEA_FAUNA)
       : DATA.BIOME_FAUNA[World.biodomeAt(R.player.x, R.player.y).biome] || Object.keys(DATA.ENEMIES))
       .filter(k => { const dd = DATA.ENEMIES[k];
-        return dd && !dd.isReaper && !dd.rare && dd.move !== 'kite' &&
+        return dd && !dd.isReaper && !dd.rare && dd.move !== 'kite' && (dd.tier || 0) <= top &&
                (onSea ? dd.env !== 'land' : dd.env !== 'sea'); });
     if (!keys.length) return;
-    // 大物ほど群れは小さく: 種の抽選は通常湧きと同じ固定の構成比
-    const ws = keys.map(k => [1, 0.8, 0.55, 0.35, 0.22][Math.min(4, DATA.ENEMIES[k].tier || 0)]);
+    const ws = keys.map(k => { const t = DATA.ENEMIES[k].tier || 0; return 1 + t * 1.6 + (t === top ? 2 : 0); });
     let rw = Math.random() * ws.reduce((x, y) => x + y, 0);
     let pickIdx = 0;
     for (let i = 0; i < keys.length; i++) { rw -= ws[i]; if (rw <= 0) { pickIdx = i; break; } }
