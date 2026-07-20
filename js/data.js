@@ -738,6 +738,7 @@ DATA.BASES = [
   { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge', danger:2 },
   // 竜骨の大陸(東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
   { id:'b_dragon',name:'竜骨の前哨', x:81300, y:7900,   cont:'east', kind:'狩人の集落', spr:'base_lodge', danger:4 },
+  { id:'b_spa',   name:'竜の湯',     x:124000, y:-2000, cont:'east', kind:'湯治の村', spr:'base_ember', danger:5 },
   { id:'b_white', name:'白亜の灯台', x:185700, y:-40300, cont:'east', kind:'港街', spr:'base_port', danger:6 },
   { id:'b_forge', name:'鍛冶神の工房', x:219800, y:-57300,  cont:'east', kind:'工房都市', spr:'base_factory', danger:8 },
   // 黄昏の大陸(西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
@@ -747,9 +748,11 @@ DATA.BASES = [
   { id:'b_moon',  name:'月影の社',   x:-155700, y:-4200,  cont:'west', kind:'月の修道院', spr:'base_abbey', danger:8 },
   // 星嵐の大陸(北の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
   { id:'b_star',  name:'星降りの祭壇', x:-16500, y:-55800, cont:'north', kind:'星見の村', spr:'base_star', danger:5 },
+  { id:'b_inn',   name:'白風の宿場', x:-3000, y:-96000, cont:'north', kind:'宿場町', spr:'base_camp', danger:7 },
   { id:'b_storm', name:'嵐の塔',     x:8600, y:-146600, cont:'north', kind:'塔の街', spr:'base_tower', danger:9 },
   // 深緑の大陸(南の縦長の大陸): 北岸の社から南端の弔いの村まで
   { id:'b_green', name:'深緑の社',   x:-500, y:47500,  cont:'south', kind:'森の集落', spr:'base_grove', danger:3 },
+  { id:'b_moss',  name:'苔の庵',     x:-10000, y:86000, cont:'south', kind:'薬師の庵', spr:'base_grove', danger:5 },
   { id:'b_grave', name:'墓標の祭壇', x:-27100, y:118400, cont:'south', kind:'弔いの村', spr:'base_grave', danger:7 },
   // 小島(一拠点だけの特別な土地)
   { id:'b_mist',  name:'霧の観測所', x:53100, y:-63300, cont:'i_mist', kind:'観測の村', spr:'base_mist', danger:5 },
@@ -901,6 +904,21 @@ DATA.META = {
   g_ember_trade: { st:'b_ember', fac:'lore', name:'火の子の商い', desc:'コイン獲得量 +4%', max:15, cost:gcost(1700,1.5), effMul:{coinMul:.04} },
   g_ember_sk:    { st:'b_ember', fac:'war',  name:'【解放】火の粉', desc:'スキル「火の粉」を習得できるようになる', max:1, cost:gcost(2500,1) },
   g_ember_mat:   { st:'b_ember', fac:'lore', name:'【解放】燃え殻', desc:'新素材「燃え殻」が灼熱系の魔物から出る', max:1, cost:gcost(1200,1) },
+  // 竜の湯(竜骨の内陸): 湯治=回復と血行。湯上がりの体で殴る
+  g_spa_soak:    { st:'b_spa', fac:'life', name:'湯治の癒し',   desc:'最大HP +12', max:15, cost:gcost(1500,1.45), effAdd:{maxHp:12} },
+  g_spa_vigor:   { st:'b_spa', fac:'war',  name:'湯上がりの活力', desc:'全ダメージ +2%', max:10, cost:gcost(1600,1.5), effMul:{atk:.02} },
+  g_spa_flow:    { st:'b_spa', fac:'lore', name:'湯の流れの心得', desc:'アイテム回収範囲 +6%', max:10, cost:gcost(1400,1.45), effMul:{magnet:.06} },
+  g_spa_scale:   { st:'b_spa', fac:'lore', name:'竜鱗磨き',     desc:'コイン獲得量 +4%', max:15, cost:gcost(1500,1.5), effMul:{coinMul:.04} },
+  // 白風の宿場(星嵐の峠道): 宿=旅支度と商い
+  g_inn_hearth:  { st:'b_inn', fac:'life', name:'囲炉裏の温もり', desc:'最大HP +14', max:15, cost:gcost(2400,1.45), effAdd:{maxHp:14} },
+  g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'全ダメージ +2%', max:10, cost:gcost(2600,1.5), effMul:{atk:.02} },
+  g_inn_trade:   { st:'b_inn', fac:'lore', name:'宿場の商い',   desc:'コイン獲得量 +4%', max:15, cost:gcost(2500,1.5), effMul:{coinMul:.04} },
+  g_inn_pack:    { st:'b_inn', fac:'lore', name:'荷継ぎの目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(2500,1.5), effMul:{dropMul:.03} },
+  // 苔の庵(深緑の森の奥): 薬師=膏薬と急所の知識
+  g_moss_salve:  { st:'b_moss', fac:'life', name:'薬師の膏薬',   desc:'最大HP +12', max:15, cost:gcost(1400,1.45), effAdd:{maxHp:12} },
+  g_moss_ward:   { st:'b_moss', fac:'life', name:'苔の護り',     desc:'被ダメージ -1%', max:10, cost:gcost(1500,1.5), effAdd:{armor:.01} },
+  g_moss_needle: { st:'b_moss', fac:'war',  name:'急所の心得',   desc:'クリティカル率 +1.5%', max:10, cost:gcost(1600,1.5), effAdd:{crit:.015} },
+  g_moss_herb:   { st:'b_moss', fac:'lore', name:'薬草の目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(1500,1.5), effMul:{dropMul:.03} },
   g_frost_slow:  { st:'b_frost', fac:'war',  name:'霜の吐息',   desc:'全攻撃に3%で氷結(減速)を付与', max:10, cost:gcost(1600,1.5) },
   g_frost_armor: { st:'b_frost', fac:'life', name:'氷の鎧',    desc:'被ダメージ -1.2%', max:10, cost:gcost(1700,1.5), effAdd:{armor:.012} },
   g_frost_store: { st:'b_frost', fac:'lore', name:'氷室の保存', desc:'素材ドロップ量 +4%', max:15, cost:gcost(1500,1.45), effMul:{dropMul:.04} },
@@ -1103,6 +1121,10 @@ DATA.SIDEQUESTS = {
       intro:['狩人の掟を教えてやる。「金は挑め、紅は退け、紫は語るな」。','長く生きて土地の力を吸った魔物は色を変える。姿は同じでも、中身は別物だ。相棒は紅鱗にやられた。','だが集落を守るにゃ、誰かが狩らなきゃならん。色付きのリザードマンを3体だ。','言っとくが、普通の鱗は数に入らんぞ。色を変えた奴だけだ。'],
       done:['…色付きを3体、本当に狩りやがった。','掟に一つ書き加えておく。「死に戻りには道を空けろ」ってな。','こいつは色付きの牙だ。奴らの力が宿ってる。持っていけ。'],
       reward:{ coins:250, mats:{ beastfang:5 }, story:'gai_code' } },
+    { id:'sq_yuta', npc:'npc_girl', npcName:'湯汲みのユタ', type:'hunt', enemy:'lizard', count:6,
+      intro:['あたし、湯汲みのユタ。集落まで竜の湯を売りに来たの。','でも帰り道の尾根をリザードマンが塞いでて、帰れなくなっちゃった…6匹お願い!'],
+      done:['これで帰れる!ありがとう!','あたしの村はここから東の尾根沿い、「竜の湯」っていう湯治場だよ。','どんな傷にも効くんだから!地図に見当を描いとくね。'],
+      reward:{ coins:200, hintBase:'b_spa', story:'yuta_home' } },
   ],
   b_mist: [
     { id:'sq_mio', npc:'npc_scholar', npcName:'観測手ミオ', type:'hunt', enemy:'wisp', count:10,
@@ -1148,6 +1170,10 @@ DATA.SIDEQUESTS = {
       intro:['この社は森と共に生きる集落。でもイノシシが苗木を掘り返すの。','8頭、森へ帰して(倒して)ちょうだい。'],
       done:['苗木が守られたわ。お礼に社の言い伝えを。','「東の海に火の島あり。火の民、燃えさしの炉を守りて暮らす」…地図に描くわね。'],
       reward:{ coins:180, hintBase:'b_ember', story:'green_seed' } },
+    { id:'sq_sen', npc:'npc_girl', npcName:'薬売りのセン', type:'delivery', need:{ mats:{ jelly:6 } },
+      intro:['あたしは薬売りのセン。社の巡礼さんに傷薬を売ってるんだ。','でも材料のゼリーが切れちゃって…6個、分けてくれない?'],
+      done:['ありがと!これでまた薬が作れる。','…あたしの師匠がね、ここから南の森の奥に籠ってるんだ。「苔の庵」っていう薬師の庵。','気難しいけど腕は確かだよ。地図に見当を描いとくね。'],
+      reward:{ coins:200, hintBase:'b_moss', story:'sen_master' } },
   ],
   b_ember: [
     { id:'sq_popo', npc:'npc_boy', npcName:'火の子ポポ', type:'hunt', enemy:'lavaslime', count:8,
@@ -1162,6 +1188,10 @@ DATA.SIDEQUESTS = {
       intro:['星がきれいでしょ、ここは星見の村。','でもウィスプの光が邪魔で星が見えない…8体消して?'],
       done:['星が戻った!見て、あの北西の沖に光る白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。小島の氷の隠れ里だよ。地図にかくね。'],
       reward:{ coins:400, hintBase:'b_frost', story:'star_sign' } },
+    { id:'sq_goro', npc:'npc_miner', npcName:'荷継ぎのゴロ', type:'delivery', need:{ mats:{ hide:8 } },
+      intro:['俺は峠の荷継ぎ屋だ。星の村の水晶を、北の塔まで運んどる。','だが荷駄の覆いが破れちまってな。雪をかぶったら水晶が台無しだ。','毛皮8枚、都合してくれねえか。'],
+      done:['助かったぜ。これで峠を越えられる。','…北の峠道の先に「白風の宿場」って宿がある。荷はいつもあそこで継ぐんだ。','女将の飯は絶品だぜ。地図に見当を付けといてやる。'],
+      reward:{ coins:220, hintBase:'b_inn', story:'goro_pass' } },
   ],
   b_frost: [
     { id:'sq_fuyu', npc:'npc_elder', npcName:'長老セツ', type:'hunt', enemy:'iceslime', count:10,
@@ -1267,6 +1297,15 @@ DATA.QUESTS = {
     lockedLine:'…(修行僧は目を閉じたまま、動かない)「扉を開く詩を知らぬ者に、語る言葉はない」…黄昏の前哨の詩人なら、その詩を知っていそうだ。',
     intro:['…この祠のゲートは、静まりかえった心にしか開かれぬ。','だが彷徨える光魂(ウィスプ)が5つ、祠の静けさを乱しておる。','斬れ。それがお前の修行であり、ゲートを開く鍵だ。'],
     done:['…見事な太刀筋。祠は静けさを取り戻し、ゲートが開いた。','この祠はお前の心の拠り所となろう。'] },
+  b_spa: { npc:'npc_elder', npcName:'湯守のゴエ', type:'hunt', nearLoc:true, enemy:'lavaslime', count:5,
+    intro:['おう、旅の人かい。ここは竜の湯…竜骨の大陸のへそから湧く、天下の湯治場よ。','ところがラヴァスライムが湯口に潜り込んでな、湯が煮えたぎって誰も入れやしねえ。','5匹、掬い出してくれや。ゲートなら湯気の奥だ…湯口が静まりゃ、湯の熱で灯る仕組みさ。'],
+    done:['おお、湯がちょうどよくなった。…ほら、ゲートも湯気の向こうで灯ってるだろ。','ゆっくりしていきな。湯は逃げねえ、魔物も湯の中までは追ってこねえよ。'] },
+  b_inn: { npc:'npc_girl', npcName:'宿場の女将トウカ', type:'delivery', need:{ coins:400, mats:{wood:15, hide:6} },
+    intro:['おやまあ、雪まみれの客だね。ここは白風の宿場…星の村と嵐の塔を結ぶ峠道の、ただ一つの宿さ。','うちのゲートは囲炉裏の火から分けて灯すんだけどね、この寒波で薪も毛皮も底を突いちまった。','木材15と毛皮6、それと薪代に🪙400。都合してくれたら、ゲートに火を入れるよ。'],
+    done:['ありがとうね。ほら、囲炉裏が燃えて…ゲートにも火が回った。','峠を渡る者はみんなここで一息つく。あんたの席は、いつでも空けておくよ。'] },
+  b_moss: { npc:'npc_miko', npcName:'薬師のモグサ', type:'hunt', nearLoc:true, enemy:'mush', count:6,
+    intro:['…おや。こんな森の奥まで、よう来たの。ここは苔の庵…わしは薬師のモグサじゃ。','庵のゲートは薬釜の火で灯すんじゃがの、マイコニドが薬草園を荒らして、釜にくべる香草が育たん。','6体、森へ帰しておくれ。倒せば胞子も静まるでの。'],
+    done:['…園が静かになった。どれ、釜に火を入れて…ほれ、ゲートが灯ったわい。','傷をこさえたら、いつでも寄りなされ。膏薬を塗ってやろう。'] },
   // --- 中間の小島 ---
   b_mist:  { npc:'npc_sage', npcName:'霧の番人', type:'survive', enemy:'bat', time:21,
     intro:['霧は全てを隠す…この村のゲートさえもな。','観測所の鏡で霧の切れ目を読めば、ゲートまで光を通せる。じゃが、その観測所が壊れておっての。','今から直しに行く。21秒間、霧の獣から守ってくれ。'],
@@ -1455,6 +1494,12 @@ Object.assign(DATA.QUESTS2, {
       'ホーンドデーモンを8体、討ち払え。','玉座が清まれば、最果ての力がお前に開かれるじゃろう。'],
     b_sea:['crab',7,'都へ空気を送る泉に、アイアンクラブが挟まって詰まってしまったのです。','泉が息を吹き返しました…都の力が、あなたにも流れ込みます。',
       'アイアンクラブを7体、お願いします。','泉が息を吹き返せば、都の力もあなたに流れ込むでしょう。'],
+    b_spa:['lizard',6,'今度は湯壺の岩組みを、リザードマンが崩しちまってなあ。','岩組みが直った。いい湯だ…湯治場の力、持ってきな。',
+      'リザードマンを6匹、のしてきてくれや。','岩組みさえ直りゃ、湯治場の設備も使わせてやるよ。'],
+    b_inn:['iceslime',7,'薪小屋がアイススライムに居座られちまってね。','薪が戻った!囲炉裏も湯も、宿場の力もあんたのものさ。',
+      'アイススライムを7匹、追い出しておくれな。','薪さえ戻りゃ、宿場の設備もあんたに使わせてあげられるよ。'],
+    b_moss:['boar',6,'…今度はイノシシが、薬草の根を掘り返してしまってな。','…薬草園が息を吹き返した。庵の知恵は、お前さんのものじゃ。',
+      'イノシシを6頭、森へ帰しておくれ。','園が戻れば、庵の設備もお前さんに開こう。'],
   };
   for (const b of DATA.BASES) {
     if (DATA.QUESTS2[b.id] || !DATA.QUESTS[b.id]) continue;
