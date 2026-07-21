@@ -3369,13 +3369,28 @@ const Run = (() => {
     const dist = 350 + (h % 300);
     return { x: Math.cos(ang) * dist, y: Math.sin(ang) * dist };
   }
+  // 角丸長方形のパス(HUDの枠の描画用)
+  function rrPath(g, x, y, w, h, r){
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
   function drawMinimap(g, W){
-    // マップは最初から所持している
+    // マップは最初から所持している。HUDと同じ「暗いガラス」の枠に収める
     const sz = Math.min(World.MM_SIZE, Math.floor(W * 0.34));
     const x0 = W - sz - 10, y0 = 10;
+    g.fillStyle = 'rgba(8,12,22,.55)';
+    rrPath(g, x0 - 5, y0 - 5, sz + 10, sz + 27, 10); g.fill();
+    g.save();
+    rrPath(g, x0, y0, sz, sz, 6); g.clip();
     drawMapInto(g, x0, y0, sz, 'local');   // ミニマップは周辺図のみ
+    g.restore();
+    g.strokeStyle = 'rgba(255,255,255,.20)'; g.lineWidth = 1;
+    rrPath(g, x0, y0, sz, sz, 6); g.stroke();
     g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
-    g.fillText('周辺図 [タップで全体図]', x0 + sz / 2, y0 + sz + 12);
+    g.fillText('周辺図 [タップで全体図]', x0 + sz / 2, y0 + sz + 14);
   }
   // タップで開く全画面の全体図
   function drawFullMap(g, W, H){
@@ -3383,9 +3398,16 @@ const Run = (() => {
     g.fillStyle = 'rgba(5,8,14,0.85)'; g.fillRect(0, 0, W, H);
     const sz = Math.min(W, H) - 56;
     const x0 = (W - sz) / 2, y0 = (H - sz) / 2;
+    g.strokeStyle = 'rgba(255,255,255,.22)'; g.lineWidth = 1;
+    rrPath(g, x0 - 4, y0 - 4, sz + 8, sz + 8, 10); g.stroke();
     drawMapInto(g, x0, y0, sz, 'world');
-    g.fillStyle = '#c9d1d9'; g.font = 'bold 15px sans-serif'; g.textAlign = 'center';
-    g.fillText('全体図 [タップで閉じる]', W / 2, y0 + sz + 28);
+    g.font = 'bold 15px sans-serif'; g.textAlign = 'center';
+    g.fillStyle = 'rgba(8,12,22,.82)';
+    rrPath(g, W / 2 - 116, y0 + 8, 232, 27, 13); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.18)';
+    rrPath(g, W / 2 - 116, y0 + 8, 232, 27, 13); g.stroke();
+    g.fillStyle = '#c9d1d9';
+    g.fillText('全体図 [タップで閉じる]', W / 2, y0 + 27);
     // 見当ピンの読み方(ヒントを持っている間だけ表示。場所は教えず「探し方」だけ教える)
     if (Object.keys(SaveSys.data.hints || {}).length || SaveSys.data.nextHint) {
       g.fillStyle = 'rgba(5,8,14,0.72)';
@@ -3461,6 +3483,13 @@ const Run = (() => {
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
+    // 全体図を開いている間は、地図に重なる帯・ヒント類を引っ込める
+    if (R.mapFull) {
+      warnEl.classList.add('hidden');
+      hintEl.classList.add('hidden');
+      document.getElementById('quest-obj').classList.add('hidden');
+      return;
+    }
     // マップ内クエストの目標表示
     const qObj = document.getElementById('quest-obj');
     if (Quest.hasActive()) {
@@ -3470,10 +3499,22 @@ const Run = (() => {
     if (R.warnT > 0) {
       warnEl.textContent = R.warnMsg;
       warnEl.style.color = R.warnColor || '';
+      // 危険の報せ(大群・終焉の刻)だけ赤い脈動、それ以外は静かな帯
+      const isAlarm = !R.warnColor || R.warnColor === '#ff7b72' || R.warnColor === '#f85149';
+      warnEl.classList.toggle('danger', isAlarm);
       warnEl.classList.remove('hidden');
     } else { warnEl.classList.add('hidden'); R.warnColor = null; }
     if (R.interact && R.interact.type !== 'land') {
-      hintEl.textContent = R.interact.label;
+      // 「E: 〜」はキーキャップ+本文に分けて表示
+      const lb = R.interact.label;
+      if (lb.startsWith('E: ')) {
+        hintEl.innerHTML = '<kbd>E</kbd><span></span>';
+        hintEl.lastChild.textContent = lb.slice(3);
+        hintEl.classList.remove('no-key');
+      } else {
+        hintEl.textContent = lb;
+        hintEl.classList.add('no-key');
+      }
       hintEl.classList.remove('hidden');
       document.getElementById('btn-act').classList.remove('hidden');
     } else {
