@@ -884,6 +884,31 @@ const Hub = (() => {
     g.save();
     g.translate(-camX, -camY);
 
+    // 街の地形: 踏み固められた土の道が、ゲートから広場を経て各施設へ通う。
+    // 家や施設が「道に沿って建っている」ことで、集落として自然に読める
+    {
+      const stns = H.list || [];
+      const gate = stns.find(s2 => s2.kind === 'gate');
+      const cx0 = 0, cy0 = 20;
+      g.lineCap = 'round';
+      g.strokeStyle = 'rgba(214,192,148,.085)';
+      g.lineWidth = 46;
+      if (gate) {
+        g.beginPath(); g.moveTo(gate.x, gate.y + 10);
+        g.quadraticCurveTo(gate.x * 0.4, (gate.y + cy0) / 2, cx0, cy0); g.stroke();
+      }
+      for (const s2 of stns) {
+        if (s2 === gate || s2.kind === 'villager') continue;
+        if (H.area.startsWith('port:') && s2.x > 40) continue;   // 海側には道を引かない
+        g.beginPath(); g.moveTo(cx0, cy0);
+        g.quadraticCurveTo(s2.x * 0.35, (cy0 + s2.y) / 2, s2.x, s2.y + 16);
+        g.stroke();
+      }
+      g.lineCap = 'butt';
+      g.fillStyle = 'rgba(214,192,148,.06)';
+      g.beginPath(); g.ellipse(cx0, cy0, 155, 82, 0, 0, 7); g.fill();
+    }
+
     // 基地マップ: 集落の実景(中央に本殿=シンボルの元、周りに家々)。
     // 周回マップのシンボルはこの実景を縮小デフォルメしたもの。
     if (H.area.startsWith('port:')) {
@@ -892,6 +917,17 @@ const Hub = (() => {
       // 右半分は海。桟橋が突き出し、船が実寸大で停泊している
       g.fillStyle = '#0d2b3d';
       g.fillRect(60, bnd.y0, bnd.x1 - 60, bnd.y1 - bnd.y0);
+      // 渚: 砂の帯と寄せる波の白線(街が海に「面している」地形)
+      g.fillStyle = '#59503c';
+      g.fillRect(34, bnd.y0, 26, bnd.y1 - bnd.y0);
+      const swT = performance.now() / 1000;
+      g.strokeStyle = 'rgba(230,237,243,.30)'; g.lineWidth = 2;
+      g.beginPath();
+      for (let sy2 = bnd.y0; sy2 <= bnd.y1; sy2 += 14) {
+        const wx2 = 62 + Math.sin(sy2 * 0.05 + swT * 1.6) * 4;
+        if (sy2 === bnd.y0) g.moveTo(wx2, sy2); else g.lineTo(wx2, sy2);
+      }
+      g.stroke();
       g.strokeStyle = 'rgba(230,237,243,0.15)'; g.lineWidth = 2;
       const wt = performance.now() / 1000;
       for (let i = 0; i < 7; i++) {
