@@ -19,6 +19,10 @@ function fmtTime(t){
 const Run = (() => {
   const R = {};   // 周回状態
 
+  // 敵数のゲーム的な上限は撤廃(近傍グリッド化・LOD・描画カリングで大群でも軽い)。
+  // これはメモリ暴走を防ぐ最終保険で、通常プレイでは届かない値
+  const ENEMY_BACKSTOP = 6000;
+
   // ---------------- プレイヤーの派生ステータス(メタ強化反映) ----------------
   function calcStats(){
     const m = SaveSys.metaLv;
@@ -45,7 +49,7 @@ const Run = (() => {
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
       recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
-      allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
+      allyCap: Infinity,   // 仲間数は無制限(近傍グリッド化で大軍でも処理が破綻しない)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.015*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
       allyAtk: (1 + 0.012*m('camp_atk')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_legion')),
@@ -343,7 +347,7 @@ const Run = (() => {
       R.traitBursts.push({ x:e.x, y:e.y, t:0.55, r:br, dmg:e.dmg * 1.4 });
       effect('ring', e.x, e.y, { color:'#f85149', r:br });
     }
-    if (e.trait === 'summon' && R.enemies.length < 850) {
+    if (e.trait === 'summon' && R.enemies.length < ENEMY_BACKSTOP) {
       for (let i = 0; i < Math.min(3, 1 + e.rank); i++)
         spawnEnemy(e.defKey, { x:e.x + rnd(-26,26), y:e.y + rnd(-26,26), rank:0, mad:true });
     }
@@ -457,18 +461,23 @@ const Run = (() => {
   function sigActive(){ return (R.sigUntil || 0) > R.time; }
 
   function knockback(x, y, radius, force){
-    for (const e of R.enemies) {
+    // 近傍グリッドで対象を集めてから動かす(動かしながら走査すると同じ敵を2度押しうる)
+    const hits = [];
+    forEachFoeNear(x, y, radius, (e) => {
       const d = Math.hypot(e.x - x, e.y - y);
-      if (d < radius && d > 1) {
-        e.x += (e.x - x) / d * force * 0.12;
-        e.y += (e.y - y) / d * force * 0.12;
-      }
+      if (d < radius && d > 1) hits.push([e, d]);
+      return false;
+    });
+    for (const [e, d] of hits) {
+      e.x += (e.x - x) / d * force * 0.12;
+      e.y += (e.y - y) / d * force * 0.12;
     }
   }
   function aoeDamage(x, y, radius, dmg){
-    for (const e of R.enemies) {
-      if (!e.dead && Math.hypot(e.x - x, e.y - y) < radius + e.def.r) dealDamage(e, dmg);
-    }
+    forEachFoeNear(x, y, radius + (R.maxFoeR || 60), (e) => {
+      if (Math.hypot(e.x - x, e.y - y) < radius + e.def.r) dealDamage(e, dmg);
+      return false;
+    });
     damageObjectsIn(x, y, radius, dmg);
   }
 
@@ -659,8 +668,15 @@ const Run = (() => {
     const okKey = k => { const d = DATA.ENEMIES[k]; return d && !d.isReaper && !d.rare &&
       (d.tier || 0) <= tier && (onSea ? d.env !== 'land' : d.env !== 'sea'); };
     // 逃げる敵(ヒーラー等)はあくまで「一部」: 生存数が上限に達していたら湧かせない
-    // (逃げ回って死なずに溜まり、まわりが回復役だらけになるのを防ぐ)
-    const kiteAlive = R.enemies.reduce((n, e) => n + (!e.dead && e.def.move === 'kite' && !e.def.rare ? 1 : 0), 0);
+    // (逃げ回って死なずに溜まり、まわりが回復役だらけになるのを防ぐ)。
+    // 数え上げは1フレームに1回だけ(スポーンのたびに全敵を走査しない)
+    if (R._kiteCacheT !== R.time) {
+      R._kiteCacheT = R.time;
+      let kn = 0;
+      for (const e of R.enemies) if (!e.dead && e.def.move === 'kite' && !e.def.rare) kn++;
+      R._kiteAlive = kn;
+    }
+    const kiteAlive = R._kiteAlive;
     let candidates = keys.filter(okKey);
     if (kiteAlive >= 3) candidates = candidates.filter(k => DATA.ENEMIES[k].move !== 'kite');
     if (!candidates.length) candidates = Object.keys(DATA.ENEMIES).filter(okKey);   // フォールバック
@@ -687,7 +703,9 @@ const Run = (() => {
     const qts = Quest.wantSpawn();
     if (qts && Math.random() < 0.35) {
       const qe = qts[Math.floor(Math.random() * qts.length)];
-      if (R.enemies.filter(e => e.defKey === qe).length < 6) return qe;
+      let cnt = 0;
+      for (const e of R.enemies) if (e.defKey === qe && ++cnt >= 6) break;
+      if (cnt < 6) return qe;
     }
     return pick;
   }
@@ -775,7 +793,7 @@ const Run = (() => {
   }
   // 1波ぶんを、すぐ画面外から一斉に
   function spawnHordeWave(wave){
-    if (R.enemies.length > 1400) return;   // 安全: 過多なら間引く
+    if (R.enemies.length >= ENEMY_BACKSTOP) return;   // 最終保険: メモリ暴走防止のみ
     // 回り込みのしきい値(offR+180)より内側に湧かせる(湧いた直後に再配置されない)
     const base = (R.offscreenR || 950) + rnd(10, 80);
     let placed = 0;
@@ -848,11 +866,19 @@ const Run = (() => {
     const moveBoost = 1 + Math.min(2.2, pSpd / 60);
     R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost;
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
-    let nearN = R.enemies.filter(e => !e.dead && !e.fromHorde && Math.hypot(e.x - p.x, e.y - p.y) < nearR).length;
+    let nearN = 0;
+    {
+      const nearR2 = nearR * nearR;
+      for (const e of R.enemies) {
+        if (e.dead || e.fromHorde) continue;
+        const dx = e.x - p.x, dy = e.y - p.y;
+        if (dx * dx + dy * dy < nearR2) nearN++;
+      }
+    }
     const moveA = pSpd > 20 ? Math.atan2(p.vy, p.vx) : null;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (nearN >= nearTarget || R.enemies.length >= 900) break;
+      if (nearN >= nearTarget || R.enemies.length >= ENEMY_BACKSTOP) break;
       if (Math.random() < (R.worldEvent === 'migration' ? 0.22 : 0.12)) { spawnHerd(false); nearN += 5; }   // 時々、群れ
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
       // 移動中は進行方向の前方に多めに湧かせる(置いていった敵の分を前で補う)
@@ -868,7 +894,7 @@ const Run = (() => {
     // --- ティアごとの群れ: 密度と関係なく定期的に必ず出会う(その土地のティアで構成) ---
     if (R.herdT === undefined) R.herdT = rnd(14, 22);
     R.herdT -= dt;
-    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < 850) {
+    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < ENEMY_BACKSTOP) {
       spawnHerd(false);
       R.herdT = rnd(20, 34) * (R.worldEvent === 'migration' ? 0.6 : 1);
     }
@@ -912,23 +938,54 @@ const Run = (() => {
   }
 
   // ---------------- 敵の近傍グリッド(弾の当たり判定・仲間の索敵を近傍だけにする) ----------------
+  // キーは整数(上位16bit=cx / 下位16bit=cy)。文字列連結よりMapアクセスがずっと速い
   const HIT_CELL = 96;
+  const gkey = (cx, cy) => (cx << 16) | (cy & 0xffff);
   let hitGrid = new Map();
   function rebuildFoeGrid(){
-    hitGrid = new Map();
+    hitGrid.clear();
+    let mr = 20;   // 生存中の敵の最大半径(範囲クエリの余白に使う)
     for (const e of R.enemies) {
       if (e.dead) continue;
-      const k = ((e.x / HIT_CELL) | 0) + ',' + ((e.y / HIT_CELL) | 0);
+      const k = gkey((e.x / HIT_CELL) | 0, (e.y / HIT_CELL) | 0);
       const arr = hitGrid.get(k);
       if (arr) arr.push(e); else hitGrid.set(k, [e]);
+      const r = e.def.r * (e.sizeMul || 1);
+      if (r > mr) mr = r;
     }
+    R.maxFoeR = mr;
   }
   function forEachFoeNear(x, y, rad, cb){
     const c0x = ((x - rad) / HIT_CELL) | 0, c1x = ((x + rad) / HIT_CELL) | 0;
     const c0y = ((y - rad) / HIT_CELL) | 0, c1y = ((y + rad) / HIT_CELL) | 0;
     for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
-      const arr = hitGrid.get(cx + ',' + cy);
+      const arr = hitGrid.get(gkey(cx, cy));
       if (arr) for (const e of arr) { if (!e.dead && cb(e)) return; }
+    }
+  }
+  // 仲間の近傍グリッド: 敵→仲間の接触・索敵・アグロを「全仲間ループ」でなく近傍だけにする。
+  // 仲間は陣形で密集するのでセルは小さめ。待機中(waitAt)の仲間も入れる(接触対象のため)
+  const ALLY_CELL = 48;
+  let allyGrid = new Map();
+  function rebuildAllyGrid(){
+    allyGrid.clear();
+    let mr = 12;
+    for (const a of R.allies) {
+      if (a.dead) continue;
+      const k = gkey((a.x / ALLY_CELL) | 0, (a.y / ALLY_CELL) | 0);
+      const arr = allyGrid.get(k);
+      if (arr) arr.push(a); else allyGrid.set(k, [a]);
+      const r = a.def.r * (a.sizeMul || 1);
+      if (r > mr) mr = r;
+    }
+    R.maxAllyR = mr;
+  }
+  function forEachAllyNear(x, y, rad, cb){
+    const c0x = ((x - rad) / ALLY_CELL) | 0, c1x = ((x + rad) / ALLY_CELL) | 0;
+    const c0y = ((y - rad) / ALLY_CELL) | 0, c1y = ((y + rad) / ALLY_CELL) | 0;
+    for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
+      const arr = allyGrid.get(gkey(cx, cy));
+      if (arr) for (const a of arr) { if (!a.dead && cb(a)) return; }
     }
   }
 
@@ -957,19 +1014,29 @@ const Run = (() => {
     const baseDt = dt;
     R.lodTick = (R.lodTick || 0) + 1;
     const lodR = (R.offscreenR || 500) + 160;   // 画面の外にいる敵は判定を粗くする
+    rebuildAllyGrid();   // 敵→仲間の判定を近傍だけにする(大軍でも軽い)
+    const maxAllyR = R.maxAllyR || 12;
+    // オーラ系スキルは1フレームに1回だけ読む(敵ごとに読むとオブジェクト生成が敵数ぶん走る)
+    const sanct = Skills.stat('sanctuary');
+    const fa = Skills.stat('frostaura');
+    const fe = Skills.stat('fear');
     for (let i = R.enemies.length - 1; i >= 0; i--) {
       const e = R.enemies[i];
       if (e.dead) { R.enemies.splice(i, 1); continue; }
       // 遠く離れた敵は退場(追跡中の敵は粘る)。環境の敵はプレイヤーの近く(画面まわり)に
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
-      const pd = Math.hypot(e.x - p.x, e.y - p.y);
+      const pdx = e.x - p.x, pdy = e.y - p.y;
+      const pd = Math.sqrt(pdx * pdx + pdy * pdy);
       // 粗い更新の対象: 画面外の敵、および画面内でも「まだ気づいておらず(非mad)、
-      // 追撃圏から十分離れている」敵。飛ばした時間は次回まとめて進めるので、
-      // 動きの速さ・タイマーは変わらない ― 判定だけ粗くなる
-      if ((pd > lodR || (!e.mad && pd > 240)) && !e.boss) {
-        if (((i + R.lodTick) & 1) === 0) { e._lodDt = (e._lodDt || 0) + baseDt; continue; }
-        dt = baseDt + (e._lodDt || 0); e._lodDt = 0;
-      } else { dt = baseDt + (e._lodDt || 0); e._lodDt = 0; }
+      // 追撃圏から十分離れている」敵。さらに大きく離れた敵は4フレームに1回だけ更新する。
+      // 飛ばした時間は次回まとめて進めるので、動きの速さ・タイマーは変わらない ― 判定だけ粗くなる
+      let stride = 1;
+      if (!e.boss) {
+        if (pd > 1600) stride = 4;
+        else if (pd > lodR || (!e.mad && pd > 240)) stride = 2;
+      }
+      if (stride > 1 && ((i + R.lodTick) % stride) !== 0) { e._lodDt = (e._lodDt || 0) + baseDt; continue; }
+      dt = baseDt + (e._lodDt || 0); e._lodDt = 0;
       // 大群とボスは消えず、完全に画面外へ出た(見えなくなった)瞬間に前方へ回り込む。
       // しきい値は回り込み先(offR+30〜160)より外なので、回り込み直後に再発動しない
       if ((e.fromHorde || e.boss) && pd > (R.offscreenR || 500) + 180) {
@@ -992,25 +1059,24 @@ const Run = (() => {
       // 時の砂
       if (R.sandsUntil && R.time < R.sandsUntil && pd < R.sandsRadius) spd *= (1 - R.sandsSlow);
       // サンクチュアリ減速
-      const sanct = Skills.stat('sanctuary');
       if (sanct && sanct.slow && pd < sanct.radius * R.stats.area) spd *= (1 - sanct.slow);
       // 霜のオーラ: 範囲内の敵を絶えず減速
-      const fa = Skills.stat('frostaura');
       if (fa && pd < fa.radius * R.stats.area) spd *= (1 - fa.slow);
 
       // 行動
       let tx = p.x, ty = p.y;
       let vx = 0, vy = 0;
       const confused = R.time < (e.confusedUntil || 0);
-      const fe = Skills.stat('fear');
       if (confused) {
-        // 混沌の瘴気: 最寄りの別の敵を攻撃する
+        // 混沌の瘴気: 近く(320px)の別の敵を攻撃する。見つからなければ徘徊
+        // (全敵から最寄りを探すのはやめた ― 敵が密集する混乱時は結果は同じで、ずっと軽い)
         let tgt = null, td = 1e9;
-        for (const o of R.enemies) {
-          if (o === e || o.dead) continue;
+        forEachFoeNear(e.x, e.y, 320, (o) => {
+          if (o === e) return false;
           const d = Math.hypot(o.x - e.x, o.y - e.y);
           if (d < td) { tgt = o; td = d; }
-        }
+          return false;
+        });
         if (tgt) {
           const d = td || 1;
           vx = (tgt.x - e.x) / d; vy = (tgt.y - e.y) / d;
@@ -1028,9 +1094,10 @@ const Run = (() => {
         // 気づき(アグロ): 近づくと追ってくる。一度気づけば追い続け、離れすぎると諦める
         if (pd < e.aggro) e.mad = true;
         else if (e.mad && pd > e.aggro + 520) e.mad = false;
-        if (!e.mad) for (const a of R.allies) {   // 仲間が至近にいれば気づく
-          if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; break; }
-        }
+        if (!e.mad) forEachAllyNear(e.x, e.y, e.aggro, (a) => {   // 仲間が至近にいれば気づく
+          if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; return true; }
+          return false;
+        });
         // 群れの連鎖: 1体が気づいたら群れ全体が襲ってくる
         if (e.herd) { if (e.mad) e.herd.alerted = true; else if (e.herd.alerted) e.mad = true; }
         if (!e.mad) {
@@ -1061,25 +1128,30 @@ const Run = (() => {
           e.healCd -= dt;
           if (e.healCd <= 0 && e.def.heal) {
             e.healCd = 1;
-            for (const o of R.enemies) {
-              if (o !== e && !o.dead && o.hp < o.maxHp && Math.hypot(o.x-e.x, o.y-e.y) < e.def.heal.radius) {
+            forEachFoeNear(e.x, e.y, e.def.heal.radius, (o) => {
+              if (o !== e && o.hp < o.maxHp && Math.hypot(o.x-e.x, o.y-e.y) < e.def.heal.radius) {
                 o.hp = Math.min(o.maxHp, o.hp + e.def.heal.hps * RANK_HP[e.rank || 0]);
                 effect('healline', e.x, e.y, { x2:o.x, y2:o.y });
               }
-            }
+              return false;
+            });
           }
         } else {
-          // 追跡: 仲間が近ければそちらを狙うこともある(狙い直しは0.15秒ごと=負荷を抑える)
+          // 追跡: 仲間が近ければそちらを狙うこともある(狙い直しは0.15秒ごと=負荷を抑える)。
+          // 探索は近傍グリッドで、半径は最大280px ― それより遠い仲間狙いは主人公狙いと
+          // 進行方向がほぼ同じなので省いても行動は変わらない(大軍でも軽い)
           e._alT = (e._alT === undefined ? Math.random() * 0.15 : e._alT) - dt;
           if (e._alT <= 0) {
             e._alT = 0.15;
             e._aTgt = null;
             let bd = pd;
-            for (const a of R.allies) {
-              if (a.waitAt) continue;
+            const sr = Math.min(pd * 0.7, 280);
+            if (sr > 0) forEachAllyNear(e.x, e.y, sr, (a) => {
+              if (a.waitAt) return false;
               const d = Math.hypot(a.x - e.x, a.y - e.y);
               if (d < bd * 0.7) { e._aTgt = a; bd = d; }
-            }
+              return false;
+            });
           }
           const tgt = (e._aTgt && !e._aTgt.dead && !e._aTgt.waitAt) ? e._aTgt : null;
           if (tgt) { tx = tgt.x; ty = tgt.y; }
@@ -1102,14 +1174,15 @@ const Run = (() => {
         damagePlayer(e.dmg, e);
       }
       // 接触ダメージ(仲間)。合流中は無敵なので狙わない
-      if (!confused) for (const a of R.allies) {
-        if (a.joining) continue;
-        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
+      if (!confused && e.contactCd <= 0) forEachAllyNear(e.x, e.y, er + maxAllyR + 4, (a) => {
+        if (a.joining) return false;
+        if (Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
-          break;
+          return true;
         }
-      }
+        return false;
+      });
       // 範囲攻撃(スラム): 大型エリートが「攻撃対象の足元」へ振り下ろす。
       // 潰れる範囲は敵の体より小さい(slam.radiusは「届く距離」として使う)
       if (e.def.slam && !confused && e.mad) {
@@ -1118,21 +1191,23 @@ const Run = (() => {
         if (e.slamCd <= 0) {
           const reach = e.def.slam.radius * (e.sizeMul || 1);   // 腕の届く距離
           const rad = e.def.r * (e.sizeMul || 1) * 0.85;        // 潰れる範囲(体より小さい)
-          // 攻撃対象: 届く範囲で一番近い相手(主人公か仲間)
+          // 攻撃対象: 届く範囲で一番近い相手(主人公か仲間)。近傍グリッドで探す
           let tgt = null, td2 = reach + 14;
           if (pd < td2) { tgt = p; td2 = pd; }
-          for (const a of R.allies) {
-            if (a.waitAt || a.joining) continue;
+          forEachAllyNear(e.x, e.y, reach + 14, (a) => {
+            if (a.waitAt || a.joining) return false;
             const d2 = Math.hypot(a.x - e.x, a.y - e.y);
             if (d2 < td2) { tgt = a; td2 = d2; }
-          }
+            return false;
+          });
           if (tgt) {   // 対象の足元に振り下ろす
             e.slamCd = e.def.slam.cd;
             effect('ring', tgt.x, tgt.y, { color:'#ffa657', r: rad });
             if (Math.hypot(p.x - tgt.x, p.y - tgt.y) < rad + 10) damagePlayer(e.dmg, e);
-            for (const a of R.allies) {
+            forEachAllyNear(tgt.x, tgt.y, rad + maxAllyR, (a) => {
               if (!a.waitAt && !a.joining && Math.hypot(a.x - tgt.x, a.y - tgt.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
-            }
+              return false;
+            });
           } else e.slamCd = 0.3;
         }
       }
@@ -1156,16 +1231,19 @@ const Run = (() => {
       const px0 = b.x, py0 = b.y;
       b.x += b.vx * dt; b.y += b.vy * dt; b.life -= dt;
       if (b.life <= 0) { R.eprojs.splice(i, 1); continue; }
-      // 仲間の壁: この1フレームの弾道が仲間に触れたら消滅(高速でもすり抜けない)
+      // 仲間の壁: この1フレームの弾道が仲間に触れたら消滅(高速でもすり抜けない)。
+      // 弾道の中点まわりの近傍グリッドだけ見る(仲間が何百体いても弾のコストは一定)
       let blocked = false;
-      for (const a of R.allies) {
-        if (a.waitAt || a.dead || a.joining) continue;   // 合流中はすり抜ける(無敵・壁にならない)
+      const segR = Math.hypot(b.x - px0, b.y - py0) / 2 + (R.maxAllyR || 12) + 6;
+      forEachAllyNear((px0 + b.x) / 2, (py0 + b.y) / 2, segR, (a) => {
+        if (a.waitAt || a.joining) return false;   // 合流中はすり抜ける(無敵・壁にならない)
         if (segCircleHit(px0, py0, b.x, b.y, a.x, a.y, a.def.r * (a.sizeMul || 1) + 5)) {
           damageAlly(a, b.dmg * 0.35, b);   // 仲間への弾ダメージは控えめ
-          R.eprojs.splice(i, 1); blocked = true; break;
+          blocked = true; return true;
         }
-      }
-      if (blocked) continue;
+        return false;
+      });
+      if (blocked) { R.eprojs.splice(i, 1); continue; }
       if (segCircleHit(px0, py0, b.x, b.y, p.x, p.y, 16)) { damagePlayer(b.dmg); R.eprojs.splice(i, 1); }
     }
   }
@@ -1198,15 +1276,19 @@ const Run = (() => {
     }
   }
 
-  // 同心円スロット: 密集陣形(従来の2倍の密度)。定員はリングごとに増える
+  // 同心円スロット: 密集陣形(従来の2倍の密度)。定員はリングごとに増える。
+  // スロット位置は不変なのでインデックスごとにメモ化(大軍では毎フレーム数千回呼ばれる)
+  const slotCache = [];
   function slotPos(i){
+    const c = slotCache[i];
+    if (c) return c;
     let ring = 0, cap = 7, start = 0;
     while (i >= start + cap) { start += cap; ring++; cap = 7 + ring * 5; }
     const idx = i - start;
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
     // 当たり判定が体の1/3なので、この間隔でも中心は重ならない(密集感は保ちつつ少し緩め)
     const rad = 20 + ring * 17;
-    return { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad };
+    return (slotCache[i] = { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad });
   }
   function formationRadius(n){
     return n <= 0 ? 0 : slotPos(n - 1).rad;
@@ -1243,6 +1325,7 @@ const Run = (() => {
     const spdMul = (wb ? wb.spd : 1) * (R.stats.allySpeed || 1) *
       ((R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1);   // 月光の疾走
     const n = R.allies.length;
+    const formR = formationRadius(n);   // 陣形半径は全員共通(ループ外で1回だけ)
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
@@ -1262,7 +1345,6 @@ const Run = (() => {
           popup(a.x, a.y - 20, '合流!', '#7ee787');
         } else continue;
       }
-      const formR = formationRadius(n);
       // 勧誘直後: 倒した位置から主人公のところへ駆けつける(陣形に入るまではリーシュ免除)
       if (a.joining) {
         const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
@@ -1440,9 +1522,9 @@ const Run = (() => {
     // 敵は列挙しない=敵同士のペアはそもそも発生しない(大群でも軽い)。
     // 敵↔仲間のペアは仲間側の列挙で1回だけ処理されるので、押し量は2倍で補正
     // (従来は両側から2回処理していた)
-    const cell = 64, grid = new Map();
+    const cell = 64, grid = new Map();   // キーは整数(gkey)。文字列連結より速い
     for (const u of units) {
-      const k = ((u.x / cell) | 0) + ',' + ((u.y / cell) | 0);
+      const k = gkey((u.x / cell) | 0, (u.y / cell) | 0);
       const arr = grid.get(k);
       if (arr) arr.push(u); else grid.set(k, [u]);
     }
@@ -1451,7 +1533,7 @@ const Run = (() => {
       const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
       for (let ix = gx - 1; ix <= gx + 1; ix++) {
         for (let iy = gy - 1; iy <= gy + 1; iy++) {
-          const arr = grid.get(ix + ',' + iy);
+          const arr = grid.get(gkey(ix, iy));
           if (!arr) continue;
           for (const v of arr) {
             if (v === u) continue;
@@ -1508,11 +1590,21 @@ const Run = (() => {
     return false;
   }
   function nearestEnemy(x, y, maxD){
-    let best = null, bd = maxD || 1e9;
+    // 索敵半径が狭い(武器射程など)なら近傍グリッドで探す ― 敵の総数と無関係に軽い
+    if (maxD && maxD <= 560) {
+      let best = null, bd2 = maxD * maxD;
+      forEachFoeNear(x, y, maxD, (e) => {
+        const dx = e.x - x, dy = e.y - y, d2 = dx * dx + dy * dy;
+        if (d2 < bd2) { best = e; bd2 = d2; }
+        return false;
+      });
+      return best;
+    }
+    let best = null, bd2 = maxD ? maxD * maxD : Infinity;
     for (const e of R.enemies) {
       if (e.dead) continue;
-      const d = Math.hypot(e.x - x, e.y - y);
-      if (d < bd) { best = e; bd = d; }
+      const dx = e.x - x, dy = e.y - y, d2 = dx * dx + dy * dy;
+      if (d2 < bd2) { best = e; bd2 = d2; }
     }
     return best;
   }
@@ -1582,11 +1674,12 @@ const Run = (() => {
         hit.add(cur);
         px = cur.x; py = cur.y;
         let nxt = null, bd = 220 * area;
-        for (const e of R.enemies) {
-          if (e.dead || hit.has(e)) continue;
+        forEachFoeNear(px, py, bd, (e) => {
+          if (hit.has(e)) return false;
           const d = Math.hypot(e.x - px, e.y - py);
           if (d < bd) { nxt = e; bd = d; }
-        }
+          return false;
+        });
         if (!nxt) for (const o of R.objects || []) {   // 敵が尽きたらオブジェクトへ連鎖
           if (hit.has(o)) continue;
           const d = Math.hypot(o.x - px, o.y - py);
@@ -1600,12 +1693,13 @@ const Run = (() => {
     if (fl && cdReady('flame', fl.cd)) {
       const rad = fl.radius * area;
       effect('flamering', p.x, p.y, { r:rad });
-      for (const e of R.enemies) {
-        if (!e.dead && Math.hypot(e.x-p.x, e.y-p.y) < rad + e.def.r) {
+      forEachFoeNear(p.x, p.y, rad + (R.maxFoeR || 60), (e) => {
+        if (Math.hypot(e.x-p.x, e.y-p.y) < rad + e.def.r) {
           dealDamage(e, fl.dmg);
           if (fl.burn) { e.burn = fl.burn; e.burnT = 3; }
         }
-      }
+        return false;
+      });
       damageObjectsIn(p.x, p.y, rad, fl.dmg);
     }
     // --- フロストノヴァ ---
@@ -1613,13 +1707,14 @@ const Run = (() => {
     if (nv && cdReady('nova', nv.cd)) {
       const rad = nv.radius * area;
       effect('ring', p.x, p.y, { color:'#76e3ea', r:rad });
-      for (const e of R.enemies) {
-        if (!e.dead && Math.hypot(e.x-p.x, e.y-p.y) < rad + e.def.r) {
+      forEachFoeNear(p.x, p.y, rad + (R.maxFoeR || 60), (e) => {
+        if (Math.hypot(e.x-p.x, e.y-p.y) < rad + e.def.r) {
           dealDamage(e, nv.dmg);
           e.slowUntil = R.time + nv.slowDur; e.slowMul = nv.slow;
           if (nv.freeze) e.frozenUntil = R.time + nv.freeze;
         }
-      }
+        return false;
+      });
       damageObjectsIn(p.x, p.y, rad, nv.dmg);
     }
     // --- ポイズンミスト ---
@@ -1632,7 +1727,11 @@ const Run = (() => {
     const th = wstat('thunder');
     if (th && cdReady('thunder', th.cd)) {
       const thR = effRange(400);
-      const cands = R.enemies.filter(e => !e.dead && Math.hypot(e.x-p.x, e.y-p.y) < thR);
+      const cands = [];
+      forEachFoeNear(p.x, p.y, thR, (e) => {
+        if (Math.hypot(e.x-p.x, e.y-p.y) < thR) cands.push(e);
+        return false;
+      });
       for (const o of R.objects || []) {
         if (Math.hypot(o.x-p.x, o.y-p.y) < thR * 0.9) cands.push(o);
       }
@@ -1641,9 +1740,10 @@ const Run = (() => {
         effect('thunder', e.x, e.y, {});
         const rad = th.blast * area;
         if (e.type) hitObject(e, th.dmg);
-        for (const o of R.enemies) {
-          if (!o.dead && Math.hypot(o.x-e.x, o.y-e.y) < rad + o.def.r) dealDamage(o, th.dmg);
-        }
+        forEachFoeNear(e.x, e.y, rad + (R.maxFoeR || 60), (o) => {
+          if (Math.hypot(o.x-e.x, o.y-e.y) < rad + o.def.r) dealDamage(o, th.dmg);
+          return false;
+        });
         damageObjectsIn(e.x, e.y, rad, th.dmg * 0.7);
       }
     }
@@ -1727,14 +1827,14 @@ const Run = (() => {
         const a = p.moveA;
         const brange = effRange(br.range * area);   // 吐息の到達も初期画面内に
         effect('breath', p.x, p.y, { angle:a, range:brange, arc:br.arc });
-        for (const e of R.enemies) {
-          if (e.dead) continue;
+        forEachFoeNear(p.x, p.y, brange, (e) => {
           const d = Math.hypot(e.x-p.x, e.y-p.y);
-          if (d > brange) continue;
+          if (d > brange) return false;
           const ea = Math.atan2(e.y-p.y, e.x-p.x);
           let diff = Math.abs(ea - a); if (diff > Math.PI) diff = Math.PI*2 - diff;
           if (diff < br.arc) { e.hp -= br.dps * st.atk * dt; e.flash = 0.05; if (e.hp <= 0) killEnemy(e); }
-        }
+          return false;
+        });
         for (const o of R.objects || []) {
           const d = Math.hypot(o.x-p.x, o.y-p.y);
           if (d > brange) continue;
@@ -1768,10 +1868,15 @@ const Run = (() => {
     const pu = Skills.stat('pulse');
     if (pu && cdReady('pulse', pu.cd)) {
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead || e.boss || e.def.isReaper) continue;
+      // 対象を集めてから動かす(押し出し先のセルで同じ敵を2度処理しないように)
+      const hits = [];
+      forEachFoeNear(p.x, p.y, pu.radius * area, (e) => {
+        if (e.boss || e.def.isReaper) return false;
         const dd = Math.hypot(e.x - p.x, e.y - p.y);
-        if (dd > pu.radius * area) continue;
+        if (dd <= pu.radius * area) hits.push([e, dd]);
+        return false;
+      });
+      for (const [e, dd] of hits) {
         const nx = e.x + (e.x - p.x) / (dd || 1) * pu.push, ny = e.y + (e.y - p.y) / (dd || 1) * pu.push;
         if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; }
         e.frozenUntil = Math.max(e.frozenUntil, R.time + pu.freeze);
@@ -1797,10 +1902,11 @@ const Run = (() => {
       if (R.eprojs.length > 0) {
         R.cd['veil'] = R.time + vl.cd * (1 - st.cdr);
         R.eprojs.length = 0;
-        for (const e of R.enemies) {
-          if (!e.dead && e.def.ranged && Math.hypot(e.x - p.x, e.y - p.y) < vl.radius * area)
+        forEachFoeNear(p.x, p.y, vl.radius * area, (e) => {
+          if (e.def.ranged && Math.hypot(e.x - p.x, e.y - p.y) < vl.radius * area)
             e.shootCd = Math.max(e.shootCd, vl.seal);
-        }
+          return false;
+        });
         effect('ring', p.x, p.y, { color:'#f778ba', r: vl.radius * area });
       } else R.cd['veil'] = R.time + 0.4;
     }
@@ -1808,12 +1914,13 @@ const Run = (() => {
     const wc = Skills.stat('wildcall');
     if (wc && R.allies.length < st.allyCap && (R.cd['wildcall'] || 0) <= R.time) {
       let pick = null, pd2 = 1e9;
-      for (const e of R.enemies) {
-        if (e.dead || e.boss || e.def.isReaper || e.def.rare) continue;
-        if ((e.def.tier || 0) > wc.tier) continue;
+      forEachFoeNear(p.x, p.y, wc.radius * area, (e) => {
+        if (e.boss || e.def.isReaper || e.def.rare) return false;
+        if ((e.def.tier || 0) > wc.tier) return false;
         const dd = Math.hypot(e.x - p.x, e.y - p.y);
         if (dd < wc.radius * area && dd < pd2) { pick = e; pd2 = dd; }
-      }
+        return false;
+      });
       if (pick) {
         R.cd['wildcall'] = R.time + wc.cd * (1 - st.cdr);
         recruitAlly(pick);
@@ -1840,10 +1947,11 @@ const Run = (() => {
     const sc = Skills.stat('stormcall');
     if (sc && (R.cd['stormcall'] || 0) <= R.time) {
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead || e.boss || e.def.isReaper) continue;
+      forEachFoeNear(p.x, p.y, sc.radius * area, (e) => {
+        if (e.boss || e.def.isReaper) return false;
         if (Math.hypot(e.x - p.x, e.y - p.y) < sc.radius * area) { e.frozenUntil = Math.max(e.frozenUntil, R.time + sc.dur); n++; }
-      }
+        return false;
+      });
       if (n > 0) {
         R.cd['stormcall'] = R.time + sc.cd * (1 - st.cdr);
         effect('ring', p.x, p.y, { color:'#fde047', r: sc.radius * area });
@@ -1853,12 +1961,12 @@ const Run = (() => {
     const sb = Skills.stat('sunburst');
     if (sb && (R.cd['sunburst'] || 0) <= R.time) {
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead) continue;
+      forEachFoeNear(p.x, p.y, sb.radius * area, (e) => {
         if (Math.hypot(e.x - p.x, e.y - p.y) < sb.radius * area) {
           e.burn = Math.max(e.burn, sb.burn); e.burnT = sb.dur; n++;
         }
-      }
+        return false;
+      });
       if (n > 0) {
         R.cd['sunburst'] = R.time + sb.cd * (1 - st.cdr);
         effect('ring', p.x, p.y, { color:'#d29922', r: sb.radius * area });
@@ -1868,10 +1976,15 @@ const Run = (() => {
     const vg = Skills.stat('voidgrip');
     if (vg && (R.cd['voidgrip'] || 0) <= R.time) {
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead || e.boss || e.def.isReaper) continue;
+      // 対象を集めてから引き寄せる(移動先のセルで同じ敵を2度処理しないように)
+      const hits = [];
+      forEachFoeNear(p.x, p.y, vg.radius * area, (e) => {
+        if (e.boss || e.def.isReaper) return false;
         const dd = Math.hypot(e.x - p.x, e.y - p.y);
-        if (dd > vg.radius * area || dd < 110) continue;
+        if (dd <= vg.radius * area && dd >= 110) hits.push([e, dd]);
+        return false;
+      });
+      for (const [e, dd] of hits) {
         const nd = Math.max(110, dd * vg.pull);
         const nx = p.x + (e.x - p.x) / dd * nd, ny = p.y + (e.y - p.y) / dd * nd;
         if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; e.mad = true; n++; }
@@ -1885,13 +1998,13 @@ const Run = (() => {
     const em = Skills.stat('ember');
     if (em && (R.cd['ember'] || 0) <= R.time) {
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead) continue;
+      forEachFoeNear(p.x, p.y, em.radius * area, (e) => {
         if (Math.hypot(e.x - p.x, e.y - p.y) < em.radius * area) {
           e.burn = Math.max(e.burn, em.burn); e.burnT = em.dur;
-          if (++n >= em.count) break;
+          if (++n >= em.count) return true;
         }
-      }
+        return false;
+      });
       if (n > 0) {
         R.cd['ember'] = R.time + em.cd * (1 - st.cdr);
         effect('ring', p.x, p.y, { color:'#ff6b35', r: em.radius * area });
@@ -1911,8 +2024,11 @@ const Run = (() => {
     }
     const cf = Skills.stat('confuse');
     if (cf && (R.cd['confuse'] || 0) <= R.time) {
-      const cands = R.enemies.filter(e => !e.dead && !e.boss && !e.def.isReaper &&
-        Math.hypot(e.x - p.x, e.y - p.y) < cf.radius * area);
+      const cands = [];
+      forEachFoeNear(p.x, p.y, cf.radius * area, (e) => {
+        if (!e.boss && !e.def.isReaper && Math.hypot(e.x - p.x, e.y - p.y) < cf.radius * area) cands.push(e);
+        return false;
+      });
       if (cands.length >= 2) {   // 同士討ちには2体以上必要
         R.cd['confuse'] = R.time + cf.cd * (1 - st.cdr);
         for (let i = 0; i < cf.count && cands.length; i++) {
@@ -1928,8 +2044,7 @@ const Run = (() => {
     if (cu && (R.cd['curse'] || 0) <= R.time) {
       const rad = cu.radius * area;
       let n = 0;
-      for (const e of R.enemies) {
-        if (e.dead) continue;
+      forEachFoeNear(p.x, p.y, rad + (R.maxFoeR || 60), (e) => {
         if (Math.hypot(e.x - p.x, e.y - p.y) < rad + e.def.r) {
           e.shred = Math.max(e.shred, cu.shred);
           e.slowUntil = Math.max(e.slowUntil, R.time + cu.dur);
@@ -1937,7 +2052,8 @@ const Run = (() => {
           e.cursedUntil = R.time + cu.dur;
           n++;
         }
-      }
+        return false;
+      });
       if (n > 0) {
         R.cd['curse'] = R.time + cu.cd * (1 - st.cdr);
         effect('ring', p.x, p.y, { color:'#a78bfa', r:rad });
@@ -1955,14 +2071,15 @@ const Run = (() => {
     for (let i = R.zones.length - 1; i >= 0; i--) {
       const z = R.zones[i];
       if (R.time > z.until) { R.zones.splice(i, 1); continue; }
-      for (const e of R.enemies) {
-        if (!e.dead && Math.hypot(e.x-z.x, e.y-z.y) < z.size + e.def.r) {
+      forEachFoeNear(z.x, z.y, z.size + (R.maxFoeR || 60), (e) => {
+        if (Math.hypot(e.x-z.x, e.y-z.y) < z.size + e.def.r) {
           e.hp -= z.dps * st.atk * dt;
           if (z.shred) e.shred = z.shred;
           e.flash = Math.max(e.flash, 0.03);
           if (e.hp <= 0) killEnemy(e);
         }
-      }
+        return false;
+      });
       for (const o of R.objects || []) {
         if (Math.hypot(o.x-z.x, o.y-z.y) < z.size + o.r) hitObject(o, z.dps * dt);
       }
@@ -2032,13 +2149,13 @@ const Run = (() => {
         const a = R.orbitA + i / ob.count * Math.PI * 2;
         const ox = p.x + Math.cos(a) * ob.radius * R.stats.area;
         const oy = p.y + Math.sin(a) * ob.radius * R.stats.area;
-        for (const e of R.enemies) {
-          if (e.dead) continue;
+        forEachFoeNear(ox, oy, ob.size + (R.maxFoeR || 60), (e) => {
           if (Math.hypot(e.x-ox, e.y-oy) < ob.size + e.def.r && R.time - (e.orbitHit || 0) > 0.5) {
             e.orbitHit = R.time;
             dealDamage(e, ob.dmg);
           }
-        }
+          return false;
+        });
         for (const o of R.objects || []) {
           if (Math.hypot(o.x-ox, o.y-oy) < ob.size + o.r && R.time - (o._orbHit || 0) > 0.5) {
             o._orbHit = R.time;
@@ -2121,8 +2238,10 @@ const Run = (() => {
         ef.t += 0; // tはdraw側で加算
         if (ef.t >= ef.delay) {
           ef.hitDone = true;
-          for (const e of R.enemies)
-            if (!e.dead && Math.hypot(e.x-ef.x, e.y-ef.y) < ef.blast + e.def.r) dealDamage(e, ef.dmg);
+          forEachFoeNear(ef.x, ef.y, ef.blast + (R.maxFoeR || 60), (e) => {
+            if (Math.hypot(e.x-ef.x, e.y-ef.y) < ef.blast + e.def.r) dealDamage(e, ef.dmg);
+            return false;
+          });
           damageObjectsIn(ef.x, ef.y, ef.blast, ef.dmg);
         }
       }
@@ -2318,10 +2437,10 @@ const Run = (() => {
     const pd = Math.hypot(R.player.x - es.x, R.player.y - es.y);
     if (pd < 420) { es.x += (es.dest.x - es.x) / d * 58 * dt; es.y += (es.dest.y - es.y) / d * 58 * dt; }
     // 触れている敵から削られる(守り甲斐)
-    for (const e of R.enemies) {
-      if (e.dead) continue;
+    forEachFoeNear(es.x, es.y, (R.maxFoeR || 60) + 16, (e) => {
       if (Math.hypot(e.x - es.x, e.y - es.y) < e.def.r * (e.sizeMul || 1) + 16) es.hp -= e.dmg * 0.45 * dt;
-    }
+      return false;
+    });
     if (es.hp <= 0) { es.state = 'dead'; effect('burst', es.x, es.y, { color:'#f85149', r:20 }); setTimeout(() => { if (R.escort === es) R.escort = null; }, 50); }
   }
 
@@ -2493,6 +2612,7 @@ const Run = (() => {
 
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
+    rebuildFoeGrid();   // 湧いた直後の敵も近傍グリッドに載せる(敵AI内のグリッド参照用)
     updateEnemies(dt);
     rebuildFoeGrid();   // 移動後の位置で近傍グリッドを組み直す
     updateAllies(dt);
@@ -2606,6 +2726,20 @@ const Run = (() => {
     R.offscreenR = Math.hypot(effW, effH) / 2 + 140;   // これより遠い敵は「見切れた」扱い
     R.viewHalfW = effW / 2; R.viewHalfH = effH / 2;    // 発見判定用: 実際に画面に映っている範囲
 
+    // 描画カリング: 画面(+余白)に映っている敵・仲間だけ描く。
+    // 追跡中の敵は画面から3200pxまで生存するため、無条件に全描画すると
+    // 見えない敵に描画時間を食われる ― 大群戦で効く
+    const cullL = camX - 140, cullRt = camX + effW + 140;
+    const cullT = camY - 160, cullB = camY + effH + 140;
+    const visFoes = [];
+    for (const e of R.enemies) {
+      if (e.x > cullL && e.x < cullRt && e.y > cullT && e.y < cullB) visFoes.push(e);
+    }
+    const visAllies = [];
+    for (const a of R.allies) {
+      if (a.x > cullL && a.x < cullRt && a.y > cullT && a.y < cullB) visAllies.push(a);
+    }
+
     g.save();
     g.scale(z, z);
 
@@ -2653,10 +2787,19 @@ const Run = (() => {
       else g.fillRect(d.x, d.y, 2.5, 2.5);
     }
     g.globalAlpha = 1;
-    // 影(ユニットの足元)
+    // 影(ユニットの足元)。画面内のユニットのみ。
+    // 超過密(合戦)時は通常サイズの影を省く ― 体が折り重なって影は見えないため
+    // 見た目はほぼ変わらず、楕円パス生成のコストだけが消える(ボス・巨体は描く)
     g.fillStyle = 'rgba(0,0,0,.25)';
-    for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }
-    for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); g.fill(); } }
+    const shadowLod = visFoes.length + visAllies.length > 420;
+    for (const e of visFoes) {
+      if (shadowLod && !e.boss && (e.sizeMul || 1) < 1.5) continue;
+      g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill();
+    }
+    for (const a of visAllies) {
+      if (a.waitAt || (shadowLod && (a.sizeMul || 1) < 1.5)) continue;
+      g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); g.fill();
+    }
     g.beginPath(); g.ellipse(p.x, p.y + 20, 16, 5, 0, 0, 7); g.fill();
 
     // ゾーン(毒沼)
@@ -2852,14 +2995,14 @@ const Run = (() => {
 
     // レイヤー順: [主人公+仲間](同じレイヤーでYソート) → 敵。
     // 同じレイヤー内では手前(画面の下)にいるキャラが上に重なる
-    const friendly = R.allies.slice().sort((A, B) => A.y - B.y);
+    const friendly = visAllies.sort((A, B) => A.y - B.y);
     let pDrawn = false;
     for (const a of friendly) {
       if (!pDrawn && p.y <= a.y) { drawPlayerUnit(g, p); pDrawn = true; }
       drawAllyUnit(g, a);
     }
     if (!pDrawn) drawPlayerUnit(g, p);
-    const enemySorted = R.enemies.slice().sort((A, B) => A.y - B.y);
+    const enemySorted = visFoes.sort((A, B) => A.y - B.y);
     for (const e of enemySorted) drawEnemyUnit(g, e);
 
     // オービット描画

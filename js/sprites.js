@@ -584,18 +584,35 @@ const Sprites = (() => {
       for (const id of list) {
         const img = new Image();
         img.src = 'assets/img/' + id + '.png';
-        img.onload = () => { cache[id] = img; };
+        img.onload = () => {
+          cache[id] = img;
+          // 生成済みの色替え・反転キャッシュは古い絵から作られている ― 破棄して作り直す
+          for (const k in tintCache) if (k.indexOf(id + '|') === 0) delete tintCache[k];
+        };
       }
     } catch(e) { /* マニフェスト無し = 全部プレースホルダー */ }
   }
 
+  // 左右反転はキャンバスに焼いてキャッシュする ― 描画のたびに
+  // save/translate/scale/restore(状態の退避)を走らせない。
+  // 元画像(src)が差し替わったら作り直す(assets/imgの上書き読み込みに追従)
+  const mirrorCache = {};
+  function mirrorOf(key, src){
+    const m = mirrorCache[key];
+    if (m && m.src === src) return m.cv;
+    const cv = document.createElement('canvas');
+    cv.width = src.width || S; cv.height = src.height || S;
+    const c = cv.getContext('2d');
+    c.translate(cv.width, 0); c.scale(-1, 1);
+    c.drawImage(src, 0, 0, cv.width, cv.height);
+    mirrorCache[key] = { src, cv };
+    return cv;
+  }
+
   // 描画ヘルパ: 中心(x,y)にサイズsizeで描く(向きflip対応)
   function draw(g, id, x, y, size, flip){
-    const im = get(id);
-    g.save(); g.translate(x, y);
-    if (flip) g.scale(-1, 1);
-    g.drawImage(im, -size/2, -size/2, size, size);
-    g.restore();
+    const im = flip ? mirrorOf(id, get(id)) : get(id);
+    g.drawImage(im, x - size/2, y - size/2, size, size);
   }
 
   // 色合成した派生スプライト(色違い・味方の色分けに使う)。
@@ -621,11 +638,9 @@ const Sprites = (() => {
     return cv;
   }
   function drawTinted(g, id, x, y, size, flip, color, strength){
-    const im = tinted(id, color, strength);
-    g.save(); g.translate(x, y);
-    if (flip) g.scale(-1, 1);
-    g.drawImage(im, -size/2, -size/2, size, size);
-    g.restore();
+    let im = tinted(id, color, strength);
+    if (flip) im = mirrorOf('t|' + id + '|' + color + '|' + (strength || 0.5), im);
+    g.drawImage(im, x - size/2, y - size/2, size, size);
   }
 
   return { get, draw, tinted, drawTinted, loadOverrides, DEFS };
