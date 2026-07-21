@@ -795,6 +795,16 @@ DATA.PORTS = [
   { id:'p_sw', name:'南西の港町', angle:Math.PI*3/4, repair:{ coins:1800, mats:{wood:40, shell:20, coral:6} } },
   { id:'p_s',  name:'南の港町',   angle:Math.PI/2,   repair:{ coins:2500, mats:{wood:50, coral:10, scale:3} } },
   { id:'p_se', name:'南東の港町', angle:Math.PI/4,   repair:{ coins:4000, mats:{wood:60, scale:6, star:3} } },
+  // --- 遠隔の港(他大陸の岸辺。遠環の大陸への玄関口) ---
+  // 白亜の港: 竜骨の北のこぶ、白亜の灯台の麓。北の霧の小島と北東の太陽の海への玄関
+  { id:'p_white', name:'白亜の港', cont:'east', at:{ x:134000, y:-59000 }, seaAngle:-Math.PI/2,
+    repair:{ coins:2500, mats:{wood:40, crystal:12} } },
+  // 嵐の港: 星嵐の北端、嵐の塔の東の浜。北の最果てと東の太陽の海への玄関
+  { id:'p_storm', name:'嵐の港', cont:'north', at:{ x:33000, y:-143000 }, seaAngle:0,
+    repair:{ coins:3500, mats:{wood:45, scrap:25, magic:6} } },
+  // 月影の港: 黄昏の北西の岬の南岸、月影の社の先。西の虚無の海への玄関
+  { id:'p_moon', name:'月影の港', cont:'west', at:{ x:-190000, y:-38000 }, seaAngle:Math.PI/2,
+    repair:{ coins:3000, mats:{wood:40, magic:8} } },
 ];
 
 // ---------------- 魂の広場(死後フィールド)の恒久強化 ----------------
@@ -848,11 +858,11 @@ DATA.META = {
   g_north_wall:  { st:'b_north', fac:'life', name:'城壁の加護',desc:'HPが30%以下の時、被ダメージ -3%', max:15, cost:gcost(200,1.45) },
   g_north_keep:  { st:'b_north', fac:'life', name:'砦の備え',  desc:'最大HP +12', max:20, cost:gcost(170,1.4), effAdd:{maxHp:12} },
   g_north_supply:{ st:'b_north', fac:'lore', name:'兵站術',    desc:'素材ドロップ量 +3%', max:15, cost:gcost(180,1.42), effMul:{dropMul:.03} },
-  g_north_march: { st:'b_north', fac:'lore', name:'行軍の号令',desc:'仲間の移動速度 +3%', max:15, cost:gcost(200,1.42), effMul:{allySpeed:.03} },
+  g_north_march: { st:'b_north', fac:'lore', name:'行軍の号令',desc:'自分と仲間の移動速度 +1%(遠征の脚)', max:15, cost:gcost(200,1.42), effMul:{speed:.01, allySpeed:.01} },
   g_north_fear:  { st:'b_north', fac:'war',  name:'威圧の号令', desc:'「威圧のオーラ」の効果量 +4%', max:15, cost:gcost(220,1.45) },
   // 東の遺跡: 武練場(範囲/射程) / 生命の祠(結界/回避) / 秘宝の蔵(叡智/仲間全能力)
   g_east_area:   { st:'b_east', fac:'war',  name:'魔力増幅',   desc:'スキルの効果範囲 +4%',  max:20, cost:gcost(180,1.42) },
-  g_east_reach:  { st:'b_east', fac:'war',  name:'遠見の術',   desc:'攻撃の射程 +2%', max:15, cost:gcost(200,1.42), effMul:{range:.02} },
+  g_east_reach:  { st:'b_east', fac:'war',  name:'遠見の術',   desc:'攻撃の射程 +2% / アイテム回収範囲 +4%', max:15, cost:gcost(200,1.42), effMul:{range:.02, magnet:.04} },
   g_east_ward:   { st:'b_east', fac:'life', name:'遺跡の結界', desc:'被ダメージ -1%', max:10, cost:gcost(220,1.45), effAdd:{armor:.01} },
   g_east_evade:  { st:'b_east', fac:'life', name:'残像歩法',   desc:'回避率 +0.6%', max:12, cost:gcost(240,1.46), effAdd:{dodge:.006} },
   g_east_cdr:    { st:'b_east', fac:'lore', name:'古代の叡智', desc:'武器の攻撃間隔 -1.5%(書庫と加算)', max:20, cost:gcost(180,1.42) },
@@ -884,7 +894,7 @@ DATA.META = {
   g_dragon_sk:   { st:'b_dragon', fac:'war', name:'【解放】竜鱗の陣', desc:'スキル「竜鱗の陣」を習得可能に', max:1, cost:gcost(3500,1) },
   g_dusk_slay:   { st:'b_dusk', fac:'war',  name:'終焉狩り',   desc:'リーパーへのダメージ +15%', max:20, cost:gcost(2000,1.5) },
   g_dusk_veil:   { st:'b_dusk', fac:'life', name:'黄昏の帳',   desc:'回避率 +0.8%', max:10, cost:gcost(2200,1.5), effAdd:{dodge:.008} },
-  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.05%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.0005} },
+  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.1%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.001} },
   g_dusk_sk:     { st:'b_dusk', fac:'lore', name:'【解放】黄昏の帳', desc:'スキル「黄昏の帳」を習得可能に(素材「宵の紗」も出現)', max:1, cost:gcost(3500,1) },
   g_star_meteor: { st:'b_star', fac:'war',  name:'流星の火',   desc:'会心率 +1.5%', max:10, cost:gcost(2800,1.5), effAdd:{crit:.015} },
   g_star_time:   { st:'b_star', fac:'life', name:'星読みの加護', desc:'強い色違いの敵の出現を3%緩和(最大45%)', max:15, cost:gcost(3000,1.55) },
@@ -923,17 +933,17 @@ DATA.META = {
   g_ember_sk:    { st:'b_ember', fac:'war',  name:'【解放】火の粉', desc:'スキル「火の粉」を習得できるようになる', max:1, cost:gcost(2500,1) },
   g_ember_mat:   { st:'b_ember', fac:'lore', name:'【解放】燃え殻', desc:'新素材「燃え殻」が灼熱系の魔物から出る', max:1, cost:gcost(1200,1) },
   // 竜の湯(竜骨の内陸): 湯治=回復と血行。湯上がりの体で殴る
-  g_spa_soak:    { st:'b_spa', fac:'life', name:'湯治の癒し',   desc:'最大HP +12', max:15, cost:gcost(1500,1.45), effAdd:{maxHp:12} },
+  g_spa_soak:    { st:'b_spa', fac:'life', name:'湯治の癒し',   desc:'HP自動回復 +0.8/秒(長旅の体力)', max:10, cost:gcost(1500,1.45), effAdd:{regen:.8} },
   g_spa_vigor:   { st:'b_spa', fac:'war',  name:'湯上がりの活力', desc:'全ダメージ +2%', max:10, cost:gcost(1600,1.5), effMul:{atk:.02} },
   g_spa_flow:    { st:'b_spa', fac:'lore', name:'湯の流れの心得', desc:'アイテム回収範囲 +6%', max:10, cost:gcost(1400,1.45), effMul:{magnet:.06} },
   g_spa_scale:   { st:'b_spa', fac:'lore', name:'竜鱗磨き',     desc:'コイン獲得量 +4%', max:15, cost:gcost(1500,1.5), effMul:{coinMul:.04} },
   // 白風の宿場(星嵐の峠道): 宿=旅支度と商い
   g_inn_hearth:  { st:'b_inn', fac:'life', name:'囲炉裏の温もり', desc:'最大HP +14', max:15, cost:gcost(2400,1.45), effAdd:{maxHp:14} },
-  g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'全ダメージ +2%', max:10, cost:gcost(2600,1.5), effMul:{atk:.02} },
+  g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'全ダメージ +2% / 移動速度 +1%(峠越えの脚)', max:10, cost:gcost(2600,1.5), effMul:{atk:.02, speed:.01} },
   g_inn_trade:   { st:'b_inn', fac:'lore', name:'宿場の商い',   desc:'コイン獲得量 +4%', max:15, cost:gcost(2500,1.5), effMul:{coinMul:.04} },
   g_inn_pack:    { st:'b_inn', fac:'lore', name:'荷継ぎの目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(2500,1.5), effMul:{dropMul:.03} },
   // 苔の庵(深緑の森の奥): 薬師=膏薬と急所の知識
-  g_moss_salve:  { st:'b_moss', fac:'life', name:'薬師の膏薬',   desc:'最大HP +12', max:15, cost:gcost(1400,1.45), effAdd:{maxHp:12} },
+  g_moss_salve:  { st:'b_moss', fac:'life', name:'薬師の膏薬',   desc:'HP自動回復 +0.5/秒(旅の常備薬)', max:10, cost:gcost(1400,1.45), effAdd:{regen:.5} },
   g_moss_ward:   { st:'b_moss', fac:'life', name:'苔の護り',     desc:'被ダメージ -1%', max:10, cost:gcost(1500,1.5), effAdd:{armor:.01} },
   g_moss_needle: { st:'b_moss', fac:'war',  name:'急所の心得',   desc:'クリティカル率 +1.5%', max:10, cost:gcost(1600,1.5), effAdd:{crit:.015} },
   g_moss_herb:   { st:'b_moss', fac:'lore', name:'薬草の目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(1500,1.5), effMul:{dropMul:.03} },
@@ -995,8 +1005,8 @@ DATA.META = {
   g_end_relic:   { st:'b_end',   fac:'lore', name:'彼方の遺物', desc:'素材ドロップ量 +5%', max:15, cost:gcost(130000,1.55), effMul:{dropMul:.05} },
   g_end_sk:      { st:'b_end',  fac:'war',  name:'【解放】終焉の誓い', desc:'スキル「終焉の誓い」を習得可能に', max:1, cost:gcost(150000,1) },
   // --- 沈み都(海底都市) ---
-  g_sea_tide:    { st:'b_sea', fac:'war',  name:'潮流の型',     desc:'クリティカル率 +1%',  max:10, cost:gcost(2800,1.45), effMul:{critAdd:.01} },
-  g_sea_breath:  { st:'b_sea', fac:'life', name:'潮の息継ぎ',   desc:'自然回復 +0.2/秒',    max:10, cost:gcost(2600,1.45), effMul:{regenAdd:.2} },
+  g_sea_tide:    { st:'b_sea', fac:'war',  name:'潮流の型',     desc:'クリティカル率 +1%',  max:10, cost:gcost(2800,1.45), effAdd:{crit:.01} },
+  g_sea_breath:  { st:'b_sea', fac:'life', name:'潮の息継ぎ',   desc:'HP自動回復 +0.5/秒(長い航海の体力)', max:10, cost:gcost(2600,1.45), effAdd:{regen:.5} },
   g_sea_pearl:   { st:'b_sea', fac:'lore', name:'真珠の目利き', desc:'コイン獲得 +4%',      max:15, cost:gcost(2400,1.45), effMul:{coinMul:.04} },
   g_sea_sk:      { st:'b_sea', fac:'war',  name:'【解放】潮汐の恵み', desc:'スキル「潮汐の恵み」を習得可能に', max:1, cost:gcost(2600,1) },
 };
@@ -1148,8 +1158,8 @@ DATA.SIDEQUESTS = {
     { id:'sq_mio', npc:'npc_scholar', npcName:'観測手ミオ', type:'hunt', enemy:'wisp', count:10,
       requiresStory:'dragon_tale', lockedLine:'…霧が濃くてね。竜の伝承を知る人にしか、観測結果は渡せない決まりなの。',
       intro:['ここは霧を観測する村。最近、霧の向こうに光が見えるの。','でもウィスプが観測器に群がって…10体お願い。'],
-      done:['観測できた!東に見えるあの灯り…「白亜の灯台」。竜骨の大陸の港街の灯りよ。','地図に描いておくわね。'],
-      reward:{ coins:180, hintBase:'b_white', story:'mist_light' } },
+      done:['観測できた!東に見えるあの灯り…「白亜の灯台」。竜骨の大陸の港街の灯りよ。','港には船着き場もあるはず。まとめて地図に描いておくわね。'],
+      reward:{ coins:180, hintBase:'b_white', hintPort:'p_white', story:'mist_light' } },
   ],
   b_white: [
     { id:'sq_jiji', npc:'npc_sailor', npcName:'灯台守ハク', type:'delivery', need:{ mats:{ shell:8 } },
@@ -1236,8 +1246,8 @@ DATA.SIDEQUESTS = {
     { id:'sq_rai', npc:'npc_smith', npcName:'塔守デン', type:'delivery', need:{ mats:{ scrap:15 } },
       requiresStory:'frost_gate', lockedLine:'嵐の塔は氷の里の客人しか入れん決まりだ。',
       intro:['この塔は嵐を鎮める鐘楼だ。避雷針が折れちまってな。','鉄クズ15、頼めるか。'],
-      done:['鐘が鳴る…嵐が晴れるぞ。晴れた空の東、遥か彼方に見えるだろう。','「太陽の神殿都市」だ。地図に記す。'],
-      reward:{ coins:500, hintBase:'b_sun', story:'storm_key' } },
+      done:['鐘が鳴る…嵐が晴れるぞ。晴れた空の東、遥か彼方に見えるだろう。','「太陽の神殿都市」だ。地図に記す。','渡るなら塔の東の浜からだ。港の船大工に話をつけておく。'],
+      reward:{ coins:500, hintBase:'b_sun', hintPort:'p_storm', story:'storm_key' } },
   ],
   b_grave: [
     { id:'sq_tomu', npc:'npc_sage', npcName:'墓守トム', type:'hunt', enemy:'shade', count:8,
@@ -1394,6 +1404,9 @@ const PORT_FLAVOR = {
   p_n:'北の海は冷てぇぞ。装備はしっかりな。', p_nw:'北西の沖にゃ夕凪の群島が浮かんどる。霧が出るから方角を見失うなよ。',
   p_w:'西の海の向こうにゃ、黄昏の大陸が見えるって話だ。夕日に黒く浮かぶのさ。', p_sw:'ここから西の沖へ回りこみゃ、黄昏の大陸の南岸に着く。夕暮れ色の岬が目印さ。',
   p_s:'南の海は嵐が名物だ。腕が鳴るね。', p_se:'南東の沖は流れが速い。腕のいい船乗り向けさ。',
+  p_white:'ここの潮は素直だ。北へ出りゃ霧の小島、北東の沖の先は太陽の海だ。',
+  p_storm:'嵐の合間を縫って走るのさ。北の最果ての海も、東の太陽の海も、ここが玄関だ。',
+  p_moon:'月夜の海は静かだがね…西の虚無へ渡る者は、みんなここで祈っていくのさ。',
 };
 // 船大工は港ごとに別人。口ぶりも直す船への思い入れも、それぞれ違う
 // mate: 海沿いの同業(両隣の港)のことを会話で語る ― 地図には載らない。
@@ -1424,6 +1437,15 @@ const PORT_SMITH = {
   p_se: { open:'速い潮を乗りこなす船が要るんだろう?任せな、腕は南東一だ。', req:'材料と手間賃だ。速い仕事は材料次第なんでね。',
           fix:'直したぜ。どこよりも速く仕上げた。', close:'流れに乗れば矢のように走る。振り落とされるなよ!',
           mate:'海岸の北に東の港、西に南の港がある。速い船乗りってのは、灯りを一目見りゃ港が分かるもんさ。' },
+  p_white: { open:'おう、灯台の下の船かい?ありゃ港街の誇りだった白帆でな、直し手を待ってたのさ。', req:'材料と手間賃を頼むよ。灯台守のじいさんも待ちわびてる。',
+          fix:'仕上がった!灯台の光に負けねえ白い帆だ。', close:'霧の海でも太陽の海でも、この船なら渡り切れる。',
+          mate:'うちの灯台の光は世界一遠くまで届く。北の霧、北東の太陽…光の筋の先に、海の道が通ってるぜ。' },
+  p_storm: { open:'嵐でマストの折れた船だ。骨は良いんだがな、直し手がいなかった。', req:'材料と手間賃だ。嵐の合間に一気に仕上げるぞ。',
+          fix:'できたぞ。雷が落ちても折れんマストだ。', close:'鐘が鳴ったら出航はよせ。晴れ間を待って走れ!',
+          mate:'北へ出りゃ最果ての海、東へ走りゃ太陽の海。どっちも早瀬が通ってる。灯台の光を離すなよ。' },
+  p_moon: { open:'…この船を、直しに来たのですね。月を渡る船、と呼ばれています。', req:'材料と手間賃を。急ぎません…月は逃げませんから。',
+          fix:'…直りました。帆が月光を集めています。', close:'西の海は静かで、深い。どうか、呑まれませんよう。',
+          mate:'西の沖の虚無の門へは、この港の早瀬だけが道です。月と、灯台の光を離さないで。' },
 };
 for (const p of DATA.PORTS) {
   const sm = PORT_SMITH[p.id] || { open:'おう、あの船か?ありゃあ嵐にやられちまってな。', close:'いつでも出航できる。良い風を!' };
@@ -1484,8 +1506,8 @@ Object.assign(DATA.QUESTS2, {
     markName:'聖句喰らいのシェイド', mark:{ x:-159400, y:-39000 },
     offer:'聖句を喰らう影の正体が知れた。斬っておくれ。',
     intro:['月光の聖句を喰らっていたのは、一体の肥えたシェイドだ。','月の出る丘に現れおる。地図に印を付けておいた。聖句が食い尽くされる前に…頼んだぞ。'],
-    done:['聖句が守られた…月の祈りが修道院に降りる。','(この基地のパワーアップ施設が使えるようになった!)'],
-    reward:{ coins:450 } },
+    done:['聖句が守られた…月の祈りが修道院に降りる。','…岬の先の月の港にも、加護を分けておいた。船大工が待っておるぞ。','(この基地のパワーアップ施設が使えるようになった!)'],
+    reward:{ coins:450, hintPort:'p_moon' } },
   b_sun: { npcName:'太陽の神官サナ', type:'mark', enemy:'scarab', rank:2,
     markName:'日蝕の女王', mark:{ x:157900, y:-100300 },
     offer:'日輪の間に巣を張った群れには、女王がいます。',

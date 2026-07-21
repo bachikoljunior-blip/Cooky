@@ -552,10 +552,24 @@ const Run = (() => {
   // rank1=金(HP4倍) rank2=紅(16倍) rank3=紫(64倍) rank4=青白(256倍)。同じ種類+ランクなら常に同じ強さ。
   const RANK_HP = [1, 4, 16, 64, 256], RANK_DMG = [1, 1.7, 2.9, 4.9, 8.3];
   const RANK_MAX = 4;
+  // ---- 節目(フェーズ) ----
+  // 敵の種類が増える時刻(allowedTierの段)と同じ節目で、難しさの「作り」が切り替わる:
+  //   節目ごとに個体が強くなり(色違い・大型の割合が一段跳ね上がる)、
+  //   数はいったん少し引いて(×0.87)から2.5分かけて元の伸びに戻る。
+  //   総威力(数×平均の強さ)は節目の直後も下がらない(PACING.mdの実測で担保)。
+  const PHASE_AT = [3, 7, 12, 20, 30];
+  function phasesPassed(min){ let n = 0; for (const m of PHASE_AT) if (min >= m) n++; return n; }
+  function phaseCountMul(min){
+    let last = -1;
+    for (const m of PHASE_AT) if (min >= m) last = m;
+    if (last < 0) return 1;
+    return 0.87 + 0.13 * Math.min(1, (min - last) / 2.5);
+  }
   function escalNow(){
     const min = R.time / 60;
     const ring = World.ringOf(R.player.x, R.player.y);
-    return (min / 8 + ring * 0.6) * (1 - R.stats.timeMitig) + (R.worldEvent === 'variant' ? 0.4 : 0);   // 星読みの加護で緩和/色違いの活性
+    return (min / 8 + ring * 0.6 + phasesPassed(min) * 0.5) * (1 - R.stats.timeMitig) +
+           (R.worldEvent === 'variant' ? 0.4 : 0);   // 星読みの加護で緩和/色違いの活性
   }
   function pickRank(){
     const escal = escalNow();
@@ -781,7 +795,7 @@ const Run = (() => {
   // 大群イベント: 何波にも分けて、時間経過ほど大量に押し寄せる。
   function startHordeEvent(){
     const min = R.time / 60;
-    const total = Math.round(20 * (1 + min));   // 初回~45体、時間経過(分×1)でどんどん増える
+    const total = Math.round(20 * (1 + min) * phaseCountMul(min));   // 初回~45体、時間で増える(節目の直後は一息)
     const waves = Math.min(14, 1 + Math.floor(min / 4));   // 最初は一波のみ、時間経過で波数が増える
     const perWave = Math.ceil(total / waves);
     const dir0 = Math.random() * Math.PI * 2;              // 主に片側から
@@ -847,7 +861,7 @@ const Run = (() => {
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1));
+    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1) * phaseCountMul(min));
     // 直前に通って倒した場所は1分間リスポーンしない ― 周辺の「掃討済み」格子の割合ぶん目標数を下げる
     if (R.clearedCells && R.clearedCells.size) {
       let tot = 0, clr = 0;
@@ -864,7 +878,7 @@ const Run = (() => {
     // 移動中は前方の分が間引かれていくぶん補充を速める(移動しても敵密度が薄くならない)
     const pSpd = Math.hypot(p.vx || 0, p.vy || 0);
     const moveBoost = 1 + Math.min(2.2, pSpd / 60);
-    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost;
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost * phaseCountMul(min);
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = 0;
     {
