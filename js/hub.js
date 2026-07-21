@@ -19,17 +19,18 @@ const Hub = (() => {
 
   function stations(){
     if (H.area === 'main') {
+      // 祭壇(先人が築いた広場の中心)を奥の正面に、施設は環状に。ゲートは手前
       return [
-        { kind:'meta', st:'altar',  x:-420, y:-170 },
-        { kind:'meta', st:'lab',    x:-140, y:-170 },
-        { kind:'meta', st:'camp',   x:140,  y:-170 },
-        { kind:'meta', st:'lib',    x:420,  y:-170 },
-        { kind:'armory', x:620, y:240 },
+        { kind:'meta', st:'altar',  x:0,    y:-238 },
+        { kind:'meta', st:'lab',    x:-370, y:-165 },
+        { kind:'meta', st:'camp',   x:370,  y:-165 },
+        { kind:'meta', st:'lib',    x:-645, y:-25 },
+        { kind:'armory', x:645, y:-25 },
         { kind:'gate',   x:0,   y:260 },
-        { kind:'stats',  x:-620, y:240 },
-        // ストーリーで移り住んでくる住民たち
+        { kind:'stats',  x:-280, y:235 },
+        // ストーリーで移り住んでくる住民たち(泉の向かい・広場の東側で暮らす)
         ...((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
-          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:-450 + i * 300, y:40 })),
+          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:210 + i * 230, y:135 })),
       ];
     }
     // 港町エリア: 船大工・(修理後)貿易商・住民・ゲート。船は実寸大で桟橋に停泊
@@ -118,9 +119,11 @@ const Hub = (() => {
     p.y += ax.y * 240 * dt;
     p.x = Math.max(b.x0 + 40, Math.min(b.x1 - 40, p.x));
     p.y = Math.max(b.y0 + 40, Math.min(b.y1 - 40, p.y));
-    // 地形の障害(泉・大炉・岩など): 円で押し出す(縁に沿って滑る)
+    // 地形の障害(泉・大炉・岩・家・樽など): 円で押し出す(縁に沿って滑る)
     const th = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
-    if (th && th.obst) for (const o of th.obst) {
+    let obstList = (th && th.obst) || [];
+    if (H.area.startsWith('port:')) obstList = obstList.concat(portScenery(H.area.slice(5)).obst);
+    for (const o of obstList) {
       const dx = p.x - o.x, dy = p.y - o.y;
       const d = Math.hypot(dx, dy);
       if (d < o.r + 16 && d > 0.001) { p.x = o.x + dx / d * (o.r + 16); p.y = o.y + dy / d * (o.r + 16); }
@@ -148,6 +151,70 @@ const Hub = (() => {
       hint.classList.remove('hidden');
       actBtn.classList.remove('hidden');
     } else { hint.classList.add('hidden'); actBtn.classList.add('hidden'); }
+  }
+
+  // 港町の実景: 港ごとに家並み・網干し場・樽・灯柱の配置が違う(決定論)。
+  // どの港も同じ、をやめて「その港の暮らし」が見えるように
+  const portSceneryCache = {};
+  function portScenery(pid){
+    if (portSceneryCache[pid]) return portSceneryCache[pid];
+    let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
+    h = Math.abs(h) || 1;
+    const rnd2 = (n) => { h = (h * 1103515245 + 12345) & 0x7fffffff; return h % n; };
+    const houses = [];
+    const nH = 2 + rnd2(2);   // 2〜3軒(画面に映る帯に、港ごとに散らばりを変えて)
+    for (let i = 0; i < nH; i++) {
+      houses.push({ spr: rnd2(2) ? 'ob_house' : 'ob_house2',
+        x: -560 + i * (150 + rnd2(90)) + rnd2(70), y: -250 + rnd2(130) + (i % 2) * 70,
+        s: 74 + rnd2(34) });
+    }
+    const barrels = [];
+    const bx = -480 + rnd2(360), by = 20 + rnd2(90);
+    for (let i = 0; i < 2 + rnd2(2); i++) barrels.push({ x: bx + i * 26 + rnd2(10), y: by + (i % 2) * 18, s: 22 + rnd2(8) });
+    const net = { x: -600 + rnd2(260), y: 90 + rnd2(120), w: 84 + rnd2(60) };
+    const lantern = { x: 180 + rnd2(120), y: 88 + rnd2(24) };
+    const obst = houses.map(hs => ({ x: hs.x, y: hs.y + hs.s * 0.15, r: hs.s * 0.42 }))
+      .concat([{ x: bx + 24, y: by + 8, r: 30 }]);
+    return (portSceneryCache[pid] = { houses, barrels, net, lantern, obst });
+  }
+  function drawPortScenery(g, pid, t){
+    const sc = portScenery(pid);
+    for (const hs of sc.houses) Sprites.draw(g, hs.spr, hs.x, hs.y, hs.s);
+    for (const bl of sc.barrels) {
+      g.fillStyle = 'rgba(0,0,0,.2)';
+      g.beginPath(); g.ellipse(bl.x, bl.y + bl.s * 0.4, bl.s * 0.55, bl.s * 0.2, 0, 0, 7); g.fill();
+      g.fillStyle = '#8b5a2b'; g.fillRect(bl.x - bl.s / 2, bl.y - bl.s / 2, bl.s, bl.s);
+      g.strokeStyle = '#57443a'; g.lineWidth = 2;
+      g.strokeRect(bl.x - bl.s / 2, bl.y - bl.s / 2, bl.s, bl.s);
+      g.beginPath(); g.moveTo(bl.x - bl.s / 2, bl.y); g.lineTo(bl.x + bl.s / 2, bl.y); g.stroke();
+    }
+    // 網干し場: 2本の柱に漁網
+    const nt = sc.net;
+    g.strokeStyle = '#6e5c48'; g.lineWidth = 3;
+    g.beginPath(); g.moveTo(nt.x, nt.y); g.lineTo(nt.x, nt.y - 34); g.stroke();
+    g.beginPath(); g.moveTo(nt.x + nt.w, nt.y); g.lineTo(nt.x + nt.w, nt.y - 34); g.stroke();
+    g.strokeStyle = 'rgba(160,175,190,.55)'; g.lineWidth = 1;
+    for (let i = 0; i < 4; i++) {
+      const sag = 4 + i * 3;
+      g.beginPath(); g.moveTo(nt.x, nt.y - 30 + i * 7);
+      g.quadraticCurveTo(nt.x + nt.w / 2, nt.y - 30 + i * 7 + sag, nt.x + nt.w, nt.y - 30 + i * 7);
+      g.stroke();
+    }
+    for (let i = 1; i < 6; i++) {
+      g.beginPath(); g.moveTo(nt.x + nt.w / 6 * i, nt.y - 30); g.lineTo(nt.x + nt.w / 6 * i, nt.y - 9); g.stroke();
+    }
+    // 桟橋の灯柱: 夜の海を照らす暖色の灯り
+    const lt = sc.lantern;
+    g.strokeStyle = '#57443a'; g.lineWidth = 4;
+    g.beginPath(); g.moveTo(lt.x, lt.y); g.lineTo(lt.x, lt.y - 46); g.stroke();
+    const gl = 0.75 + Math.sin(t * 2.4) * 0.2;
+    const lg = g.createRadialGradient(lt.x, lt.y - 50, 2, lt.x, lt.y - 50, 46);
+    lg.addColorStop(0, 'rgba(255,200,110,' + (0.5 * gl).toFixed(2) + ')');
+    lg.addColorStop(1, 'rgba(255,200,110,0)');
+    g.fillStyle = lg;
+    g.beginPath(); g.arc(lt.x, lt.y - 50, 46, 0, 7); g.fill();
+    g.fillStyle = '#ffd766';
+    g.fillRect(lt.x - 4, lt.y - 56, 8, 10);
   }
 
   function interactLabel(s){
@@ -553,7 +620,7 @@ const Hub = (() => {
     if (s.kind === 'board') return { spr:'ob_house2', label:'依頼板', short:'依頼' };
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
-    if (s.kind === 'stats') return { spr:'ob_rock', label:'記録の石碑', short:'石碑' };
+    if (s.kind === 'stats') return { spr:'st_stone', label:'記録の石碑', short:'石碑' };
     return { spr:'st_altar', label:'', short:'' };
   }
   // 施設マップ用の短い名前
@@ -837,11 +904,8 @@ const Hub = (() => {
       for (let px2 = -60; px2 < 320; px2 += 40) { g.beginPath(); g.moveTo(px2, 122); g.lineTo(px2, 208); g.stroke(); }
       // 船: 実寸大。修理済みなら帆船、未修理なら壊れた残骸
       Sprites.draw(g, SaveSys.data.ports[pid] ? 'boat' : 'ob_wreck', 400, 90, 300);
-      // 陸側: 家々と積み荷
-      Sprites.draw(g, 'ob_house', -470, bnd.y0 + 120, 104);
-      Sprites.draw(g, 'ob_house2', -230, bnd.y0 + 108, 90);
-      Sprites.draw(g, 'ob_crate', -360, 60, 34);
-      Sprites.draw(g, 'ob_crate', -310, 84, 26);
+      // 陸側: 港ごとに配置の違う家並み・網干し場・樽・灯柱(決定論)
+      drawPortScenery(g, pid, wt);
       g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
       g.fillText('― 港町「' + (pp ? pp.name : '') + '」 ―', -200, bnd.y0 + 200);
     }
@@ -849,10 +913,21 @@ const Hub = (() => {
       const bd = DATA.BASES.find(b => b.id === H.area);
       if (bd) {
         Sprites.draw(g, bd.spr || 'st_warp', 0, bounds().y0 + 90, 190);
-        Sprites.draw(g, 'ob_house', -370, bounds().y0 + 110, 90);
-        Sprites.draw(g, 'ob_house2', 370, bounds().y0 + 104, 80);
-        Sprites.draw(g, 'ob_house2', -390, 170, 72);
-        Sprites.draw(g, 'ob_house', 390, 180, 78);
+        // 家並み: 基地ごとに軒数・位置・大きさが違う(決定論)。左右対称の張りぼて感をなくす
+        let hh2 = 0; for (let i = 0; i < H.area.length; i++) hh2 = (hh2 * 31 + H.area.charCodeAt(i)) | 0;
+        hh2 = Math.abs(hh2) || 1;
+        const hr = (n) => { hh2 = (hh2 * 1103515245 + 12345) & 0x7fffffff; return hh2 % n; };
+        const slots = [
+          { x:-370, y:bounds().y0 + 110 }, { x:370, y:bounds().y0 + 104 },
+          { x:-395, y:170 }, { x:395, y:180 }, { x:-540, y:20 }, { x:545, y:30 },
+        ];
+        const nHouse = 3 + hr(3);   // 3〜5軒(同じ場所に重ねない)
+        const start = hr(6);
+        for (let i = 0; i < nHouse; i++) {
+          const sl = slots[(start + i) % slots.length];
+          Sprites.draw(g, hr(2) ? 'ob_house' : 'ob_house2',
+            sl.x + hr(50) - 25, sl.y + hr(30) - 15, 68 + hr(30));
+        }
         g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
         g.fillText('― ' + bd.name + '〈' + (bd.kind || '拠点') + '〉 ―', 0, bounds().y0 + 190);
       }
