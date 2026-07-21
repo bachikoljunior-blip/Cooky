@@ -128,6 +128,9 @@ const Hub = (() => {
       const d = Math.hypot(dx, dy);
       if (d < o.r + 16 && d > 0.001) { p.x = o.x + dx / d * (o.r + 16); p.y = o.y + dy / d * (o.r + 16); }
     }
+    // 段差(崖の縁): 石段の口以外は上り下りできない
+    const tr = terraceOf();
+    for (const sg of tr.segs) segPush(p, sg.x1, tr.edgeY + 10, sg.x2, tr.edgeY + 10, 14);
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
     // 住民は定位置のまわりを行き来する(作業している感)
@@ -153,6 +156,55 @@ const Hub = (() => {
     } else { hint.classList.add('hidden'); actBtn.classList.add('hidden'); }
   }
 
+  // 段丘: 街の奥は一段高い台地になっていて、崖肌と石段で繋がる(街の「地形」)。
+  // 階段の口は「上段にある施設の正面」に必ず開く ― どの配置でも詰まない
+  function terraceOf(){
+    const isPort = H.area.startsWith('port:');
+    const edgeY = H.area === 'main' ? -120 : isPort ? -230 : -50;
+    const b = Object.assign({}, bounds());
+    if (isPort) b.x1 = 40;   // 港の段丘は陸側だけ(海へは渚がある)
+    const gaps = [];
+    for (const s of H.list || []) {
+      if (s.kind === 'villager') continue;
+      if (s.y < edgeY) gaps.push({ x: Math.max(b.x0 + 90, Math.min(b.x1 - 90, s.x)), w: 130 });
+    }
+    if (!gaps.length) {
+      // 港: 高台の家(1軒目)の正面に石段が付く
+      const gx = isPort ? portScenery(H.area.slice(5)).houses[0].x : 0;
+      gaps.push({ x: Math.max(b.x0 + 90, Math.min(b.x1 - 90, gx)), w: 130 });
+    }
+    gaps.sort((a, b2) => a.x - b2.x);
+    const merged = [];
+    for (const gp of gaps) {
+      const last = merged[merged.length - 1];
+      if (last && gp.x - gp.w / 2 < last.x + last.w / 2) {
+        const lo = Math.min(last.x - last.w / 2, gp.x - gp.w / 2);
+        const hi = Math.max(last.x + last.w / 2, gp.x + gp.w / 2);
+        last.x = (lo + hi) / 2; last.w = hi - lo;
+      } else merged.push({ x: gp.x, w: gp.w });
+    }
+    const segs = [];
+    let cur = b.x0;
+    for (const gp of merged) {
+      const lo = gp.x - gp.w / 2, hi = gp.x + gp.w / 2;
+      if (lo > cur) segs.push({ x1: cur, x2: lo });
+      cur = Math.max(cur, hi);
+    }
+    if (cur < b.x1) segs.push({ x1: cur, x2: b.x1 });
+    return { edgeY, segs, gaps: merged };
+  }
+  // 線分(崖の縁)からの押し出し
+  function segPush(p, x1, y1, x2, y2, rad){
+    const dx = x2 - x1, dy = y2 - y1;
+    const L2 = dx * dx + dy * dy || 1;
+    let t = ((p.x - x1) * dx + (p.y - y1) * dy) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const cx = x1 + t * dx, cy = y1 + t * dy;
+    const ddx = p.x - cx, ddy = p.y - cy;
+    const d = Math.hypot(ddx, ddy);
+    if (d < rad && d > 0.001) { p.x = cx + ddx / d * rad; p.y = cy + ddy / d * rad; }
+  }
+
   // 港町の実景: 港ごとに家並み・網干し場・樽・灯柱の配置が違う(決定論)。
   // どの港も同じ、をやめて「その港の暮らし」が見えるように
   const portSceneryCache = {};
@@ -162,10 +214,11 @@ const Hub = (() => {
     h = Math.abs(h) || 1;
     const rnd2 = (n) => { h = (h * 1103515245 + 12345) & 0x7fffffff; return h % n; };
     const houses = [];
-    const nH = 2 + rnd2(2);   // 2〜3軒(画面に映る帯に、港ごとに散らばりを変えて)
+    const nH = 2 + rnd2(2);   // 2〜3軒。1軒目は高台(崖の上)に建ち、石段で下と繋がる
     for (let i = 0; i < nH; i++) {
       houses.push({ spr: rnd2(2) ? 'ob_house' : 'ob_house2',
-        x: -560 + i * (150 + rnd2(90)) + rnd2(70), y: -250 + rnd2(130) + (i % 2) * 70,
+        x: -560 + i * (150 + rnd2(90)) + rnd2(70),
+        y: i === 0 ? -305 + rnd2(30) : -195 + rnd2(90) + (i % 2) * 60,
         s: 74 + rnd2(34) });
     }
     const barrels = [];
@@ -884,9 +937,13 @@ const Hub = (() => {
     g.save();
     g.translate(-camX, -camY);
 
-    // 街の地形: 踏み固められた土の道が、ゲートから広場を経て各施設へ通う。
-    // 家や施設が「道に沿って建っている」ことで、集落として自然に読める
+    // 街の地形: 奥の一段高い台地(段差)+踏み固められた土の道+中央広場。
+    // 道は上段の施設へは石段の口を通ってまっすぐ上がる
+    const TR = terraceOf();
     {
+      // 上段の台地はわずかに明るい(高さの表現)
+      g.fillStyle = 'rgba(255,255,255,.035)';
+      g.fillRect(bnd.x0, bnd.y0, bnd.x1 - bnd.x0, TR.edgeY - bnd.y0);
       const stns = H.list || [];
       const gate = stns.find(s2 => s2.kind === 'gate');
       const cx0 = 0, cy0 = 20;
@@ -901,12 +958,39 @@ const Hub = (() => {
         if (s2 === gate || s2.kind === 'villager') continue;
         if (H.area.startsWith('port:') && s2.x > 40) continue;   // 海側には道を引かない
         g.beginPath(); g.moveTo(cx0, cy0);
-        g.quadraticCurveTo(s2.x * 0.35, (cy0 + s2.y) / 2, s2.x, s2.y + 16);
+        if (s2.y < TR.edgeY) {
+          // 上段の施設へ: 石段の正面まで行き、まっすぐ上がる
+          g.quadraticCurveTo(s2.x * 0.4, (cy0 + TR.edgeY) / 2, s2.x, TR.edgeY + 42);
+          g.lineTo(s2.x, s2.y + 16);
+        } else {
+          g.quadraticCurveTo(s2.x * 0.35, (cy0 + s2.y) / 2, s2.x, s2.y + 16);
+        }
         g.stroke();
       }
       g.lineCap = 'butt';
       g.fillStyle = 'rgba(214,192,148,.06)';
       g.beginPath(); g.ellipse(cx0, cy0, 155, 82, 0, 0, 7); g.fill();
+      // 崖肌(段差の正面)と石段
+      for (const sg of TR.segs) {
+        g.fillStyle = 'rgba(9,13,22,.55)';
+        g.fillRect(sg.x1, TR.edgeY, sg.x2 - sg.x1, 26);
+        g.fillStyle = 'rgba(255,255,255,.12)';
+        g.fillRect(sg.x1, TR.edgeY - 2.5, sg.x2 - sg.x1, 3);
+        g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2;
+        for (let gx = sg.x1 + 20; gx < sg.x2 - 8; gx += 36) {
+          g.beginPath(); g.moveTo(gx, TR.edgeY + 4); g.lineTo(gx + 4, TR.edgeY + 23); g.stroke();
+        }
+      }
+      for (const gp of TR.gaps) {
+        const w2 = gp.w / 2 - 12;
+        for (let st2 = 0; st2 < 5; st2++) {
+          g.fillStyle = st2 % 2 ? 'rgba(214,192,148,.17)' : 'rgba(214,192,148,.10)';
+          g.fillRect(gp.x - w2 + st2 * 3, TR.edgeY + st2 * 5.2, (w2 - st2 * 3) * 2, 5.2);
+        }
+        g.fillStyle = 'rgba(9,13,22,.45)';
+        g.fillRect(gp.x - w2 - 7, TR.edgeY, 7, 26);
+        g.fillRect(gp.x + w2, TR.edgeY, 7, 26);
+      }
     }
 
     // 基地マップ: 集落の実景(中央に本殿=シンボルの元、周りに家々)。

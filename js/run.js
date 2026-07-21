@@ -2788,6 +2788,23 @@ const Run = (() => {
     for (const c of R.crags || []) {
       const s = c.r;
       if (Math.abs(c.x - p.x) > effW * 0.75 || Math.abs(c.y - p.y) > effH * 0.75) continue;
+      if (c.cliff) {
+        // 崖の尾根(段差): 明るい台地の上面と、暗い崖肌の正面。連なって一筋の段になる
+        g.fillStyle = 'rgba(0,0,0,.20)';
+        g.beginPath(); g.ellipse(c.x, c.y + s * 0.62, s * 1.25, s * 0.4, 0, 0, 7); g.fill();
+        g.fillStyle = '#3f4750';
+        g.fillRect(c.x - s * 1.12, c.y - s * 0.2, s * 2.24, s * 0.8);
+        g.strokeStyle = 'rgba(0,0,0,.28)'; g.lineWidth = 2;
+        for (let k = -1; k <= 1; k++) {
+          g.beginPath(); g.moveTo(c.x + k * s * 0.55, c.y - s * 0.12);
+          g.lineTo(c.x + k * s * 0.55 + 3, c.y + s * 0.56); g.stroke();
+        }
+        g.fillStyle = '#5a626e';
+        g.beginPath(); g.ellipse(c.x, c.y - s * 0.26, s * 1.16, s * 0.55, 0, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.10)';
+        g.beginPath(); g.ellipse(c.x - s * 0.2, c.y - s * 0.38, s * 0.7, s * 0.3, 0, 0, 7); g.fill();
+        continue;
+      }
       const wob = ((c.x * 7 + c.y * 13) % 10) / 10;   // 個体差(決定論)
       g.fillStyle = 'rgba(0,0,0,.22)';
       g.beginPath(); g.ellipse(c.x, c.y + s * 0.55, s * 1.12, s * 0.4, 0, 0, 7); g.fill();

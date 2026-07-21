@@ -265,6 +265,22 @@ const World = (() => {
       if (d < 5600) nearBase = b;
     }
     const rd = nearBase ? roadOf(nearBase.id) : null;
+    // 崖の尾根: 岩群のおよそ1/4は、一列に連なる段差(崖)になる。
+    // 当たり判定は従来の円のまま(既存の回り込み・湧き規則がそのまま効く)
+    if (hash(cx, cy, 105) < 0.25) {
+      const ang = hash(cx, cy, 106) * Math.PI;
+      const segs = 4 + Math.floor(hash(cx, cy, 107) * 3);   // 4〜6節
+      const r = 24 + hash(cx, cy, 108) * 10;
+      for (let i = 0; i < segs; i++) {
+        const x = bx + Math.cos(ang) * (i - (segs - 1) / 2) * r * 1.5;
+        const y = by + Math.sin(ang) * (i - (segs - 1) / 2) * r * 1.5;
+        const t = terrainAt(x, y);
+        if (t !== 'grass' && t !== 'sand') continue;
+        if (rd && roadDist(rd, x, y) < 120) continue;
+        list.push({ x, y, r, cliff: true, ang });
+      }
+      return list;
+    }
     const n = 1 + Math.floor(hash(cx, cy, 92) * 2.5);
     for (let i = 0; i < n; i++) {
       const x = bx + (hash(cx, cy, 93 + i) - 0.5) * CHUNK * 0.9;
