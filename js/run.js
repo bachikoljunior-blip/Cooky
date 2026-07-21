@@ -876,7 +876,9 @@ const Run = (() => {
     // 画面内には湧かないが、近く(画面まわり)の数を目標値に保つよう画面外から補充する。
     const offR = R.offscreenR || 500;
     const nearR = offR + 260;   // 画面まわり〜退場距離。この範囲の敵数を目標値に保つ
-    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1) * phaseCountMul(min));
+    // 軍勢が育って画面が広いほど、見える環境の敵も増やす(画面の広がりに比例、最大3倍)
+    const viewMul = Math.min(3, Math.max(1, offR / 950));
+    let nearTarget = Math.round((192 + min * 12 + ring0 * 12) * (isReaperTime ? 0.4 : 1) * phaseCountMul(min) * viewMul);
     // 直前に通って倒した場所は1分間リスポーンしない ― 周辺の「掃討済み」格子の割合ぶん目標数を下げる
     if (R.clearedCells && R.clearedCells.size) {
       let tot = 0, clr = 0;
@@ -893,7 +895,7 @@ const Run = (() => {
     // 移動中は前方の分が間引かれていくぶん補充を速める(移動しても敵密度が薄くならない)
     const pSpd = Math.hypot(p.vx || 0, p.vy || 0);
     const moveBoost = 1 + Math.min(2.2, pSpd / 60);
-    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost * phaseCountMul(min);
+    R.spawnAcc += dt * (12 + min * 0.7 + ring0 * 0.5) * (isReaperTime ? 0.5 : 1) * calmMul * moveBoost * phaseCountMul(min) * viewMul;
     const questTgts = Quest.wantSpawn() || [];   // 討伐依頼中の対象は向かってくる(達成しやすく)
     let nearN = 0;
     {
@@ -1090,7 +1092,9 @@ const Run = (() => {
       // 飛ばした時間は次回まとめて進めるので、動きの速さ・タイマーは変わらない ― 判定だけ粗くなる
       let stride = 1;
       if (!e.boss) {
-        if (pd > 1600) stride = 4;
+        // 4分の1更新は「確実に画面外」の敵だけ(巨大軍のズームアウトでは画面が
+        // 広いぶん、しきい値も画面に追従して伸びる)
+        if (pd > Math.max(1600, lodR + 240)) stride = 4;
         else if (pd > lodR || (!e.mad && pd > 240)) stride = 2;
       }
       if (stride > 1 && ((i + R.lodTick) % stride) !== 0) { e._lodDt = (e._lodDt || 0) + baseDt; continue; }
@@ -1100,7 +1104,9 @@ const Run = (() => {
       if ((e.fromHorde || e.boss) && pd > (R.offscreenR || 500) + 180) {
         if (relocateOffscreen(e)) continue;
       }
-      const despawnR = e.mad ? 3200 : ((R.offscreenR || 500) + 260);
+      // 追跡中の敵の退場距離も画面の広さに追従(巨大軍のズームアウトで
+      // 「画面に映っているのに消える」ことがないように)
+      const despawnR = e.mad ? Math.max(3200, (R.offscreenR || 500) + 400) : ((R.offscreenR || 500) + 260);
       if (!e.boss && !e.def.isReaper && pd > despawnR) {
         if (e.fromHorde && relocateOffscreen(e)) continue;   // 回り込み先が見つからなくても粘る
         if (!e.fromHorde) stampFoe(e);   // 間引く前に最後の位置をマップ情報として残す
@@ -1443,13 +1449,11 @@ const Run = (() => {
         if (rest) {
           const nx = p.x + sp.x, ny = p.y + sp.y;
           const need = Math.hypot(nx - a.x, ny - a.y);
-          // 休むのは「通常挙動でも定位置に居られる」仲間だけ。通常の陣形追従は
-          // (a)定位置まで3px以内なら吸着(足の速さに関係なく隊列を保つ従来仕様)、
-          // (b)それ以上離れていたら自分の足(速度)で歩いて戻る ― なので、
-          // 3px以内か、1フレームで歩き切れる距離なら休息=従来と同じ位置になる。
-          // 引き離された遅い仲間はこの条件を満たせず、従来どおり自然に後ろへ流れる
+          // 休むのは「自分の足で今フレーム定位置まで歩き切れる」仲間だけ。
+          // 休息は追従計算を省くだけで加速はしない ― 主人公より足が遅い仲間は
+          // この条件を満たせず、定位置のすぐ近くにいても自然に後ろへ流れていく
           const step = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1) * dt;
-          if ((need < 3 || need <= step * 1.02 + 0.1) && canStand(a.def, nx, ny)) {
+          if (need <= step * 1.02 + 0.02 && canStand(a.def, nx, ny)) {
             a._rest = true; a.inForm = true; a._tgt = null;
             // 前線に近い外周の休息者は、押し合いの「壁」として起こされ役になる
             a._restEdge = secD < sp.rad + 460;
@@ -1553,8 +1557,10 @@ const Run = (() => {
         const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
         dest = { x: p.x + sp2.x, y: p.y + sp2.y };
         const d = Math.hypot(dest.x - a.x, dest.y - a.y);
-        if (d < 3) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }   // 定位置にスナップ(揺れ防止)
-        // 陣形追従もステータス速度どおり(早送りしない)。遅い仲間は自然に後ろへ流れる
+        // 定位置スナップ(揺れ防止)は「自分の足で今フレーム歩き切れる距離」の時だけ。
+        // 従来の一律3px吸着だと、足の遅い仲間まで主人公の速度で運ばれてしまっていた。
+        // 陣形追従はステータス速度どおり(早送りしない)― 遅い仲間は自然に後ろへ流れる
+        if (d <= Math.max(spd * dt, 0.5)) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }
         a.inForm = true;
       }
       if (dest) {
@@ -2711,12 +2717,15 @@ const Run = (() => {
     }
     R.peakAllies = Math.max(R.peakAllies, R.allies.length);
 
-    // カメラ: 仲間が全員映る最小の視界。初期画面はぐっと狭く(視界半径 INIT_R。
-    // 従来の約1/2.24=面積で約1/5)、軍勢が育つほど広がる。視界半径=need(world px)。
+    // カメラ: 仲間の軍勢「全体」が必ず画面に収まり、さらにその周囲
+    // (軍勢半径の45%か158pxの大きい方)まで見える視界。軍勢が育つほど
+    // どこまでも引いていく(ズーム下限なし=巨大軍でも全体が映る)。
+    // 敵のスポーン圏・退場距離は offscreenR 経由でこの視界に自動追従する
     const INIT_R = 158;
     const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
-    const need = Math.max(120, formR + INIT_R);
-    const zTarget = Math.max(0.36, Math.min(3.0, (R.viewMin || 800) / (2 * need)));   // 大軍時はより広く引ける
+    const margin = Math.max(INIT_R, formR * 0.45);
+    const need = Math.max(120, formR + margin);
+    const zTarget = Math.max(0.05, Math.min(3.0, (R.viewMin || 800) / (2 * need)));
     R.zoom = (R.zoom || 1) + (zTarget - (R.zoom || 1)) * Math.min(1, dt * 1.6);
     // 攻撃射程は「敵が追尾してくる距離(アグロ 75〜115)より少し短い」68pxを基準に、
     // しに戻り後の射程強化(眼力=altar_range)で伸びる。初期は敵のアグロ圏内でしか
@@ -2759,24 +2768,35 @@ const Run = (() => {
   let vignette = null;
 
   // ---- 地形チャンクキャッシュ ----
-  // タイルを8×8のチャンク単位でキャンバスに焼き、以後はチャンク1枚=1drawImageで描く。
-  // 大軍時のズームアウトでは数千タイルが映るが、地形描画は数十枚のチャンクで済む。
+  // タイルをチャンク単位でキャンバスに焼き、以後はチャンク1枚=1drawImageで描く。
+  // 大軍時のズームアウトでは数千〜数万タイルが映るが、地形描画は数十枚のチャンクで済む。
+  // ズームに応じて3段階: 寄り=8タイル角を等倍 / 中間=8タイル角を半解像度 /
+  // 超引き(巨大軍)=32タイル角を1/6解像度(画面上では判別できない細かさ)。
   // 海はゆらぎ(waveT)で2パターンあるため、海を含むチャンクだけ2枚焼いて切り替える
   // (陸だけのチャンクは1枚を両パターンで共有)
-  const TER_TILES = 8, TER_W = TILE * TER_TILES;   // 288px
   const terCache = new Map();
   let terTick = 0;
-  function renderTerrainChunk(cx, cy, waveT, res){
+  // 1タイルぶんの色(チャンク未焼成時の仮描きにも使う)
+  function tileColor(ti, gx, gy, waveT){
+    const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
+    const chk = (gx + gy) % 2 === 0;
+    if (ti.t === 'grass') return chk ? bio.g1 : bio.g2;
+    if (ti.t === 'sand') return chk ? bio.s1 : bio.s2;
+    const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
+    if (ti.t === 'sea') return (chk !== (waveT === 1)) ? sb.c1 : sb.c2;
+    return (chk !== (waveT === 1)) ? sb.d1 : sb.d2;
+  }
+  function renderTerrainChunk(cx, cy, waveT, res, tiles){
     const scale = res / TILE;
     const cv = document.createElement('canvas');
-    cv.width = Math.ceil(TER_W * scale); cv.height = cv.width;
+    cv.width = Math.ceil(TILE * tiles * scale); cv.height = cv.width;
     const c = cv.getContext('2d');
     c.scale(scale, scale);
-    const tx0 = cx * TER_TILES, ty0 = cy * TER_TILES;
+    const tx0 = cx * tiles, ty0 = cy * tiles;
     let hasSea = false;
     const deco = [];
-    for (let iy = 0; iy < TER_TILES; iy++) {
-      for (let ix = 0; ix < TER_TILES; ix++) {
+    for (let iy = 0; iy < tiles; iy++) {
+      for (let ix = 0; ix < tiles; ix++) {
         const gx = tx0 + ix, gy = ty0 + iy;
         const wx = gx * TILE, wy = gy * TILE;
         const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
@@ -2815,29 +2835,37 @@ const Run = (() => {
     }
     return { cv, hasSea, used: 0 };
   }
-  function terrainChunk(cx, cy, waveT, res){
-    const kb = cx + ',' + cy + '|' + res;
-    const key = kb + '|' + waveT;
-    let e = terCache.get(key);
-    if (!e) {
-      e = renderTerrainChunk(cx, cy, waveT, res);
-      terCache.set(key, e);
-      if (!e.hasSea) terCache.set(kb + '|' + (1 - waveT), e);   // 陸だけなら両ゆらぎで共有
-    }
-    e.used = terTick;
-    return e;
-  }
   function drawTerrainChunks(g, camX, camY, effW, effH, waveT, z){
     terTick++;
-    const res = z >= 0.7 ? TILE : TILE / 2;   // 引きの画は半解像度で焼く(判別できない)
-    const c0x = Math.floor(camX / TER_W), c1x = Math.floor((camX + effW) / TER_W);
-    const c0y = Math.floor(camY / TER_W), c1y = Math.floor((camY + effH) / TER_W);
+    let tiles, res;
+    if (z >= 0.7) { tiles = 8; res = TILE; }
+    else if (z >= 0.32) { tiles = 8; res = TILE / 2; }
+    else { tiles = 32; res = 6; }   // 超引き: 1152px角のチャンクで枚数を抑える
+    const cw = TILE * tiles;
+    const c0x = Math.floor(camX / cw), c1x = Math.floor((camX + effW) / cw);
+    const c0y = Math.floor(camY / cw), c1y = Math.floor((camY + effH) / cw);
+    let builds = 0;   // 焼くのは1フレーム8枚まで。間に合わない分は単色の仮描きで次フレームへ
     for (let cy = c0y; cy <= c1y; cy++) for (let cx = c0x; cx <= c1x; cx++) {
-      const e = terrainChunk(cx, cy, waveT, res);
-      g.drawImage(e.cv, cx * TER_W, cy * TER_W, TER_W + 1, TER_W + 1);
+      const kb = cx + ',' + cy + '|' + res;
+      const key = kb + '|' + waveT;
+      let e = terCache.get(key);
+      if (!e) {
+        if (builds >= 8) {
+          const mx = cx * cw + cw / 2, my = cy * cw + cw / 2;
+          g.fillStyle = tileColor(World.tileAt(mx, my), 0, 0, waveT);
+          g.fillRect(cx * cw, cy * cw, cw + 1, cw + 1);
+          continue;
+        }
+        builds++;
+        e = renderTerrainChunk(cx, cy, waveT, res, tiles);
+        terCache.set(key, e);
+        if (!e.hasSea) terCache.set(kb + '|' + (1 - waveT), e);   // 陸だけなら両ゆらぎで共有
+      }
+      e.used = terTick;
+      g.drawImage(e.cv, cx * cw, cy * cw, cw + 1, cw + 1);
     }
     // カメラが離れて使われなくなったチャンクを捨てる(メモリを一定に保つ)
-    if (terCache.size > 260) {
+    if (terCache.size > 420) {
       for (const [k, e] of terCache) if (e.used < terTick - 40) terCache.delete(k);
     }
   }
@@ -2910,7 +2938,6 @@ const Run = (() => {
   // 下半分(手前)の2枚に分ける
   const crowd = { back: null, front: null, sum: 0, cnt: -1, cs: 1, r: 0, builtT: -9 };
   const CROWD_MIN = 150;      // 休息数がこれ未満なら従来どおり個別描画(小軍は挙動不変)
-  const CROWD_MAX_R = 1300;   // ズーム下限でも画面に映らない距離。これより外は描かない
   function defHash(def){
     if (def._ch) return def._ch;
     let h = 7; const s = def.sprite;
@@ -2918,7 +2945,7 @@ const Run = (() => {
     return (def._ch = h);
   }
   function rebuildCrowd(list, cs){
-    const r = Math.min(CROWD_MAX_R, formationRadius(R.allies.length)) + 60;
+    const r = formationRadius(R.allies.length) + 60;   // 軍勢全体が常に映るため全域を焼く
     const w = Math.ceil(2 * r * cs);
     for (const key of ['back', 'front']) {
       if (!crowd[key] || crowd[key].width !== w) {
@@ -2933,7 +2960,6 @@ const Run = (() => {
     gf.setTransform(cs, 0, 0, cs, r * cs, r * cs);
     for (const a of list) {
       const sp = slotPos(a.slot);
-      if (sp.rad > CROWD_MAX_R) continue;
       const c = sp.y < 0 ? gb : gf;
       c.fillStyle = 'rgba(0,0,0,.25)';
       c.beginPath(); c.ellipse(sp.x, sp.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); c.fill();
@@ -2986,9 +3012,15 @@ const Run = (() => {
     }
     const crowdOn = restCnt >= CROWD_MIN;
     if (crowdOn) {
-      const cs = z > 0.75 ? 1 : 0.5;   // 引きの画では半解像度で焼く(見た目は同じ・メモリ半減)
+      // 引きの画では低解像度で焼く(画面上では判別できない)。巨大軍では
+      // キャンバスが際限なく大きくならないよう、一辺約2600pxに収まるまで半減する
+      let cs = z > 0.75 ? 1 : 0.5;
+      const cr = formationRadius(R.allies.length) + 60;
+      while (2 * cr * cs > 2600) cs /= 2;
+      // 焼き直しの間隔は軍勢が大きいほど延ばす(1回の焼きが重くなるぶん頻度を下げる)
+      const wait = Math.min(2, 0.4 + restCnt / 30000);
       if ((restSum !== crowd.sum || restCnt !== crowd.cnt || cs !== crowd.cs) &&
-          (R.time - crowd.builtT > 0.4 || R.time < crowd.builtT)) {
+          (R.time - crowd.builtT > wait || R.time < crowd.builtT)) {
         rebuildCrowd(restList, cs);
         crowd.sum = restSum; crowd.cnt = restCnt; crowd.builtT = R.time;
       }
