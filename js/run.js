@@ -237,7 +237,7 @@ const Run = (() => {
         def, key:'skeleton',
         x: startPos.x + rnd(-70, 70), y: startPos.y + rnd(-70, 70),
         maxHp: 220 * R.stats.allyHp, hp: 220 * R.stats.allyHp,
-        dmg: 14, speed: R.stats.speed,   // 主人公と同じくらいの速さ
+        dmg: 14, speed: allySpeedOf(def),   // 種類ごとの固有速度
         atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false,
       });
     }
@@ -360,6 +360,17 @@ const Run = (() => {
     }
   }
 
+  // 仲間の移動速度は「種類ごとの固有値」: 敵としての速度(def.speed)に行軍係数を
+  // 掛けたもの。俊敏な種(ウルフ等)は主人公より速く、鈍重な種(ゴーレム等)は遅い ―
+  // 遅い種は行進で自然に後ろへ流れ、立ち止まると追いつく。
+  // 色違いの「疾風」特性(spdMul)は仲間になっても保つ。
+  // DATA.ENEMIES[key].allySpeed を書けば種類ごとに個別調整できる
+  const ALLY_MARCH_MUL = 2.6;
+  function allySpeedOf(def, spdMul){
+    const base = def.allySpeed !== undefined ? def.allySpeed : def.speed * ALLY_MARCH_MUL;
+    return base * (spdMul || 1);
+  }
+
   function recruitAlly(e){
     const wb = Skills.stat('warbanner');
     const st = R.stats;
@@ -368,12 +379,12 @@ const Run = (() => {
       def: e.def, key: e.defKey, bossName: e.bossName,
       rank: e.rank || 0, sizeMul: e.sizeMul || 1,   // 色違いと大きさは仲間になっても保つ(ボスはボスの姿のまま)
       x: e.x, y: e.y,
-      // 初期値は敵だった時と同じHP・攻撃。ただし速さは主人公と同じくらいにして
-      // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
+      // 初期値は敵だった時と同じHP・攻撃。速さは種類ごとの固有値
+      // (以降はパワーアップ/スキルの仲間強化が乗る)。
       maxHp: e.maxHp * hpMul,
       hp: e.maxHp * hpMul,
       dmg: e.dmg,
-      speed: st.speed,
+      speed: allySpeedOf(e.def, e.spdMul),
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false, slot: undefined,
       joining: true,   // 倒した位置から主人公のところへ駆けつける
@@ -2135,7 +2146,7 @@ const Run = (() => {
       const def = DATA.ENEMIES.skeleton;
       const hp = def.hp * bw.hpMul * st.allyHp;
       R.allies.push({ def, key:'skeleton', x: p.x + rnd(-30, 30), y: p.y + rnd(-30, 30),
-        maxHp: hp, hp, dmg: def.dmg, speed: st.speed,
+        maxHp: hp, hp, dmg: def.dmg, speed: allySpeedOf(def),
         atkCd: 0, healCd: 0, shootCd: 0, waitAt: null, saved: false, slot: undefined });
       assignSlot(R.allies[R.allies.length - 1]);
       popup(p.x, p.y - 30, '骸骨を召喚!', '#e6edf3');
