@@ -22,6 +22,10 @@ const Run = (() => {
   // 敵数のゲーム的な上限は撤廃(近傍グリッド化・LOD・描画カリングで大群でも軽い)。
   // これはメモリ暴走を防ぐ最終保険で、通常プレイでは届かない値
   const ENEMY_BACKSTOP = 6000;
+  // 同時に「実体」として動く大群の敵の上限。これを超えた分は増援プール(数だけ)で待機し、
+  // 実体が倒れるそばから画面外で補充される ― 押し寄せる総数そのものは無制限。
+  // 戦って倒すべき数は変わらず、同時に画面へ出る数だけが一定に保たれる
+  const FIELD_CAP = 1500;
 
   // ---------------- プレイヤーの派生ステータス(メタ強化反映) ----------------
   function calcStats(){
@@ -183,6 +187,9 @@ const Run = (() => {
     R.turrets = []; R.zones = []; R.effects = []; R.popups = [];
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
+    R.reinfPool = [];   // 大群の増援プール(実体化待ちの数)
+    R._slotMax = -1;    // 陣形スロットの最大番号(走査せずに割り当てる)
+    crowd.cnt = -1; crowd.sum = 0; crowd.builtT = -9;   // 陣形一枚絵キャッシュを無効化
     R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
     R.dmgLog = []; R.hitFlashT = 0; R.hitDir = null; R.traitBursts = [];
     R.sigCd = 0; R.sigUntil = 0; R.bioFxT = 0; R.bioFxColors = null; R.boardDone = {}; R.escort = null;
@@ -805,13 +812,17 @@ const Run = (() => {
     }
     R.warnMsg = '⚔ 敵の大群が押し寄せてくる!(' + waves + '波)'; R.warnColor = '#ff7b72'; R.warnT = 4; Sfx.horde();
   }
-  // 1波ぶんを、すぐ画面外から一斉に
+  // 1波ぶんを、すぐ画面外から一斉に。実体の空きが無い分は増援プールへ回す
+  // (数として保持し、実体が倒れるそばから画面外で実体化する ― 総数は無制限)
   function spawnHordeWave(wave){
-    if (R.enemies.length >= ENEMY_BACKSTOP) return;   // 最終保険: メモリ暴走防止のみ
+    const room = Math.max(0, Math.min(FIELD_CAP, ENEMY_BACKSTOP) - R.enemies.length);
+    const now = Math.min(wave.count, room);
+    if (wave.count > now) queueReinf(wave.count - now, wave.dir);
+    if (now <= 0) return;
     // 回り込みのしきい値(offR+180)より内側に湧かせる(湧いた直後に再配置されない)
     const base = (R.offscreenR || 950) + rnd(10, 80);
     let placed = 0;
-    for (let i = 0; i < wave.count * 2 && placed < wave.count; i++) {
+    for (let i = 0; i < now * 2 && placed < now; i++) {
       const a = wave.dir + rnd(-0.7, 0.7);
       const d = base + rnd(0, 80);
       const ex = R.player.x + Math.cos(a) * d, ey = R.player.y + Math.sin(a) * d;
@@ -819,6 +830,10 @@ const Run = (() => {
       if (!canStand(DATA.ENEMIES[key], ex, ey)) continue;
       if (spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) placed++;
     }
+  }
+  function queueReinf(n, dir){
+    R.reinfPool = R.reinfPool || [];
+    R.reinfPool.push({ n, dir });
   }
 
   // 倒した場所の格子(この中は1分間リスポーンしない)
@@ -926,6 +941,24 @@ const Run = (() => {
         if (R.hordeWaves[i].t <= 0) { spawnHordeWave(R.hordeWaves[i]); R.hordeWaves.splice(i, 1); }
       }
     }
+    // 増援プールの実体化: 実体が減ったぶんだけ画面外から補充(1フレーム最大24体)。
+    // どれだけ大きな大群でも、同時に動く実体はFIELD_CAPまで ― 重さは総数と無関係になる
+    if (R.reinfPool && R.reinfPool.length) {
+      let budget = 24;
+      const rbase = (R.offscreenR || 950) + rnd(10, 80);
+      while (budget > 0 && R.reinfPool.length && R.enemies.length < FIELD_CAP) {
+        const q = R.reinfPool[0];
+        const a = q.dir + rnd(-0.7, 0.7);
+        const d = rbase + rnd(0, 80);
+        const ex = p.x + Math.cos(a) * d, ey = p.y + Math.sin(a) * d;
+        const key = pickEnemyKey();
+        if (!key) break;
+        if (canStand(DATA.ENEMIES[key], ex, ey) &&
+            spawnEnemy(key, { x: ex, y: ey, mad: true, aggro: 3600, fromHorde: true })) q.n--;
+        budget--;
+        if (q.n <= 0) R.reinfPool.shift();
+      }
+    }
     // ボス
     for (const b of DATA.BOSSES) {
       if (min >= b.at && !R.bossDone[b.at]) {
@@ -985,7 +1018,9 @@ const Run = (() => {
     allyGrid.clear();
     let mr = 12;
     for (const a of R.allies) {
-      if (a.dead) continue;
+      // 休息中の内側の仲間は敵から届かない(前線の帯が壁になる)のでグリッドにも載せない。
+      // 万一敵が入り込んでも、脅威距離マップが即座に周囲を前線復帰させる
+      if (a.dead || a._rest) continue;
       const k = gkey((a.x / ALLY_CELL) | 0, (a.y / ALLY_CELL) | 0);
       const arr = allyGrid.get(k);
       if (arr) arr.push(a); else allyGrid.set(k, [a]);
@@ -1030,6 +1065,10 @@ const Run = (() => {
     const lodR = (R.offscreenR || 500) + 160;   // 画面の外にいる敵は判定を粗くする
     rebuildAllyGrid();   // 敵→仲間の判定を近傍だけにする(大軍でも軽い)
     const maxAllyR = R.maxAllyR || 12;
+    // 方角ごとの脅威距離(8方位、プレイヤー中心)。仲間の「休息判定」に使う ―
+    // 敵のいない方角の内側の仲間は、索敵・攻撃・押し合いをまるごと省ける
+    const secMin = R._secMin || (R._secMin = new Float64Array(8));
+    secMin.fill(Infinity);
     // オーラ系スキルは1フレームに1回だけ読む(敵ごとに読むとオブジェクト生成が敵数ぶん走る)
     const sanct = Skills.stat('sanctuary');
     const fa = Skills.stat('frostaura');
@@ -1041,6 +1080,11 @@ const Run = (() => {
       // 保つため退場距離を短く ― どこへ行っても同じくらいの分布にする。
       const pdx = e.x - p.x, pdy = e.y - p.y;
       const pd = Math.sqrt(pdx * pdx + pdy * pdy);
+      // 方位別の脅威距離を更新(LODで飛ばすフレームでも距離だけは記録する)
+      {
+        const s = Math.round(Math.atan2(pdy, pdx) * 1.2732395447351628) & 7;   // 角度→8方位
+        if (pd < secMin[s]) secMin[s] = pd;
+      }
       // 粗い更新の対象: 画面外の敵、および画面内でも「まだ気づいておらず(非mad)、
       // 追撃圏から十分離れている」敵。さらに大きく離れた敵は4フレームに1回だけ更新する。
       // 飛ばした時間は次回まとめて進めるので、動きの速さ・タイマーは変わらない ― 判定だけ粗くなる
@@ -1302,7 +1346,9 @@ const Run = (() => {
     const ang = idx / cap * Math.PI * 2 + ring * 0.5;
     // 当たり判定が体の1/3なので、この間隔でも中心は重ならない(密集感は保ちつつ少し緩め)
     const rad = 20 + ring * 17;
-    return (slotCache[i] = { x: Math.cos(ang) * rad, y: Math.sin(ang) * rad, rad });
+    const x = Math.cos(ang) * rad, y = Math.sin(ang) * rad;
+    // sec: このスロットの8方位(敵の脅威距離マップと同じ区分け。休息判定に使う)
+    return (slotCache[i] = { x, y, rad, sec: Math.round(Math.atan2(y, x) * 1.2732395447351628) & 7 });
   }
   function formationRadius(n){
     return n <= 0 ? 0 : slotPos(n - 1).rad;
@@ -1313,10 +1359,12 @@ const Run = (() => {
   // (動くのは新入りと交換相手の2体だけ)
   function allyStrength(a){ return (a.def.tier || 0) * 1e6 + a.maxHp; }
   function assignSlot(a){
-    let maxSlot = -1;
-    for (const o of R.allies) if (o !== a && o.slot !== undefined) maxSlot = Math.max(maxSlot, o.slot);
-    a.slot = maxSlot + 1;
-    // 自分より弱い仲間のうち最も内側の1体とだけ場所を交換(連鎖させない=陣形が回転しない)
+    // 最大スロット番号はカウンターで管理(全走査しない ― 大量召喚でも一定コスト)
+    if (R._slotMax === undefined) R._slotMax = -1;
+    a.slot = ++R._slotMax;
+    // 自分より弱い仲間のうち最も内側の1体とだけ場所を交換(連鎖させない=陣形が回転しない)。
+    // 大軍では並び最適化の走査自体を省く(見た目の並びの問題でしかなく、コストに見合わない)
+    if (R.allies.length > 1500) return;
     let inner = null;
     for (const o of R.allies) {
       if (o === a || o.slot === undefined || o.slot >= a.slot) continue;
@@ -1330,6 +1378,7 @@ const Run = (() => {
     let outer = null;
     for (const o of R.allies) if (o.slot !== undefined && (!outer || o.slot > outer.slot)) outer = o;
     if (outer && outer.slot > s) outer.slot = s;
+    if (R._slotMax !== undefined && R._slotMax >= 0) R._slotMax--;
   }
 
   function updateAllies(dt){
@@ -1348,7 +1397,8 @@ const Run = (() => {
       if (a.atkAnim > 0) a.atkAnim = Math.max(0, a.atkAnim - dt);   // 攻撃モーションの減衰
       // 自動回復
       if (R.stats.allyRegen > 0) a.hp = Math.min(a.maxHp, a.hp + a.maxHp * R.stats.allyRegen * dt);
-      // 待機中(乗船で置いていかれた等)
+      // 待機中(乗船で置いていかれた等)。待機・合流中は休息扱いにしない
+      if (a.waitAt || a.joining) a._rest = false;
       if (a.waitAt) {
         const envOk = a.def.env === 'both' ||
           (a.def.env === 'land' && !p.onBoat && World.isLand(p.x, p.y)) ||
@@ -1369,6 +1419,35 @@ const Run = (() => {
         a.x += dx / d * step; a.y += dy / d * step;
         if (Math.hypot(a.x - p.x, a.y - p.y) < formR + 20) a.joining = false;
         continue;
+      }
+      // ---- 休息(前線だけ本気) ----
+      // 自分のいる方角に敵が近づいていない「内側」の仲間は、索敵・攻撃・押し合いを
+      // まるごと省いて陣形追従だけにする。フルコストで動くのは前線の帯だけになり、
+      // 内側は何万体いてもほぼ無料。条件が崩れたら(敵接近・被弾)即座に前線復帰する。
+      // しきい値は「入りにくく・出やすく」の二段構え ― 境界の仲間が毎フレーム
+      // 出入りして一枚絵キャッシュが焼き直され続けるのを防ぐ
+      {
+        const sp = slotPos(a.slot);
+        const sm = R._secMin;
+        let rest = false;
+        if (sm && !a.def.heal && a.hp >= a.maxHp && sp.rad < formR - 40) {
+          const s = sp.sec;
+          const secD = Math.min(sm[(s + 7) & 7], Math.min(sm[s], sm[(s + 1) & 7]));
+          if (secD > sp.rad + (a._rest ? 160 : 260)) {
+            a._calmT = (a._calmT || 0) + dt;
+            if (a._calmT > 0.6) rest = true;
+          } else a._calmT = 0;
+        } else a._calmT = 0;
+        if (rest) {
+          const nx = p.x + sp.x, ny = p.y + sp.y;
+          // 定位置の近くにいて、そこが立てる地形の時だけ休める(海沿いなどでは通常挙動)
+          if (Math.abs(a.x - nx) + Math.abs(a.y - ny) < 40 && canStand(a.def, nx, ny)) {
+            a._rest = true; a.inForm = true; a._tgt = null;
+            a.x = nx; a.y = ny;
+            continue;
+          }
+        }
+        a._rest = false;
       }
       // ターゲット探索。近接: 「その仲間に近づいた敵」を追尾(縁距離)。
       // 弓兵: 襲ってきている敵(mad)だけを、敵の射撃と同じ基準(中心距離<射程)で狙う。
@@ -1496,11 +1575,12 @@ const Run = (() => {
             p.hp = Math.min(R.stats.maxHp, p.hp + pw);
             effect('healline', a.x, a.y, { x2:p.x, y2:p.y });
           }
-          for (const o of R.allies) {
+          forEachAllyNear(a.x, a.y, a.def.heal.radius, (o) => {
             if (o !== a && o.hp < o.maxHp && Math.hypot(o.x-a.x, o.y-a.y) < a.def.heal.radius) {
               o.hp = Math.min(o.maxHp, o.hp + pw);
             }
-          }
+            return false;
+          });
         }
       }
     }
@@ -1517,7 +1597,8 @@ const Run = (() => {
       units.push(e);
     }
     let asi = 0;
-    for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining) {   // 合流中はすり抜け
+    // 休息中(_rest)の仲間は定位置に静止していて重ならないので、押し合いから除外
+    for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining && !a._rest) {   // 合流中はすり抜け
       a._si = asi++;
       // 一番小さい仲間は従来どおりの密集度。体の大きい仲間ほど当たり判定が広がり、
       // 巨体同士が全身重なることはない
@@ -1800,7 +1881,8 @@ const Run = (() => {
     if (sa) {
       p.hp = Math.min(st.maxHp, p.hp + sa.hps * dt);
       for (const a of R.allies) {
-        if (!a.waitAt && Math.hypot(a.x-p.x, a.y-p.y) < sa.radius * area)
+        if (a.hp >= a.maxHp || a.waitAt) continue;   // 満タンの仲間は距離計算すら省く
+        if (Math.hypot(a.x-p.x, a.y-p.y) < sa.radius * area)
           a.hp = Math.min(a.maxHp, a.hp + sa.hps * dt);
       }
     }
@@ -2659,6 +2741,90 @@ const Run = (() => {
   }
   let vignette = null;
 
+  // ---- 地形チャンクキャッシュ ----
+  // タイルを8×8のチャンク単位でキャンバスに焼き、以後はチャンク1枚=1drawImageで描く。
+  // 大軍時のズームアウトでは数千タイルが映るが、地形描画は数十枚のチャンクで済む。
+  // 海はゆらぎ(waveT)で2パターンあるため、海を含むチャンクだけ2枚焼いて切り替える
+  // (陸だけのチャンクは1枚を両パターンで共有)
+  const TER_TILES = 8, TER_W = TILE * TER_TILES;   // 288px
+  const terCache = new Map();
+  let terTick = 0;
+  function renderTerrainChunk(cx, cy, waveT, res){
+    const scale = res / TILE;
+    const cv = document.createElement('canvas');
+    cv.width = Math.ceil(TER_W * scale); cv.height = cv.width;
+    const c = cv.getContext('2d');
+    c.scale(scale, scale);
+    const tx0 = cx * TER_TILES, ty0 = cy * TER_TILES;
+    let hasSea = false;
+    const deco = [];
+    for (let iy = 0; iy < TER_TILES; iy++) {
+      for (let ix = 0; ix < TER_TILES; ix++) {
+        const gx = tx0 + ix, gy = ty0 + iy;
+        const wx = gx * TILE, wy = gy * TILE;
+        const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
+        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
+        let col;
+        const chk = (gx + gy) % 2 === 0;
+        if (ti.t === 'grass') col = chk ? bio.g1 : bio.g2;
+        else if (ti.t === 'sand') col = chk ? bio.s1 : bio.s2;
+        else if (ti.t === 'sea') { hasSea = true; const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
+          col = (chk !== (waveT === 1)) ? sb.c1 : sb.c2;
+          if (chk && World.currentAt(wx, wy) > 0.45) deco.push({ x: ix*TILE + 6, y: iy*TILE + 10, wy: wy + 10, cur: true }); }
+        else { hasSea = true; const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
+          col = (chk !== (waveT === 1)) ? sb.d1 : sb.d2; }
+        c.fillStyle = col;
+        c.fillRect(ix * TILE, iy * TILE, TILE + 1, TILE + 1);
+        // 地面の装飾(草・花・岩粒など、バイオーム色)
+        if (ti.t === 'grass') {
+          const hsh = tileHash(gx, gy);
+          if (hsh < 0.14) deco.push({ x: ix*TILE + hsh * 900 % TILE, y: iy*TILE + hsh * 1300 % TILE,
+            c: bio.deco[Math.floor(hsh * 71) % bio.deco.length], big: hsh < 0.03 });
+        }
+      }
+    }
+    for (const d of deco) {
+      if (d.cur) {   // 海流の筋(流れの向きに走る白い線)
+        c.strokeStyle = 'rgba(230,237,243,0.28)'; c.lineWidth = 1.5;
+        const fx = Math.sin(d.wy * 0.0007) * 8;
+        c.beginPath(); c.moveTo(d.x, d.y); c.lineTo(d.x + 18 + fx, d.y + 6); c.stroke();
+        continue;
+      }
+      c.fillStyle = d.c;
+      c.globalAlpha = 0.5;
+      if (d.big) { c.beginPath(); c.arc(d.x, d.y, 3, 0, 7); c.fill(); }
+      else c.fillRect(d.x, d.y, 2.5, 2.5);
+      c.globalAlpha = 1;
+    }
+    return { cv, hasSea, used: 0 };
+  }
+  function terrainChunk(cx, cy, waveT, res){
+    const kb = cx + ',' + cy + '|' + res;
+    const key = kb + '|' + waveT;
+    let e = terCache.get(key);
+    if (!e) {
+      e = renderTerrainChunk(cx, cy, waveT, res);
+      terCache.set(key, e);
+      if (!e.hasSea) terCache.set(kb + '|' + (1 - waveT), e);   // 陸だけなら両ゆらぎで共有
+    }
+    e.used = terTick;
+    return e;
+  }
+  function drawTerrainChunks(g, camX, camY, effW, effH, waveT, z){
+    terTick++;
+    const res = z >= 0.7 ? TILE : TILE / 2;   // 引きの画は半解像度で焼く(判別できない)
+    const c0x = Math.floor(camX / TER_W), c1x = Math.floor((camX + effW) / TER_W);
+    const c0y = Math.floor(camY / TER_W), c1y = Math.floor((camY + effH) / TER_W);
+    for (let cy = c0y; cy <= c1y; cy++) for (let cx = c0x; cx <= c1x; cx++) {
+      const e = terrainChunk(cx, cy, waveT, res);
+      g.drawImage(e.cv, cx * TER_W, cy * TER_W, TER_W + 1, TER_W + 1);
+    }
+    // カメラが離れて使われなくなったチャンクを捨てる(メモリを一定に保つ)
+    if (terCache.size > 260) {
+      for (const [k, e] of terCache) if (e.used < terTick - 40) terCache.delete(k);
+    }
+  }
+
   // ---- キャラ1体ぶんの描画(Yソート描画から呼ばれる) ----
   function drawAllyUnit(g, a){
     if (a.waitAt) g.globalAlpha = 0.7;
@@ -2719,6 +2885,47 @@ const Run = (() => {
     }
   }
 
+  // ---- 休息中の陣形の一枚絵キャッシュ ----
+  // 休息中の仲間はプレイヤー相対で静止している(定位置スナップ)ことを利用して、
+  // 影ごと1枚のキャンバスに焼き、以後は毎フレーム1回のdrawImageで描く。
+  // 何万体いても描画は「1枚の絵」のコストで済む。構成(数・スロット・種類)が
+  // 変わった時だけ焼き直す。前後関係のため上半分(主人公より奥)と
+  // 下半分(手前)の2枚に分ける
+  const crowd = { back: null, front: null, sum: 0, cnt: -1, cs: 1, r: 0, builtT: -9 };
+  const CROWD_MIN = 150;      // 休息数がこれ未満なら従来どおり個別描画(小軍は挙動不変)
+  const CROWD_MAX_R = 1300;   // ズーム下限でも画面に映らない距離。これより外は描かない
+  function defHash(def){
+    if (def._ch) return def._ch;
+    let h = 7; const s = def.sprite;
+    for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) | 0;
+    return (def._ch = h);
+  }
+  function rebuildCrowd(list, cs){
+    const r = Math.min(CROWD_MAX_R, formationRadius(R.allies.length)) + 60;
+    const w = Math.ceil(2 * r * cs);
+    for (const key of ['back', 'front']) {
+      if (!crowd[key] || crowd[key].width !== w) {
+        crowd[key] = document.createElement('canvas');
+        crowd[key].width = w; crowd[key].height = w;
+      }
+    }
+    const gb = crowd.back.getContext('2d'), gf = crowd.front.getContext('2d');
+    gb.setTransform(1, 0, 0, 1, 0, 0); gf.setTransform(1, 0, 0, 1, 0, 0);
+    gb.clearRect(0, 0, w, w); gf.clearRect(0, 0, w, w);
+    gb.setTransform(cs, 0, 0, cs, r * cs, r * cs);
+    gf.setTransform(cs, 0, 0, cs, r * cs, r * cs);
+    for (const a of list) {
+      const sp = slotPos(a.slot);
+      if (sp.rad > CROWD_MAX_R) continue;
+      const c = sp.y < 0 ? gb : gf;
+      c.fillStyle = 'rgba(0,0,0,.25)';
+      c.beginPath(); c.ellipse(sp.x, sp.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); c.fill();
+      Sprites.drawTinted(c, a.def.sprite, sp.x, sp.y, a.def.r * 2.6 * (a.sizeMul || 1), false, '#2ea043', 0.42);
+    }
+    gb.setTransform(1, 0, 0, 1, 0, 0); gf.setTransform(1, 0, 0, 1, 0, 0);
+    crowd.r = r; crowd.cs = cs;
+  }
+
   function drawPlayerUnit(g, p){
     if (p.invuln > 0 && Math.floor(R.time * 12) % 2 === 0) g.globalAlpha = 0.4;
     if (p.onBoat) Sprites.draw(g, 'boat', p.x, p.y, 52, p.dir < 0);
@@ -2749,58 +2956,43 @@ const Run = (() => {
     for (const e of R.enemies) {
       if (e.x > cullL && e.x < cullRt && e.y > cullT && e.y < cullB) visFoes.push(e);
     }
+    // 休息中の仲間は一枚絵キャッシュ側で描く(数が一定以上の時のみ)。
+    // まず休息集合のチェックサムを取り、構成が変わった時だけ焼き直す
+    let restCnt = 0, restSum = 0;
+    const restList = [];
+    for (const a of R.allies) {
+      if (a._rest && a.slot !== undefined) {
+        restList.push(a);
+        restSum = (restSum + a.slot * 2654435761 + defHash(a.def)) | 0;
+        restCnt++;
+      }
+    }
+    const crowdOn = restCnt >= CROWD_MIN;
+    if (crowdOn) {
+      const cs = z > 0.75 ? 1 : 0.5;   // 引きの画では半解像度で焼く(見た目は同じ・メモリ半減)
+      if ((restSum !== crowd.sum || restCnt !== crowd.cnt || cs !== crowd.cs) &&
+          (R.time - crowd.builtT > 0.4 || R.time < crowd.builtT)) {
+        rebuildCrowd(restList, cs);
+        crowd.sum = restSum; crowd.cnt = restCnt; crowd.builtT = R.time;
+      }
+    }
     const visAllies = [];
     for (const a of R.allies) {
+      if (crowdOn && a._rest) continue;   // 一枚絵側で描く
       if (a.x > cullL && a.x < cullRt && a.y > cullT && a.y < cullB) visAllies.push(a);
     }
 
     g.save();
     g.scale(z, z);
 
-    // 地形(バイオームごとに見た目が変わる)
-    const x0 = Math.floor(camX / TILE), y0 = Math.floor(camY / TILE);
-    const nx = Math.ceil(effW / TILE) + 1, ny = Math.ceil(effH / TILE) + 1;
+    const _t0 = R._prof ? performance.now() : 0;
+    // 地形(バイオームごとに見た目が変わる)。チャンクキャッシュ経由で描く ―
+    // ズームアウトで数千タイルが映っても、実描画は数十枚のチャンク画像だけ
     const waveT = Math.floor(R.time * 1.6) % 2;   // 海のゆらぎ
-    const decoList = [];
-    for (let iy = 0; iy <= ny; iy++) {
-      for (let ix = 0; ix <= nx; ix++) {
-        const wx = (x0 + ix) * TILE, wy = (y0 + iy) * TILE;
-        const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
-        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
-        let c;
-        const chk = ((x0+ix) + (y0+iy)) % 2 === 0;
-        if (ti.t === 'grass') c = chk ? bio.g1 : bio.g2;
-        else if (ti.t === 'sand') c = chk ? bio.s1 : bio.s2;
-        else if (ti.t === 'sea') { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
-          c = (chk !== (waveT === 1)) ? sb.c1 : sb.c2;
-          if (chk && World.currentAt(wx, wy) > 0.45) decoList.push({ x:wx + 6, y:wy + 10, cur:true }); }
-        else { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
-          c = (chk !== (waveT === 1)) ? sb.d1 : sb.d2; }
-        g.fillStyle = c;
-        g.fillRect(wx - camX, wy - camY, TILE + 1, TILE + 1);
-        // 地面の装飾(草・花・岩粒など、バイオーム色)
-        if (ti.t === 'grass') {
-          const hsh = tileHash(x0 + ix, y0 + iy);
-          if (hsh < 0.14) decoList.push({ x: wx + hsh * 900 % TILE, y: wy + hsh * 1300 % TILE,
-            c: bio.deco[Math.floor(hsh * 71) % bio.deco.length], big: hsh < 0.03 });
-        }
-      }
-    }
     g.translate(-camX, -camY);
-    // 装飾を描く
-    for (const d of decoList) {
-      if (d.cur) {   // 海流の筋(流れの向きに走る白い線)
-        g.strokeStyle = 'rgba(230,237,243,0.28)'; g.lineWidth = 1.5;
-        const fx = Math.sin(d.y * 0.0007) * 8;
-        g.beginPath(); g.moveTo(d.x, d.y); g.lineTo(d.x + 18 + fx, d.y + 6); g.stroke();
-        continue;
-      }
-      g.fillStyle = d.c;
-      g.globalAlpha = 0.5;
-      if (d.big) { g.beginPath(); g.arc(d.x, d.y, 3, 0, 7); g.fill(); }
-      else g.fillRect(d.x, d.y, 2.5, 2.5);
-    }
-    g.globalAlpha = 1;
+    drawTerrainChunks(g, camX, camY, effW, effH, waveT, z);
+    if (R._prof) R._prof.terrain = (R._prof.terrain || 0) + performance.now() - _t0;
+    const _t1 = R._prof ? performance.now() : 0;
     // 影(ユニットの足元)。画面内のユニットのみ。
     // 超過密(合戦)時は通常サイズの影を省く ― 体が折り重なって影は見えないため
     // 見た目はほぼ変わらず、楕円パス生成のコストだけが消える(ボス・巨体は描く)
@@ -3009,6 +3201,11 @@ const Run = (() => {
 
     // レイヤー順: [主人公+仲間](同じレイヤーでYソート) → 敵。
     // 同じレイヤー内では手前(画面の下)にいるキャラが上に重なる
+    // 休息陣形の奥半分(主人公より上)を一枚絵で
+    if (crowdOn && crowd.back) {
+      const s = 1 / crowd.cs;
+      g.drawImage(crowd.back, p.x - crowd.r, p.y - crowd.r, crowd.back.width * s, crowd.back.height * s);
+    }
     const friendly = visAllies.sort((A, B) => A.y - B.y);
     let pDrawn = false;
     for (const a of friendly) {
@@ -3016,8 +3213,17 @@ const Run = (() => {
       drawAllyUnit(g, a);
     }
     if (!pDrawn) drawPlayerUnit(g, p);
+    // 休息陣形の手前半分(主人公より下)。細かな前後関係は省くが、
+    // 同じ見た目の群衆どうしなので継ぎ目は見えない
+    if (crowdOn && crowd.front) {
+      const s = 1 / crowd.cs;
+      g.drawImage(crowd.front, p.x - crowd.r, p.y - crowd.r, crowd.front.width * s, crowd.front.height * s);
+    }
+    if (R._prof) { R._prof.units1 = (R._prof.units1 || 0) + performance.now() - _t1; }
+    const _t2 = R._prof ? performance.now() : 0;
     const enemySorted = visFoes.sort((A, B) => A.y - B.y);
     for (const e of enemySorted) drawEnemyUnit(g, e);
+    if (R._prof) { R._prof.foes = (R._prof.foes || 0) + performance.now() - _t2; R._prof.frames = (R._prof.frames || 0) + 1; }
 
     // オービット描画
     const ob = wstat('orbit');
