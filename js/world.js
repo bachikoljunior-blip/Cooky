@@ -250,6 +250,44 @@ const World = (() => {
     return list;
   }
 
+  // ---- 地形の障害(岩場): 壊せない自然の岩。周回マップのところどころに自然に配置 ----
+  // 基地・港・道・出発点のそばには置かない。決定論(チャンクのハッシュ)で常に同じ場所に出る
+  function chunkCrags(cx, cy){
+    const list = [];
+    if (hash(cx, cy, 91) > 0.06) return list;   // 数チャンクに1群れ
+    const bx = (cx + 0.5) * CHUNK, by = (cy + 0.5) * CHUNK;
+    if (Math.hypot(bx, by) < 700) return list;
+    for (const p of ports) if (Math.hypot(bx - p.x, by - p.y) < 460) return list;
+    let nearBase = null;
+    for (const b of bases) {
+      const d = Math.hypot(bx - b.x, by - b.y);
+      if (d < 460) return list;
+      if (d < 5600) nearBase = b;
+    }
+    const rd = nearBase ? roadOf(nearBase.id) : null;
+    const n = 1 + Math.floor(hash(cx, cy, 92) * 2.5);
+    for (let i = 0; i < n; i++) {
+      const x = bx + (hash(cx, cy, 93 + i) - 0.5) * CHUNK * 0.9;
+      const y = by + (hash(cx, cy, 97 + i) - 0.5) * CHUNK * 0.9;
+      const t = terrainAt(x, y);
+      if (t !== 'grass' && t !== 'sand') continue;
+      if (rd && roadDist(rd, x, y) < 120) continue;   // 基地の小道は塞がない
+      list.push({ x, y, r: 20 + hash(cx, cy, 101 + i) * 22 });
+    }
+    return list;
+  }
+  let cragCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyCrags(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (cragCache.cx === cx && cragCache.cy === cy) return cragCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkCrags(ix, iy));
+    cragCache = { cx, cy, list };
+    return list;
+  }
+
   // プレイヤー周辺のオブジェクトを列挙(キャッシュ付き)
   let objCache = { cx:1e9, cy:1e9, list:[] };
   function nearbyObjects(px, py, radius){
@@ -631,7 +669,7 @@ const World = (() => {
   }
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
-           nearbyObjects, destroyObject, objectDrops,
+           nearbyObjects, destroyObject, objectDrops, nearbyCrags,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };

@@ -961,9 +961,26 @@ const Run = (() => {
     return v;
   }
   function canStand(def, x, y){
+    // 岩場(地形の障害)の中には立てない・湧かない
+    if (R.crags) for (const c of R.crags) {
+      const rr = c.r + (def.r || 10);
+      if (Math.abs(x - c.x) < rr && Math.abs(y - c.y) < rr && Math.hypot(x - c.x, y - c.y) < rr) return false;
+    }
     if (def.env === 'both') return true;
     const land = isLandCached(x, y);
     return def.env === 'land' ? land : !land;
+  }
+  // 岩場の押し出し(円の縁に沿って滑る)。壊せない自然の障害
+  function cragPush(u, rad){
+    const crags = R.crags;
+    if (!crags || !crags.length) return;
+    for (const c of crags) {
+      const dx = u.x - c.x, dy = u.y - c.y;
+      const rr = c.r + rad;
+      if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
+      const d = Math.hypot(dx, dy);
+      if (d < rr && d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
+    }
   }
 
   function updateEnemies(dt){
@@ -2436,6 +2453,9 @@ const Run = (() => {
     // オブジェクトキャッシュ(破壊後は時間経過でリスポーン)
     World.tick(dt);
     R.objects = World.nearbyObjects(p.x, p.y, 900);
+    // 地形の障害(岩場): 主人公はここで押し出す(仲間・敵はそれぞれの移動処理で)
+    R.crags = World.nearbyCrags(p.x, p.y, (R.offscreenR || 700) + 400);
+    cragPush(p, 14);
 
     // 探索記録(行ったことのある場所がマップに残る)
     R.exploreAcc = (R.exploreAcc || 0) - dt;
@@ -2511,6 +2531,11 @@ const Run = (() => {
     rebuildFoeGrid();   // 移動後の位置で近傍グリッドを組み直す
     updateAllies(dt);
     separateUnits();   // 敵・仲間が重ならない(合戦の戦線を形成)
+    // 岩場(地形の障害): 敵も仲間も回り込む(ボスは巨躯なので押し通る)
+    if (R.crags && R.crags.length) {
+      for (const e of R.enemies) if (!e.dead && !e.boss) cragPush(e, e.def.r * 0.6 * (e.sizeMul || 1));
+      for (const a of R.allies) if (!a.waitAt) cragPush(a, a.def.r * 0.6);
+    }
     updateSkills(dt);
     updateProjectiles(dt);
     updatePickups(dt);
@@ -2667,6 +2692,28 @@ const Run = (() => {
       else g.fillRect(d.x, d.y, 2.5, 2.5);
     }
     g.globalAlpha = 1;
+    // 岩場(壊せない地形の障害): ごつごつした灰色の露岩
+    for (const c of R.crags || []) {
+      const s = c.r;
+      if (Math.abs(c.x - p.x) > effW * 0.75 || Math.abs(c.y - p.y) > effH * 0.75) continue;
+      const wob = ((c.x * 7 + c.y * 13) % 10) / 10;   // 個体差(決定論)
+      g.fillStyle = 'rgba(0,0,0,.22)';
+      g.beginPath(); g.ellipse(c.x, c.y + s * 0.55, s * 1.12, s * 0.4, 0, 0, 7); g.fill();
+      g.fillStyle = wob < 0.5 ? '#4d5560' : '#565e6a';
+      g.beginPath();
+      g.moveTo(c.x - s, c.y + s * 0.5);
+      g.lineTo(c.x - s * (0.5 + wob * 0.2), c.y - s * 0.55);
+      g.lineTo(c.x - s * 0.08, c.y - s * (0.75 + wob * 0.2));
+      g.lineTo(c.x + s * 0.52, c.y - s * 0.45);
+      g.lineTo(c.x + s, c.y + s * 0.5);
+      g.closePath(); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.11)';
+      g.beginPath();
+      g.moveTo(c.x - s * (0.5 + wob * 0.2), c.y - s * 0.55);
+      g.lineTo(c.x - s * 0.08, c.y - s * (0.75 + wob * 0.2));
+      g.lineTo(c.x + s * 0.05, c.y - s * 0.15);
+      g.closePath(); g.fill();
+    }
     // 影(ユニットの足元)
     g.fillStyle = 'rgba(0,0,0,.25)';
     for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }

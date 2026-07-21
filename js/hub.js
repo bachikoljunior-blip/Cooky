@@ -118,6 +118,13 @@ const Hub = (() => {
     p.y += ax.y * 240 * dt;
     p.x = Math.max(b.x0 + 40, Math.min(b.x1 - 40, p.x));
     p.y = Math.max(b.y0 + 40, Math.min(b.y1 - 40, p.y));
+    // 地形の障害(泉・大炉・岩など): 円で押し出す(縁に沿って滑る)
+    const th = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
+    if (th && th.obst) for (const o of th.obst) {
+      const dx = p.x - o.x, dy = p.y - o.y;
+      const d = Math.hypot(dx, dy);
+      if (d < o.r + 16 && d > 0.001) { p.x = o.x + dx / d * (o.r + 16); p.y = o.y + dy / d * (o.r + 16); }
+    }
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
     // 住民は定位置のまわりを行き来する(作業している感)
@@ -549,12 +556,249 @@ const Hub = (() => {
   // 施設マップ用の短い名前
   const SHORT_NAMES = { altar:'祭壇', lab:'研究所', camp:'宿舎', lib:'書庫' };
 
+  // ---- 実景プロップの描画(HUB_THEME) ----
+  // ストーリーに出てくるもの(泉・御神木・大炉・湯壺・歌碑・灯台…)を実物として描く
+  function drawProp(g, pr, t){
+    const x = pr.x, y = pr.y, s = pr.s || 60;
+    switch (pr.k) {
+      case 'sprite': Sprites.draw(g, pr.spr, x, y, s); break;
+      case 'pool': {
+        g.fillStyle = 'rgba(0,0,0,.25)';
+        g.beginPath(); g.ellipse(x, y + 6, pr.rx + 6, pr.ry + 6, 0, 0, 7); g.fill();
+        g.fillStyle = pr.c || '#2b7fb0';
+        g.beginPath(); g.ellipse(x, y, pr.rx, pr.ry, 0, 0, 7); g.fill();
+        if (!pr.frozen) {   // さざ波
+          g.strokeStyle = 'rgba(230,237,243,.25)'; g.lineWidth = 1.5;
+          for (let i = 0; i < 3; i++) {
+            const ph = t * 0.7 + i * 2.1;
+            const rr = ((ph % 2) / 2);
+            g.globalAlpha = 0.5 * (1 - rr);
+            g.beginPath(); g.ellipse(x, y, pr.rx * (0.3 + rr * 0.65), pr.ry * (0.3 + rr * 0.65), 0, 0, 7); g.stroke();
+          }
+          g.globalAlpha = 1;
+        } else {   // 凍った面のひび
+          g.strokeStyle = 'rgba(230,237,243,.35)'; g.lineWidth = 1.5;
+          g.beginPath(); g.moveTo(x - pr.rx * 0.5, y - 8); g.lineTo(x + 14, y + 6); g.lineTo(x + pr.rx * 0.6, y - 10); g.stroke();
+        }
+        if (pr.steam) for (let i = 0; i < 4; i++) {   // 湯気
+          const ph = (t * 0.35 + i * 0.63) % 1;
+          g.fillStyle = 'rgba(230,237,243,' + (0.20 * (1 - ph)).toFixed(3) + ')';
+          g.beginPath(); g.arc(x + Math.sin(t + i * 2.4) * pr.rx * 0.4, y - 12 - ph * 70, 10 + ph * 16, 0, 7); g.fill();
+        }
+        break;
+      }
+      case 'bigtree': {   // 御神木
+        g.fillStyle = pr.mossy ? '#4c5a3a' : '#5a4630';
+        g.fillRect(x - s * 0.08, y - s * 0.1, s * 0.16, s * 0.55);
+        const cs = [[0, -s * 0.35, s * 0.42], [-s * 0.3, -s * 0.15, s * 0.3], [s * 0.3, -s * 0.18, s * 0.32], [0, -s * 0.62, s * 0.26]];
+        for (const [dx, dy, r] of cs) {
+          g.fillStyle = pr.mossy ? '#3f6b46' : '#2e6b3c';
+          g.beginPath(); g.arc(x + dx, y + dy, r, 0, 7); g.fill();
+        }
+        g.fillStyle = 'rgba(255,255,255,.10)';
+        g.beginPath(); g.arc(x - s * 0.12, y - s * 0.45, s * 0.18, 0, 7); g.fill();
+        break;
+      }
+      case 'pillar': {   // 遺跡の柱
+        const h = pr.broken ? s * 0.45 : s;
+        g.fillStyle = pr.gold ? '#8a6d35' : '#6e7681';
+        g.fillRect(x - s * 0.11, y - h, s * 0.22, h);
+        g.fillStyle = pr.gold ? '#b0925a' : '#8b949e';
+        g.fillRect(x - s * 0.15, y - h, s * 0.3, s * 0.08);
+        if (!pr.broken) g.fillRect(x - s * 0.15, y - s * 0.08, s * 0.3, s * 0.08);
+        if (pr.broken) { g.fillStyle = '#57606a'; g.beginPath(); g.moveTo(x - s * 0.11, y - h); g.lineTo(x + s * 0.11, y - h - s * 0.09); g.lineTo(x + s * 0.11, y - h); g.fill(); }
+        break;
+      }
+      case 'wall': {   // 城壁・柵(石積み)
+        const w = pr.w || 160, hh = 26;
+        g.fillStyle = pr.ruined ? '#3a3038' : '#57606a';
+        g.fillRect(x - w / 2, y - hh, w, hh);
+        g.fillStyle = 'rgba(0,0,0,.25)';
+        for (let bx = -w / 2; bx < w / 2; bx += 26) g.fillRect(x + bx, y - hh, 2, hh);
+        if (!pr.ruined) { g.fillStyle = '#6e7681'; for (let bx = -w / 2; bx < w / 2 - 8; bx += 30) g.fillRect(x + bx, y - hh - 8, 16, 8); }
+        break;
+      }
+      case 'tower': {   // 塔(灯台/物見/鐘楼)
+        g.fillStyle = pr.c || '#8b949e';
+        g.beginPath(); g.moveTo(x - s * 0.22, y); g.lineTo(x - s * 0.13, y - s); g.lineTo(x + s * 0.13, y - s); g.lineTo(x + s * 0.22, y); g.fill();
+        g.fillStyle = 'rgba(0,0,0,.28)'; g.fillRect(x - s * 0.06, y - s * 0.45, s * 0.12, s * 0.14);
+        g.fillStyle = '#30363d'; g.fillRect(x - s * 0.18, y - s * 1.06, s * 0.36, s * 0.1);
+        if (pr.light) {   // 回る灯台の光
+          const a = t * 0.9;
+          const gr = g.createLinearGradient(x, y - s, x + Math.cos(a) * 240, y - s + Math.sin(a) * 90);
+          gr.addColorStop(0, 'rgba(255,240,180,.5)'); gr.addColorStop(1, 'rgba(255,240,180,0)');
+          g.fillStyle = gr;
+          g.beginPath(); g.moveTo(x, y - s);
+          g.lineTo(x + Math.cos(a - 0.14) * 250, y - s + Math.sin(a - 0.14) * 95);
+          g.lineTo(x + Math.cos(a + 0.14) * 250, y - s + Math.sin(a + 0.14) * 95); g.fill();
+          g.fillStyle = '#ffd766'; g.beginPath(); g.arc(x, y - s + 4, 6, 0, 7); g.fill();
+        }
+        if (pr.rod) {   // 避雷針とたまの雷光
+          g.strokeStyle = '#c9d1d9'; g.lineWidth = 3;
+          g.beginPath(); g.moveTo(x, y - s * 1.06); g.lineTo(x, y - s * 1.3); g.stroke();
+          if (Math.sin(t * 1.7) > 0.985) {
+            g.strokeStyle = '#fde047'; g.lineWidth = 2.5;
+            g.beginPath(); g.moveTo(x, y - s * 1.7); g.lineTo(x + 10, y - s * 1.5); g.lineTo(x - 6, y - s * 1.42); g.lineTo(x, y - s * 1.3); g.stroke();
+          }
+        }
+        break;
+      }
+      case 'furnace': {   // 大炉(赤い口と煙突、立ちのぼる煙)
+        g.fillStyle = '#4d3a30'; g.fillRect(x - s * 0.4, y - s * 0.6, s * 0.8, s * 0.6);
+        g.fillStyle = '#30363d'; g.fillRect(x + s * 0.12, y - s * 1.02, s * 0.16, s * 0.45);
+        const fl = 0.75 + Math.sin(t * 6) * 0.25;
+        g.fillStyle = 'rgba(255,120,50,' + (0.75 * fl).toFixed(2) + ')';
+        g.beginPath(); g.arc(x, y - s * 0.18, s * 0.17, Math.PI, 0, true); g.fill();
+        for (let i = 0; i < 3; i++) {
+          const ph = (t * 0.3 + i * 0.33) % 1;
+          g.fillStyle = 'rgba(160,160,170,' + (0.22 * (1 - ph)).toFixed(3) + ')';
+          g.beginPath(); g.arc(x + s * 0.2 + Math.sin(t + i * 2) * 8, y - s * 1.05 - ph * 60, 8 + ph * 12, 0, 7); g.fill();
+        }
+        break;
+      }
+      case 'anvil':
+        g.fillStyle = '#30363d'; g.fillRect(x - s * 0.5, y - s * 0.28, s, s * 0.2);
+        g.fillRect(x - s * 0.18, y - s * 0.1, s * 0.36, s * 0.12);
+        break;
+      case 'crystal': {   // 結晶(氷・星・黒曜・虚無)
+        g.fillStyle = pr.c || '#a5d8ff';
+        g.globalAlpha = 0.9;
+        g.beginPath(); g.moveTo(x, y - s); g.lineTo(x + s * 0.3, y - s * 0.3); g.lineTo(x + s * 0.18, y); g.lineTo(x - s * 0.18, y); g.lineTo(x - s * 0.3, y - s * 0.35); g.fill();
+        g.globalAlpha = 0.5;
+        g.beginPath(); g.moveTo(x + s * 0.34, y - s * 0.6); g.lineTo(x + s * 0.52, y - s * 0.2); g.lineTo(x + s * 0.3, y); g.lineTo(x + s * 0.2, y - s * 0.16); g.fill();
+        g.globalAlpha = 1;
+        g.fillStyle = 'rgba(255,255,255,.35)';
+        g.beginPath(); g.moveTo(x, y - s * 0.92); g.lineTo(x + s * 0.1, y - s * 0.4); g.lineTo(x - s * 0.06, y - s * 0.42); g.fill();
+        break;
+      }
+      case 'stele': {   // 碑(歌碑・墓標の祭壇・最果ての碑)
+        g.fillStyle = '#484f58';
+        g.beginPath(); g.moveTo(x - s * 0.32, y); g.lineTo(x - s * 0.28, y - s * 0.85); g.arc(x, y - s * 0.85, s * 0.28, Math.PI, 0); g.lineTo(x + s * 0.32, y); g.fill();
+        g.strokeStyle = pr.c || '#76e3ea'; g.lineWidth = 2;
+        const gl = 0.5 + Math.sin(t * 1.4) * 0.3;
+        g.globalAlpha = gl;
+        for (let i = 0; i < 3; i++) { g.beginPath(); g.moveTo(x - s * 0.14, y - s * (0.3 + i * 0.2)); g.lineTo(x + s * 0.14, y - s * (0.3 + i * 0.2)); g.stroke(); }
+        g.globalAlpha = 1;
+        break;
+      }
+      case 'graves': {   // 小さな墓石の列
+        const sc = pr.s || 1;
+        for (let i = 0; i < 4; i++) {
+          const gx = x + (i % 2) * 46 * sc + Math.floor(i / 2) * 24 * sc, gy = y + Math.floor(i / 2) * 40 * sc;
+          g.fillStyle = 'rgba(0,0,0,.25)'; g.beginPath(); g.ellipse(gx, gy + 4, 14 * sc, 5 * sc, 0, 0, 7); g.fill();
+          g.fillStyle = pr.c || '#c9d1d9';
+          g.fillRect(gx - 8 * sc, gy - 26 * sc, 16 * sc, 26 * sc);
+          g.beginPath(); g.arc(gx, gy - 26 * sc, 8 * sc, Math.PI, 0); g.fill();
+        }
+        break;
+      }
+      case 'shrine': {   // 祠(小さな社)
+        g.fillStyle = '#3d3630'; g.fillRect(x - s * 0.32, y - s * 0.42, s * 0.64, s * 0.42);
+        g.fillStyle = '#57443a';
+        g.beginPath(); g.moveTo(x - s * 0.46, y - s * 0.42); g.lineTo(x, y - s * 0.75); g.lineTo(x + s * 0.46, y - s * 0.42); g.fill();
+        g.fillStyle = pr.c || '#76e3ea';
+        const gl = 0.5 + Math.sin(t * 1.1) * 0.3;
+        g.globalAlpha = gl; g.fillRect(x - s * 0.08, y - s * 0.3, s * 0.16, s * 0.2); g.globalAlpha = 1;
+        break;
+      }
+      case 'fire': {   // 焚き火・かがり火
+        g.fillStyle = '#57443a';
+        g.fillRect(x - s * 0.4, y - 4, s * 0.8, 5);
+        g.fillRect(x - s * 0.32, y - 9, s * 0.64, 5);
+        const fl = 0.8 + Math.sin(t * 7 + x) * 0.2;
+        g.fillStyle = 'rgba(255,150,60,' + (0.85 * fl).toFixed(2) + ')';
+        g.beginPath(); g.moveTo(x - s * 0.2, y - 6); g.quadraticCurveTo(x, y - s * fl, x + s * 0.2, y - 6); g.fill();
+        g.fillStyle = 'rgba(255,220,120,' + (0.8 * fl).toFixed(2) + ')';
+        g.beginPath(); g.moveTo(x - s * 0.1, y - 6); g.quadraticCurveTo(x, y - s * 0.55 * fl, x + s * 0.1, y - 6); g.fill();
+        break;
+      }
+      case 'lens': {   // 観測器(三脚+レンズ)
+        g.strokeStyle = '#6e7681'; g.lineWidth = 4;
+        g.beginPath(); g.moveTo(x - s * 0.3, y); g.lineTo(x, y - s * 0.5); g.lineTo(x + s * 0.3, y); g.stroke();
+        g.beginPath(); g.moveTo(x, y - s * 0.5); g.lineTo(x, y); g.stroke();
+        g.save(); g.translate(x, y - s * 0.6); g.rotate(-0.6);
+        g.fillStyle = '#30363d'; g.fillRect(-s * 0.09, -s * 0.34, s * 0.18, s * 0.4);
+        g.fillStyle = '#76e3ea'; g.beginPath(); g.arc(0, -s * 0.36, s * 0.09, 0, 7); g.fill();
+        g.restore();
+        break;
+      }
+      case 'mirror': {   // 日輪の鏡
+        g.fillStyle = '#57443a'; g.fillRect(x - 5, y - s * 0.55, 10, s * 0.55);
+        const gl = 0.6 + Math.sin(t * 1.3 + x) * 0.25;
+        g.fillStyle = '#b0925a'; g.beginPath(); g.arc(x, y - s * 0.75, s * 0.3, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,215,102,' + (0.75 * gl).toFixed(2) + ')';
+        g.beginPath(); g.arc(x, y - s * 0.75, s * 0.22, 0, 7); g.fill();
+        const grd = g.createRadialGradient(x, y - s * 0.75, s * 0.2, x, y - s * 0.75, s * 0.8);
+        grd.addColorStop(0, 'rgba(255,215,102,' + (0.25 * gl).toFixed(2) + ')'); grd.addColorStop(1, 'rgba(255,215,102,0)');
+        g.fillStyle = grd; g.beginPath(); g.arc(x, y - s * 0.75, s * 0.8, 0, 7); g.fill();
+        break;
+      }
+      case 'moon': {   // 修道院の上の月
+        const gl = 0.7 + Math.sin(t * 0.8) * 0.15;
+        const grd = g.createRadialGradient(x, y, s * 0.2, x, y, s * 1.6);
+        grd.addColorStop(0, 'rgba(165,216,255,' + (0.30 * gl).toFixed(2) + ')'); grd.addColorStop(1, 'rgba(165,216,255,0)');
+        g.fillStyle = grd; g.beginPath(); g.arc(x, y, s * 1.6, 0, 7); g.fill();
+        g.fillStyle = '#e7f0f8'; g.beginPath(); g.arc(x, y, s * 0.42, 0, 7); g.fill();
+        g.fillStyle = 'rgba(140,160,190,.45)';
+        g.beginPath(); g.arc(x - s * 0.12, y - s * 0.08, s * 0.09, 0, 7); g.fill();
+        g.beginPath(); g.arc(x + s * 0.1, y + 6, s * 0.06, 0, 7); g.fill();
+        break;
+      }
+      case 'herb': {   // 薬草園・畑
+        const sc = pr.s || 1;
+        g.fillStyle = '#3a2f26';
+        g.fillRect(x - 70 * sc, y - 40 * sc, 140 * sc, 80 * sc);
+        for (let r = 0; r < 3; r++) for (let cix = 0; cix < 5; cix++) {
+          g.fillStyle = ['#57ab5a', '#7ee787', '#4a8f50'][((r + cix) % 3)];
+          g.beginPath(); g.arc(x - 55 * sc + cix * 27 * sc, y - 24 * sc + r * 25 * sc, 6 * sc + ((r * 5 + cix) % 3), 0, 7); g.fill();
+        }
+        break;
+      }
+      case 'bonearch': {   // 竜骨のアーチ(集落のゲートの由来)
+        g.strokeStyle = '#e6edf3'; g.lineWidth = 10; g.lineCap = 'round';
+        g.beginPath(); g.moveTo(x - s * 0.5, y); g.quadraticCurveTo(x, y - s * 0.85, x + s * 0.5, y); g.stroke();
+        g.lineWidth = 5;
+        for (let i = -2; i <= 2; i++) {
+          const bx = x + i * s * 0.17, by = y - s * (0.62 - Math.abs(i) * 0.13);
+          g.beginPath(); g.moveTo(bx, by); g.lineTo(bx + (i < 0 ? -8 : 8), by + s * 0.16); g.stroke();
+        }
+        g.lineCap = 'butt';
+        break;
+      }
+    }
+  }
+  // テーマの空気(霧・蛍・火の粉・星)
+  function drawThemeAir(g, th, bnd, t){
+    const bw = bnd.x1 - bnd.x0, bh = bnd.y1 - bnd.y0;
+    if (th.mist) {
+      for (let i = 0; i < 5; i++) {
+        const mx = bnd.x0 + ((i * 373 + t * 18) % bw), my = bnd.y0 + 80 + (i * 217) % (bh - 140);
+        g.fillStyle = 'rgba(180,195,185,.06)';
+        g.beginPath(); g.ellipse(mx, my, 180, 60, 0, 0, 7); g.fill();
+      }
+    }
+    if (th.fireflies || th.embers || th.stars || th.voidmist) {
+      const col = th.fireflies ? '255,215,102' : th.embers ? '255,120,50' : th.stars ? '230,240,255' : '167,139,250';
+      for (let i = 0; i < 14; i++) {
+        const fx = bnd.x0 + ((i * 331) % bw) + Math.sin(t * 0.7 + i) * 26;
+        const fy = bnd.y0 + ((i * 173 + (th.embers ? -t * 26 : t * 9)) % bh + bh) % bh;
+        g.fillStyle = 'rgba(' + col + ',' + (0.25 + 0.2 * Math.sin(t * 2 + i * 1.7)).toFixed(2) + ')';
+        g.beginPath(); g.arc(fx, fy, th.stars ? 1.4 : 2.2, 0, 7); g.fill();
+      }
+    }
+    if (th.storm && Math.sin(t * 1.31) > 0.992) {
+      g.fillStyle = 'rgba(253,224,71,.08)';
+      g.fillRect(bnd.x0, bnd.y0, bw, bh);
+    }
+  }
+
   function draw(g, W, H2){
     const p = H.player;
     const camX = p.x - W/2, camY = p.y - H2/2;
     const bnd = bounds();
+    const theme = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
     // 床
-    g.fillStyle = H.area === 'main' ? '#131a2b' : '#16202b';
+    g.fillStyle = (theme && theme.floor) || (H.area === 'main' ? '#131a2b' : '#16202b');
     g.fillRect(0, 0, W, H2);
     const T = 48;
     const x0 = Math.floor(camX/T), y0 = Math.floor(camY/T);
@@ -607,6 +851,14 @@ const Hub = (() => {
         g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
         g.fillText('― ' + bd.name + '〈' + (bd.kind || '拠点') + '〉 ―', 0, bounds().y0 + 190);
       }
+    }
+    // 実景(HUB_THEME): 泉・御神木・大炉・湯壺・歌碑・灯台など、物語に出てくるもの
+    if (theme) {
+      const tt = performance.now() / 1000;
+      // 奥のもの(y小)から手前へ
+      const props = (theme.props || []).slice().sort((a, b2) => a.y - b2.y);
+      for (const pr of props) drawProp(g, pr, tt);
+      drawThemeAir(g, theme, bnd, tt);
     }
     // 広場の縁(装飾つき)
     g.strokeStyle = '#2b3654'; g.lineWidth = 6;
