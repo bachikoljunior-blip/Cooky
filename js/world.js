@@ -276,6 +276,34 @@ const World = (() => {
     }
     return list;
   }
+  // ---- ランドマーク: 見晴らし台(高台の露岩)と古の祠 ----
+  // 見晴らし台: 登ると周囲の地形が地図に刻まれる(探索の目印)。先人の手記が残されている
+  // 古の祠: 祈ると一定時間の加護(周回ごとに一度)
+  function chunkLandmarks(cx, cy){
+    const list = [];
+    const roll = hash(cx, cy, 111);
+    if (roll > 0.0062) return list;
+    const x = (cx + 0.35 + hash(cx, cy, 112) * 0.3) * CHUNK;
+    const y = (cy + 0.35 + hash(cx, cy, 113) * 0.3) * CHUNK;
+    if (terrainAt(x, y) !== 'grass') return list;
+    if (Math.hypot(x, y) < 900) return list;
+    for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 500) return list;
+    for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 500) return list;
+    list.push({ key: 'lm' + cx + ',' + cy, x, y, kind: roll < 0.0022 ? 'vantage' : 'shrine' });
+    return list;
+  }
+  let lmCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyLandmarks(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (lmCache.cx === cx && lmCache.cy === cy) return lmCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkLandmarks(ix, iy));
+    lmCache = { cx, cy, list };
+    return list;
+  }
+
   let cragCache = { cx: 1e9, cy: 1e9, list: [] };
   function nearbyCrags(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
@@ -669,7 +697,7 @@ const World = (() => {
   }
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
-           nearbyObjects, destroyObject, objectDrops, nearbyCrags,
+           nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };

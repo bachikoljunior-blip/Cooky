@@ -314,6 +314,11 @@ const Run = (() => {
     const valueMul = (e.boss || e.def.isReaper) ? 0.9 : (0.55 + Math.random() * 0.25) * glut;
     const c = Math.max(1, Math.round(e.coin * st.coinMul * (1 + ring * 0.22) * valueMul));
     dropPickup(e.x, e.y, { type:'coin', value:c });
+    // 紅(rank2)以上の色違いは宝箱を落とす ― 拾うと報酬が吹き出す(長生きの魔物の蓄え)
+    if (e.rank >= 2 && !e.boss && !e.def.isReaper) {
+      const ms = (e.def.drops || []).filter(dr => Skills.matUnlocked(dr.m)).slice(0, 2).map(dr => dr.m);
+      dropPickup(e.x, e.y, { type:'chest', value: Math.max(24, c * 2), mats: ms });
+    }
     // 素材ドロップ: その敵自身のドロップテーブルのみ。バイオドームごとの素材の違いは
     // 敵の顔ぶれ(BIOME_FAUNA)から自然に生まれる ― 場所によるドロップ率の細工はしない
     for (const dr of e.def.drops || []) {
@@ -524,6 +529,17 @@ const Run = (() => {
           lootAdd(pk.mat);   // 画面左上の入手フィードに表示(戦闘の混雑に埋もれない)
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
+        else if (pk.type === 'chest') {   // 宝箱: 開けると報酬が噴き出す
+          Sfx.buy();
+          effect('burst', pk.x, pk.y, { color:'#ffd766', r:34 });
+          popup(pk.x, pk.y - 30, '宝箱!', '#ffd766');
+          const n = 5 + Math.floor(Math.random() * 4);
+          for (let k2 = 0; k2 < n; k2++)
+            dropPickup(pk.x + rnd(-8, 8), pk.y + rnd(-8, 8), { type:'coin', value: Math.max(2, Math.round((pk.value || 30) / n)) });
+          for (const m of pk.mats || [])
+            dropPickup(pk.x + rnd(-24, 24), pk.y + rnd(-24, 24), { type:'mat', mat: m });
+          if (Math.random() < 0.5) dropPickup(pk.x + rnd(-16, 16), pk.y + rnd(-16, 16), { type:'potion' });
+        }
         R.pickups.splice(i, 1);
       }
     }
@@ -2220,6 +2236,15 @@ const Run = (() => {
           }
         }
       }
+      // ランドマーク: 見晴らし台(登る)と古の祠(祈る。周回に一度)
+      if (!R.interact) {
+        for (const lm of R.landmarks || []) {
+          if (Math.hypot(p.x - lm.x, p.y - lm.y) > 84) continue;
+          if (lm.kind === 'vantage') R.interact = { type:'vantage', lm, label:'E: 見晴らし台に登る' };
+          else if (!(R.usedShrines || {})[lm.key]) R.interact = { type:'shrine', lm, label:'E: 古の祠に祈る' };
+          break;
+        }
+      }
       // 停泊中のボート
       if (!R.interact && p.boatAnchor) {
         const d = Math.hypot(p.x - p.boatAnchor.x, p.y - p.boatAnchor.y);
@@ -2240,6 +2265,56 @@ const Run = (() => {
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
+    else if (it.type === 'vantage') useVantage(it.lm);
+    else if (it.type === 'shrine') useShrine(it.lm);
+  }
+
+  // 見晴らし台: 高台からあたりを見渡し、周囲の地形が地図に刻まれる。
+  // 岩の割れ目には先人の手記が一頁ずつ残されている(順に見つかる)
+  function useVantage(lm){
+    World.recordExplore(lm.x, lm.y, 3);   // 半径3セル(≈12.6km)の地形が地図に載る
+    effect('ring', lm.x, lm.y, { color:'#76e3ea', r:130 });
+    Sfx.skill();
+    SaveSys.data.vantages = SaveSys.data.vantages || {};
+    if (!SaveSys.data.vantages[lm.key]) {
+      SaveSys.data.vantages[lm.key] = true;
+      const n = SaveSys.data.memoirs || 0;
+      if (DATA.MEMOIRS && n < DATA.MEMOIRS.length) {
+        SaveSys.data.memoirs = n + 1;
+        Game.dialog('', null, [
+          '(見晴らしの岩の割れ目に、風雨に耐えた手記の頁が挟まっている)',
+          DATA.MEMOIRS[n],
+          '(先人の手記 ' + (n + 1) + '/' + DATA.MEMOIRS.length + ' ― あたりの地形も地図に刻まれた)'], null);
+      } else {
+        R.warnMsg = '⛰ 見晴らし台に登った ― あたりの地形が地図に刻まれた';
+        R.warnColor = '#76e3ea'; R.warnT = 4;
+      }
+      SaveSys.save();
+    } else {
+      R.warnMsg = '⛰ あたりの地形が地図に刻まれた';
+      R.warnColor = '#76e3ea'; R.warnT = 3;
+    }
+    R.noInteractT = 0.8;
+  }
+  // 古の祠: 祈ると一定時間の加護(祠ごとに種類は固定。周回に一度)
+  const BLESSES = [
+    { name:'剛力の加護', c:'#f85149', mul:{ atk:1.25 } },
+    { name:'疾風の加護', c:'#7ee787', mul:{ speed:1.18, allySpeed:1.18 } },
+    { name:'磁力の加護', c:'#f778ba', mul:{ magnet:1.9 } },
+    { name:'金運の加護', c:'#ffd766', mul:{ coinMul:1.5 } },
+  ];
+  function useShrine(lm){
+    R.usedShrines = R.usedShrines || {};
+    R.usedShrines[lm.key] = true;
+    let h = 0;
+    for (let i = 0; i < lm.key.length; i++) h = (h * 31 + lm.key.charCodeAt(i)) | 0;
+    const bl = BLESSES[Math.abs(h) % BLESSES.length];
+    R.bless = { name: bl.name, c: bl.c, mul: bl.mul, until: R.time + 75 };
+    effect('ring', lm.x, lm.y, { color: bl.c, r: 110 });
+    Sfx.skill();
+    R.warnMsg = '⛩ 古の祠の加護:「' + bl.name + '」(75秒)';
+    R.warnColor = bl.c; R.warnT = 4;
+    R.noInteractT = 0.8;
   }
 
   // 素材⇄コインの取引(港の貿易商/小道の行商人)。相場は周回と場所で変わる
@@ -2398,6 +2473,10 @@ const Run = (() => {
     if (R.over) return;
     R.time += dt;
     R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
+    // 古の祠の加護(時間制。毎フレーム素の値から計算し直すので重ね掛けにならない)
+    if (R.bless && R.time < R.bless.until) {
+      for (const k in R.bless.mul) R.stats[k] *= R.bless.mul[k];
+    } else if (R.bless) R.bless = null;
     const p = R.player, st = R.stats;
     p.invuln = Math.max(0, p.invuln - dt);
 
@@ -2456,6 +2535,8 @@ const Run = (() => {
     // 地形の障害(岩場): 主人公はここで押し出す(仲間・敵はそれぞれの移動処理で)
     R.crags = World.nearbyCrags(p.x, p.y, (R.offscreenR || 700) + 400);
     cragPush(p, 14);
+    // ランドマーク(見晴らし台・古の祠)
+    R.landmarks = World.nearbyLandmarks(p.x, p.y, (R.offscreenR || 700) + 400);
 
     // 探索記録(行ったことのある場所がマップに残る)
     R.exploreAcc = (R.exploreAcc || 0) - dt;
@@ -2714,6 +2795,57 @@ const Run = (() => {
       g.lineTo(c.x + s * 0.05, c.y - s * 0.15);
       g.closePath(); g.fill();
     }
+    // ランドマーク: 見晴らし台(旗の立つ高岩)と古の祠
+    for (const lm of R.landmarks || []) {
+      if (Math.abs(lm.x - p.x) > effW * 0.75 || Math.abs(lm.y - p.y) > effH * 0.75) continue;
+      if (lm.kind === 'vantage') {
+        g.fillStyle = 'rgba(0,0,0,.25)';
+        g.beginPath(); g.ellipse(lm.x, lm.y + 16, 40, 13, 0, 0, 7); g.fill();
+        g.fillStyle = '#57606a';
+        g.beginPath();
+        g.moveTo(lm.x - 34, lm.y + 14); g.lineTo(lm.x - 16, lm.y - 52); g.lineTo(lm.x - 2, lm.y - 84);
+        g.lineTo(lm.x + 14, lm.y - 48); g.lineTo(lm.x + 32, lm.y + 14);
+        g.closePath(); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.13)';
+        g.beginPath(); g.moveTo(lm.x - 16, lm.y - 52); g.lineTo(lm.x - 2, lm.y - 84); g.lineTo(lm.x + 2, lm.y - 30); g.closePath(); g.fill();
+        // 旗(風になびく)
+        g.strokeStyle = '#8b949e'; g.lineWidth = 3;
+        g.beginPath(); g.moveTo(lm.x - 2, lm.y - 84); g.lineTo(lm.x - 2, lm.y - 116); g.stroke();
+        const fw = Math.sin(R.time * 3 + lm.x) * 4;
+        g.fillStyle = (SaveSys.data.vantages || {})[lm.key] ? '#8b949e' : '#76e3ea';
+        g.beginPath(); g.moveTo(lm.x - 2, lm.y - 116); g.lineTo(lm.x + 24 + fw, lm.y - 110); g.lineTo(lm.x - 2, lm.y - 102); g.closePath(); g.fill();
+      } else {
+        const used = (R.usedShrines || {})[lm.key];
+        let h2 = 0; for (let i2 = 0; i2 < lm.key.length; i2++) h2 = (h2 * 31 + lm.key.charCodeAt(i2)) | 0;
+        const bc = ['#f85149', '#7ee787', '#f778ba', '#ffd766'][Math.abs(h2) % 4];
+        g.fillStyle = 'rgba(0,0,0,.22)';
+        g.beginPath(); g.ellipse(lm.x, lm.y + 10, 26, 9, 0, 0, 7); g.fill();
+        // 石積みの祠: 石の躯体+暗い龕(がん)+木の屋根+両脇の石柱
+        g.fillStyle = '#4b545f'; g.fillRect(lm.x - 15, lm.y - 18, 30, 26);
+        g.fillStyle = '#2a2f36'; g.fillRect(lm.x - 6, lm.y - 12, 12, 20);
+        g.fillStyle = '#57443a';
+        g.beginPath(); g.moveTo(lm.x - 22, lm.y - 18); g.lineTo(lm.x, lm.y - 36); g.lineTo(lm.x + 22, lm.y - 18); g.closePath(); g.fill();
+        g.fillStyle = '#3f4750';
+        g.fillRect(lm.x - 26, lm.y - 8, 6, 16); g.fillRect(lm.x + 20, lm.y - 8, 6, 16);
+        if (!used) {
+          const gl = 0.5 + Math.sin(R.time * 2 + lm.y) * 0.3;
+          g.fillStyle = bc; g.globalAlpha = 0.75 * gl;
+          g.fillRect(lm.x - 4, lm.y - 12, 8, 12);
+          const grd = g.createRadialGradient(lm.x, lm.y - 8, 4, lm.x, lm.y - 8, 44);
+          grd.addColorStop(0, bc); grd.addColorStop(1, 'rgba(0,0,0,0)');
+          g.globalAlpha = 0.18 * gl; g.fillStyle = grd;
+          g.beginPath(); g.arc(lm.x, lm.y - 8, 44, 0, 7); g.fill();
+          g.globalAlpha = 1;
+        }
+      }
+    }
+    // 祠の加護のオーラ(効果中の視覚表示)
+    if (R.bless && R.time < R.bless.until) {
+      g.strokeStyle = R.bless.c; g.lineWidth = 2;
+      g.globalAlpha = 0.3 + 0.15 * Math.sin(R.time * 4);
+      g.beginPath(); g.arc(p.x, p.y + 8, 26, 0, 7); g.stroke();
+      g.globalAlpha = 1;
+    }
     // 影(ユニットの足元)
     g.fillStyle = 'rgba(0,0,0,.25)';
     for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }
@@ -2902,6 +3034,14 @@ const Run = (() => {
       const bob = Math.sin(pk.t * 5) * 3;
       if (pk.type === 'coin') Sprites.draw(g, 'coin', pk.x, pk.y + bob, 22);
       else if (pk.type === 'potion') Sprites.draw(g, 'potion', pk.x, pk.y + bob, 26);
+      else if (pk.type === 'chest') {   // 宝箱(紅以上の色違いの蓄え)
+        const gl = 0.5 + Math.sin(pk.t * 4) * 0.3;
+        g.fillStyle = 'rgba(255,215,102,' + (0.25 * gl).toFixed(2) + ')';
+        g.beginPath(); g.arc(pk.x, pk.y + bob, 20, 0, 7); g.fill();
+        g.fillStyle = '#6b4f2e'; g.fillRect(pk.x - 11, pk.y + bob - 6, 22, 12);
+        g.fillStyle = '#8a6d3f'; g.fillRect(pk.x - 12, pk.y + bob - 11, 24, 6);
+        g.fillStyle = '#ffd766'; g.fillRect(pk.x - 2, pk.y + bob - 11, 4, 17);
+      }
       else Sprites.draw(g, 'mat_' + pk.mat, pk.x, pk.y + bob, 26);   // 素材は大きく(光らせない)
     }
 
