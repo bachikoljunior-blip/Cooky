@@ -188,8 +188,9 @@ const Hub = (() => {
     else if (s.kind === 'trader') Run.openTrade('port_' + s.port, '貿易商');
     else if (s.kind === 'sidenpc') Quest.offer('side', s.sq);
     else if (s.kind === 'villager') {
+      // 豆知識は話者の口調と混ざらないよう、地の文(見聞きした噂)として添える
       const tip = DATA.NPC_TIPS[Math.floor(Math.random() * DATA.NPC_TIPS.length)];
-      Game.dialog(s.v.name, s.v.spr, [s.v.line, '「' + tip + '」'], null);
+      Game.dialog(s.v.name, s.v.spr, [s.v.line, '(別れ際、こんな噂話も聞かせてくれた ―「' + tip + '」)'], null);
     }
     else if (s.kind === 'board') {
       if ((Run.state.boardDone || {})[H.area]) Game.dialog('', null, ['(今日の依頼は済んでいる。また次の周回で新しい依頼が貼り出されるだろう)'], null);

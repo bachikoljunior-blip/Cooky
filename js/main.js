@@ -162,11 +162,12 @@ const Game = (() => {
     const lines = [];
     // エピローグ: 果ての城の物語を見届けた後は、世界の語りが変わる
     if ((SaveSys.data.story || {}).end_throne && DATA.EPILOGUE && DATA.EPILOGUE[baseId]) lines.push(DATA.EPILOGUE[baseId]);
-    // 死に戻りの回数に、世界がちゃんと反応する
+    // 死に戻りの回数に、世界がちゃんと反応する。
+    // 誰の台詞にもなる行なので、話者の口調と混ざらないよう地の文で語る
     const deaths = SaveSys.data.stats.deaths || 0;
-    if (deaths >= 30) lines.push('…もう' + deaths + '回も死に戻ったのか。それでも立ち上がる魂、大したものだ。');
-    else if (deaths >= 15) lines.push('また戻ったな。お前が何度でも帰ってくるの、この村はもう驚かなくなったよ。');
-    else if (deaths >= 5) lines.push('…また戻ったのか。死に戻りとは聞いていたが、本当に、戻ってくるのだな。');
+    if (deaths >= 30) lines.push('(' + deaths + '回の死に戻り。それでも立ち上がる魂を、この土地の誰もが敬い始めている)');
+    else if (deaths >= 15) lines.push('(何度でも帰ってくるお前を、この村はもう当たり前のように迎えてくれる)');
+    else if (deaths >= 5) lines.push('(「本当に、戻ってくるのだな」― 死に戻りを見るその目から、驚きが消え始めている)');
     lines.push(...(q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。']));
     // 豆知識は話者の口調と混ざらないよう、地の文(見聞きした噂)として添える
     lines.push('(別れ際、こんな噂話も聞かせてくれた ―「' + tip + '」)');
