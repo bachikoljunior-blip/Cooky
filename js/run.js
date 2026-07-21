@@ -1363,8 +1363,7 @@ const Run = (() => {
     if (R._slotMax === undefined) R._slotMax = -1;
     a.slot = ++R._slotMax;
     // 自分より弱い仲間のうち最も内側の1体とだけ場所を交換(連鎖させない=陣形が回転しない)。
-    // 大軍では並び最適化の走査自体を省く(見た目の並びの問題でしかなく、コストに見合わない)
-    if (R.allies.length > 1500) return;
+    // 勧誘は1体ずつなので、この走査は大軍でも問題にならない
     let inner = null;
     for (const o of R.allies) {
       if (o === a || o.slot === undefined || o.slot >= a.slot) continue;
@@ -1427,12 +1426,15 @@ const Run = (() => {
       // しきい値は「入りにくく・出やすく」の二段構え ― 境界の仲間が毎フレーム
       // 出入りして一枚絵キャッシュが焼き直され続けるのを防ぐ
       {
+        // 押し合いで接触されて起こされた(前線が押し込まれてきた): しばらく通常挙動に戻り、
+        // 押し合いの連鎖が内側の仲間へも自然に伝わる
+        if (a._wake) { a._wake = false; a._calmT = -0.2; }
         const sp = slotPos(a.slot);
         const sm = R._secMin;
-        let rest = false;
+        let rest = false, secD = Infinity;
         if (sm && !a.def.heal && a.hp >= a.maxHp && sp.rad < formR - 40) {
           const s = sp.sec;
-          const secD = Math.min(sm[(s + 7) & 7], Math.min(sm[s], sm[(s + 1) & 7]));
+          secD = Math.min(sm[(s + 7) & 7], Math.min(sm[s], sm[(s + 1) & 7]));
           if (secD > sp.rad + (a._rest ? 160 : 260)) {
             a._calmT = (a._calmT || 0) + dt;
             if (a._calmT > 0.6) rest = true;
@@ -1440,9 +1442,17 @@ const Run = (() => {
         } else a._calmT = 0;
         if (rest) {
           const nx = p.x + sp.x, ny = p.y + sp.y;
-          // 定位置の近くにいて、そこが立てる地形の時だけ休める(海沿いなどでは通常挙動)
-          if (Math.abs(a.x - nx) + Math.abs(a.y - ny) < 40 && canStand(a.def, nx, ny)) {
+          const need = Math.hypot(nx - a.x, ny - a.y);
+          // 休むのは「通常挙動でも定位置に居られる」仲間だけ。通常の陣形追従は
+          // (a)定位置まで3px以内なら吸着(足の速さに関係なく隊列を保つ従来仕様)、
+          // (b)それ以上離れていたら自分の足(速度)で歩いて戻る ― なので、
+          // 3px以内か、1フレームで歩き切れる距離なら休息=従来と同じ位置になる。
+          // 引き離された遅い仲間はこの条件を満たせず、従来どおり自然に後ろへ流れる
+          const step = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1) * dt;
+          if ((need < 3 || need <= step * 1.02 + 0.1) && canStand(a.def, nx, ny)) {
             a._rest = true; a.inForm = true; a._tgt = null;
+            // 前線に近い外周の休息者は、押し合いの「壁」として起こされ役になる
+            a._restEdge = secD < sp.rad + 460;
             a.x = nx; a.y = ny;
             continue;
           }
@@ -1597,8 +1607,12 @@ const Run = (() => {
       units.push(e);
     }
     let asi = 0;
-    // 休息中(_rest)の仲間は定位置に静止していて重ならないので、押し合いから除外
-    for (const a of R.allies) if (!a.waitAt && !a.dead && !a.joining && !a._rest) {   // 合流中はすり抜け
+    // 休息中(_rest)の仲間は基本、押し合いから除外(定位置で重ならない)。
+    // ただし前線に近い外周の休息者(_restEdge)は「壁」として入れる ―
+    // 押し込まれた前衛が内側にめり込んで素通りせず、接触されたら起こされて(wake)
+    // 通常の押し合いに復帰する。これで押し合いの連鎖が内側へも1リングずつ伝わる
+    for (const a of R.allies) {
+      if (a.waitAt || a.dead || a.joining || (a._rest && !a._restEdge)) continue;   // 合流中はすり抜け
       a._si = asi++;
       // 一番小さい仲間は従来どおりの密集度。体の大きい仲間ほど当たり判定が広がり、
       // 巨体同士が全身重なることはない
@@ -1623,7 +1637,7 @@ const Run = (() => {
       const arr = grid.get(k);
       if (arr) arr.push(u); else grid.set(k, [u]);
     }
-    const movers = units.filter(u => u._ally || u === pl);
+    const movers = units.filter(u => (u._ally && !u._rest) || u === pl);
     for (const u of movers) {
       const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
       for (let ix = gx - 1; ix <= gx + 1; ix++) {
@@ -1640,14 +1654,17 @@ const Run = (() => {
             if (d2 >= rr * rr) continue;
             if (d2 === 0) { if (v !== pl) { u.x += Math.random() - 0.5; u.y += Math.random() - 0.5; } continue; }
             const sameSide = v !== pl && u !== pl && !!u._ally === !!v._ally;
-            if (sameSide && u._si > v._si) continue;   // 仲間同士のペアは片側だけ処理(係数2倍で等価)
+            const vRest = !!(v._ally && v._rest);   // 壁役の休息者(自分からは列挙されない)
+            if (sameSide && !vRest && u._si > v._si) continue;   // 仲間同士のペアは片側だけ処理(係数2倍で等価)
             // 主人公↔仲間=両側から2回処理される(従来どおりの係数)。
             // 仲間同士・敵↔仲間=1回だけ処理なので2倍で補正
             const d = Math.sqrt(d2), tot = (rr - d) * (sameSide ? 0.12 : (u === pl || v === pl ? 0.32 : 0.64));
             const mu = u._m || 1, mv = v._m || 1;
             const nx = dx / d, ny = dy / d;
-            // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)
-            const uImm = u === pl, vImm = v === pl;
+            // 主人公は絶対に押されない(敵にも味方にも押し負けず、相手を全部どかす)。
+            // 壁役の休息者もこのフレームは動かず、代わりに起こされて次フレームから押し合いに参加
+            const uImm = u === pl, vImm = v === pl || vRest;
+            if (vRest) v._wake = true;
             // 敵が押し合いで主人公へ押し込まれない: 主人公の近くでは、
             // 主人公方向への押し成分を消す(後ろの群れが前の敵を擦り付けてくるのを防ぐ)
             const push = (ent, fx, fy) => {
