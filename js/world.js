@@ -484,7 +484,7 @@ const World = (() => {
     ['p_e', 'b_dragon'], ['p_se', 'b_green'], ['p_s', 'b_green'], ['p_sw', 'b_black'],
     ['p_n', 'b_star'], ['p_ne', 'b_mist'], ['p_n', 'b_frost'], ['p_nw', 'b_sea'], ['p_w', 'b_dusk'],
     ['b_dragon', 'b_mist'], ['b_green', 'b_ember'], ['b_star', 'b_frost'],
-    ['b_forge', 'b_sun'], ['b_moon', 'b_void'], ['b_grave', 'b_void'],
+    ['b_forge', 'b_sun'], ['b_storm', 'b_sun'], ['b_moon', 'b_void'], ['b_grave', 'b_void'],
     ['b_storm', 'b_end'], ['b_void', 'b_end'],
   ];
   const ROUTE_W = 2400;

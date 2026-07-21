@@ -650,7 +650,7 @@ DATA.CONTINENTS = [
       { dx:-26000, dy:68000, r:11000, sx:1.1, sy:0.9, rot:0.4, lobes:4, amp:0.2 },
     ] },
   // 黄昏: 西の隣人。北の湾を抱く三日月の弧。
-  // 西端から北西へ、胴から南西へ、二本の岬(半島)が伸びる
+  // 西端から北西へ長く弧を描いて虚無の門の入り江を囲む岬と、胴から南西への岬
   { id:'west', x:-95200, y:5000, seed:37, name:'黄昏の大陸', biome:'twilight', lobes:6, amp:0.16, r:49538,
     parts:[
       { dx:32108, dy:-7339, r:26604, sx:1.0,  sy:1.0,  rot:0.3,  lobes:5, amp:0.16 },
@@ -659,10 +659,13 @@ DATA.CONTINENTS = [
       { dx:-60546, dy:-9174, r:21099, sx:0.95, sy:1.05, rot:0.45, lobes:5, amp:0.17 },
       { dx:-52000, dy:-34000, r:16000, sx:1.05, sy:0.95, rot:0.35, lobes:5, amp:0.17 },
       { dx:-66000, dy:-56000, r:13500, sx:1.15, sy:0.85, rot:0.5, lobes:4, amp:0.18 },
+      { dx:-84000, dy:-62000, r:13000, sx:1.2, sy:0.8, rot:0.15, lobes:4, amp:0.18 },
+      { dx:-102000, dy:-50000, r:12000, sx:1.1, sy:0.9, rot:-0.2, lobes:4, amp:0.18 },
       { dx:-8000, dy:44000, r:15000, sx:1.1, sy:0.9, rot:-0.15, lobes:5, amp:0.17 },
       { dx:-24000, dy:64000, r:13000, sx:1.05, sy:0.95, rot:0.2, lobes:4, amp:0.18 },
     ] },
-  // 星嵐: 北の隣人。南北二つの膨らみを細いくびれが繋ぎ、腰から東へ長い腕(半島)が伸びる
+  // 星嵐: 北の隣人。南北二つの膨らみを細いくびれが繋ぎ、腰から東へ長い腕、
+  // 北の肩から北西へもう一本の腕(最果ての大陸の西隣まで)が伸びる
   { id:'north', x:-5400, y:-104000, seed:41, name:'星嵐の大陸', biome:'frost', lobes:6, amp:0.16, r:53706,
     parts:[
       { dx:-11112, dy:48150, r:25927, sx:1.1,  sy:0.9,  rot:0.1,  lobes:5, amp:0.16 },
@@ -671,6 +674,9 @@ DATA.CONTINENTS = [
       { dx:32000, dy:2000, r:17000, sx:1.25, sy:0.8, rot:0.1, lobes:5, amp:0.16 },
       { dx:58000, dy:-6000, r:15000, sx:1.3, sy:0.75, rot:-0.05, lobes:4, amp:0.17 },
       { dx:80000, dy:-14000, r:13000, sx:1.25, sy:0.8, rot:-0.15, lobes:4, amp:0.18 },
+      { dx:-16000, dy:-60000, r:14000, sx:1.05, sy:1.1, rot:0.2, lobes:5, amp:0.17 },
+      { dx:-38000, dy:-78000, r:13000, sx:1.1, sy:1.0, rot:0.35, lobes:4, amp:0.18 },
+      { dx:-52000, dy:-94000, r:12000, sx:1.15, sy:0.9, rot:0.5, lobes:4, amp:0.18 },
     ] },
   // 深緑: 南の隣人。広い胴から南西へ垂れる房と、東へ突き出す岬
   { id:'south', x:6600, y:75900, seed:53, name:'深緑の大陸', biome:'jungle', lobes:7, amp:0.15, r:47846,
@@ -682,12 +688,12 @@ DATA.CONTINENTS = [
     ] },
   // --- 拠点のある小島(一拠点だけの特別な土地。小さいぶん海岸はごつごつ) ---
   { id:'i_mist',  x:53100, y:-63300, r:11875,  seed:83,  name:'霧の小島',       biome:'mist',    lobes:3, amp:0.3, sx:1.25, sy:0.75, rot:0.6 },
-  { id:'i_ember', x:64900, y:54200,  r:12500, seed:97,  name:'燃えさしの小島', biome:'volcano', lobes:6, amp:0.2,
+  { id:'i_ember', x:63000, y:61000,  r:12500, seed:97,  name:'燃えさしの小島', biome:'volcano', lobes:6, amp:0.2,
     coast:[{ a:1.5, w:0.4, d:0.3 }] },   // 南へ溶岩流の舌
-  { id:'i_frost', x:-38400, y:-82300, r:10625,  seed:101, name:'霜の小島',       biome:'frost',   lobes:5, amp:0.3, sx:0.55, sy:1.5, rot:-0.5 },
+  { id:'i_frost', x:-62000, y:-90000, r:15500,  seed:101, name:'霜の島',       biome:'frost',   lobes:5, amp:0.3, sx:0.55, sy:1.5, rot:-0.5 },
   // --- 遠環の大陸(一つの拠点だけが立つ、特別な地) ---
   // 太陽: 東西二枚の板が繋がった、横に広い平らな砂の大地
-  { id:'r3_sun', x:314200, y:-66800, seed:127, name:'太陽の大陸', biome:'desert', lobes:3, amp:0.12, r:40410,
+  { id:'r3_sun', x:185000, y:-105000, seed:127, name:'太陽の大陸', biome:'desert', lobes:3, amp:0.12, r:40410,
     parts:[
       { dx:-31430, dy:5612, r:28062, sx:1.5, sy:0.6,  lobes:3, amp:0.12 },
       { dx:26940, dy:-8980, r:25817, sx:1.4, sy:0.65, rot:0.1, lobes:4, amp:0.13 },
@@ -768,10 +774,10 @@ DATA.BASES = [
   { id:'b_grave', name:'墓標の祭壇', x:-27100, y:118400, cont:'south', kind:'弔いの村', spr:'base_grave', danger:7 },
   // 小島(一拠点だけの特別な土地)
   { id:'b_mist',  name:'霧の観測所', x:53100, y:-63300, cont:'i_mist', kind:'観測の村', spr:'base_mist', danger:5 },
-  { id:'b_ember', name:'燃えさしの炉', x:64900, y:54200, cont:'i_ember', kind:'火の民の村', spr:'base_ember', danger:5 },
-  { id:'b_frost', name:'霜の祠',     x:-38400, y:-82300, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost', danger:7 },
+  { id:'b_ember', name:'燃えさしの炉', x:63000, y:61000, cont:'i_ember', kind:'火の民の村', spr:'base_ember', danger:5 },
+  { id:'b_frost', name:'霜の祠',     x:-62000, y:-90000, cont:'i_frost', kind:'氷の隠れ里', spr:'base_frost', danger:7 },
   // 遠環の特別な地(一拠点のみ)
-  { id:'b_sun',   name:'太陽の神殿', x:286100, y:-61200, cont:'r3_sun', kind:'神殿都市', spr:'base_temple', danger:10 },
+  { id:'b_sun',   name:'太陽の神殿', x:156900, y:-99400, cont:'r3_sun', kind:'神殿都市', spr:'base_temple', danger:10 },
   { id:'b_void',  name:'虚無の門',   x:-226300, y:16600, cont:'r3_void', kind:'隠者の庵', spr:'base_hermit', danger:10 },
   // 海のただ中(環礁の下に沈んだ都)
   { id:'b_sea',   name:'沈み都',     x:-75300, y:-66500, cont:'i_sea', kind:'海底都市', spr:'base_sunken', danger:8 },
@@ -1198,7 +1204,7 @@ DATA.SIDEQUESTS = {
     { id:'sq_nono', npc:'npc_boy', npcName:'星見の子ノノ', type:'hunt', enemy:'wisp', count:8,
       requiresStory:'east_astro', lockedLine:'星の話は、学術都市の天文資料を読んだ人としかしないんだ。',
       intro:['星がきれいでしょ、ここは星見の村。','でもウィスプの光が邪魔で星が見えない…8体消して?'],
-      done:['星が戻った!見て、あの北西の沖に光る白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。小島の氷の隠れ里だよ。地図にかくね。'],
+      done:['星が戻った!見て、あの北西の沖に光る白い星…あれは空の星じゃなくて、','「霜の祠」の氷の輝きなんだ。島の氷の隠れ里だよ。地図にかくね。'],
       reward:{ coins:400, hintBase:'b_frost', story:'star_sign' } },
     { id:'sq_goro', npc:'npc_miner', npcName:'荷継ぎのゴロ', type:'delivery', need:{ mats:{ hide:8 } },
       intro:['俺は峠の荷継ぎ屋だ。星の村の水晶を、北の塔まで運んどる。','だが荷駄の覆いが破れちまってな。雪をかぶったら水晶が台無しだ。','毛皮8枚、都合してくれねえか。'],
@@ -1258,6 +1264,24 @@ DATA.SIDEQUESTS = {
       intro:['…墓碑の言葉を持つ者よ。虚無は全てを呑むが、庵の静寂だけは守りたい。','ヴォイドウィスプを8体、還してくれ。'],
       done:['静寂が戻った…最後に教えよう。北の果ての海、城の前に「最果ての碑」が立っている。','この世界の終わりと始まりを見届ける場所だ。地図に記す。…良い旅を。'],
       reward:{ coins:1000, hintBase:'b_end', story:'void_call' } },
+  ],
+  b_spa: [
+    { id:'sq_koko', npc:'npc_girl', npcName:'湯屋の看板娘ココ', type:'delivery', need:{ mats:{ hide:8 } },
+      intro:['いらっしゃい!あたし、湯屋の看板娘のココ。','湯上がりのお客さんに出す敷物の毛皮が、すっかり擦り切れちゃって…','毛皮8枚、都合してくれない?'],
+      done:['わぁ、ふかふか!これでお客さん、湯冷めしないわ。','あなたはいつでも湯はタダでいいからね!','…軍勢のみんなも、湯気にあたっていきなさいな。'],
+      reward:{ coins:280 } },
+  ],
+  b_inn: [
+    { id:'sq_maki', npc:'npc_miner', npcName:'薪割りのマキ', type:'hunt', enemy:'wisp', count:8,
+      intro:['…薪割りのマキだ。口は重いが、腕は確かだ。','雪明かりに誘われてウィスプが寄ってきてな。囲炉裏の火を吸っちまう。','8体。頼む。'],
+      done:['…助かった。','女将には内緒だが、あんたの分の薪は多めに割っておく。','…それだけだ。'],
+      reward:{ coins:300, mats:{ crystal:4 } } },
+  ],
+  b_moss: [
+    { id:'sq_kina', npc:'npc_boy', npcName:'弟子のキナ', type:'delivery', need:{ mats:{ wood:10, jelly:5 } },
+      intro:['あっ、お師匠さまのお客さん?ぼく、弟子のキナ!','薬釜の薪の木材10と、膏薬をのばすゼリー5つ、切らしちゃったんだ。','お師匠さまに叱られる前に、お願い!'],
+      done:['たすかった〜!これで今夜の膏薬が仕込める!','お礼にぼくの秘蔵の一瓶…はまだ早いから、こっちをあげる!'],
+      reward:{ coins:260 } },
   ],
   b_sea: [
     { id:'sq_shell', npc:'npc_boy', npcName:'貝の童シェル', type:'hunt', nearLoc:true, enemy:'crab', count:8,
@@ -1463,7 +1487,7 @@ Object.assign(DATA.QUESTS2, {
     done:['聖句が守られた…月の祈りが修道院に降りる。','(この基地のパワーアップ施設が使えるようになった!)'],
     reward:{ coins:450 } },
   b_sun: { npcName:'太陽の神官サナ', type:'mark', enemy:'scarab', rank:2,
-    markName:'日蝕の女王', mark:{ x:287100, y:-62100 },
+    markName:'日蝕の女王', mark:{ x:157900, y:-100300 },
     offer:'日輪の間に巣を張った群れには、女王がいます。',
     intro:['スカラベの群れの奥に、紅く輝く女王がいます。','女王を討たねば、巣は何度でも戻ります。地図に印を。太陽の名のもとに。'],
     done:['日輪が輝きを取り戻しました。太陽の力が都に満ちる。','(この基地のパワーアップ施設が使えるようになった!)'],
