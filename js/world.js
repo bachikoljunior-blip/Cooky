@@ -161,9 +161,18 @@ const World = (() => {
     return { t, biome: 'grass', sea: seaBiomeAt(x, y) };
   }
 
-  // ---- 港の座標を計算(始まりの大陸の海岸、angle方向) ----
+  // ---- 港の座標を計算 ----
+  // 本土の港: 始まりの大陸の海岸、angle方向。
+  // 遠隔の港(at持ち): 他大陸の岸辺の明示座標から、seaAngle方向へ歩いて出航点を求める
   const main = DATA.CONTINENTS[0];
   const ports = DATA.PORTS.map(p => {
+    if (p.at) {
+      const ca = Math.cos(p.seaAngle), sa = Math.sin(p.seaAngle);
+      let d = 0;
+      while (d < 20000 && isLand(p.at.x + ca * d, p.at.y + sa * d)) d += 120;
+      return { ...p, x: p.at.x, y: p.at.y,
+               seaX: p.at.x + ca * (d + 140), seaY: p.at.y + sa * (d + 140) };
+    }
     const e = edgeR(main, p.angle);
     const sx = main.sx || 1, sy = main.sy || 1;
     return {
@@ -483,6 +492,7 @@ const World = (() => {
   const ROUTE_DEFS = [
     ['p_e', 'b_dragon'], ['p_se', 'b_green'], ['p_s', 'b_green'], ['p_sw', 'b_black'],
     ['p_n', 'b_star'], ['p_ne', 'b_mist'], ['p_n', 'b_frost'], ['p_nw', 'b_sea'], ['p_w', 'b_dusk'],
+    ['p_white', 'b_sun'], ['p_white', 'b_mist'], ['p_storm', 'b_end'], ['p_storm', 'b_sun'], ['p_moon', 'b_void'],
     ['b_dragon', 'b_mist'], ['b_green', 'b_ember'], ['b_star', 'b_frost'],
     ['b_forge', 'b_sun'], ['b_storm', 'b_sun'], ['b_moon', 'b_void'], ['b_grave', 'b_void'],
     ['b_storm', 'b_end'], ['b_void', 'b_end'],

@@ -232,7 +232,8 @@ const Quest = (() => {
       // 正確な場所ではなく概略のピン。現地では灯台の光を目で追って見つける
       SaveSys.data.seen = SaveSys.data.seen || {};
       SaveSys.data.hints = SaveSys.data.hints || {};
-      const ring = DATA.PORTS.slice().sort((a, b) => a.angle - b.angle);
+      // 隣港の輪は本土の8港のみ(遠隔の港の船大工は隣でなく行き先の海を語る)
+      const ring = DATA.PORTS.filter(q => q.angle !== undefined).sort((a, b) => a.angle - b.angle);
       const ri = ring.findIndex(q => q.id === id);
       let told = 0;
       if (ri >= 0) for (const nb of [ring[(ri + 1) % ring.length], ring[(ri + ring.length - 1) % ring.length]]) {
