@@ -748,23 +748,23 @@ DATA.BASES = [
   { id:'b_east',  name:'東の遺跡',   x:10500,  y:5200,   cont:'main', kind:'学術都市', spr:'base_academy', danger:1 },
   { id:'b_south', name:'南の泉',     x:-2200,  y:12500,  cont:'main', kind:'巡礼の村', spr:'base_spring', danger:1 },
   { id:'b_west',  name:'西の炉',     x:-14500, y:-3000,  cont:'main', kind:'鍛冶の街', spr:'base_forge', danger:2 },
-  // 竜骨の大陸(東の大きな大陸): 西岸→北岸→東端へと危険度が上がる
+  // 竜骨の大陸(東の大きな大陸): 頭→南東の尾びれ→北のこぶ→尾の先端へと危険度が上がる
   { id:'b_dragon',name:'竜骨の前哨', x:81300, y:7900,   cont:'east', kind:'狩人の集落', spr:'base_lodge', danger:4 },
-  { id:'b_spa',   name:'竜の湯',     x:124000, y:-2000, cont:'east', kind:'湯治の村', spr:'base_ember', danger:5 },
-  { id:'b_white', name:'白亜の灯台', x:185700, y:-40300, cont:'east', kind:'港街', spr:'base_port', danger:6 },
+  { id:'b_spa',   name:'竜の湯',     x:107000, y:42000, cont:'east', kind:'湯治の村', spr:'base_ember', danger:5 },
+  { id:'b_white', name:'白亜の灯台', x:132000, y:-52000, cont:'east', kind:'港街', spr:'base_port', danger:6 },
   { id:'b_forge', name:'鍛冶神の工房', x:219800, y:-57300,  cont:'east', kind:'工房都市', spr:'base_factory', danger:8 },
   // 黄昏の大陸(西の大きな大陸): 東岸から奥地へ4つの拠点が連なる
   { id:'b_dusk',  name:'黄昏の前哨', x:-63000, y:-2300,  cont:'west', kind:'詩人の隠れ里', spr:'base_poet', danger:4 },
-  { id:'b_black', name:'黒曜の祠',   x:-90500, y:25200, cont:'west', kind:'祠の村', spr:'base_shrine', danger:6 },
+  { id:'b_black', name:'黒曜の祠',   x:-105000, y:52000, cont:'west', kind:'祠の村', spr:'base_shrine', danger:6 },
   { id:'b_bones', name:'骨の祭場',   x:-131900, y:16000, cont:'west', kind:'野営地', spr:'base_camp', danger:7 },
-  { id:'b_moon',  name:'月影の社',   x:-155700, y:-4200,  cont:'west', kind:'月の修道院', spr:'base_abbey', danger:8 },
+  { id:'b_moon',  name:'月影の社',   x:-158000, y:-38000,  cont:'west', kind:'月の修道院', spr:'base_abbey', danger:8 },
   // 星嵐の大陸(北の縦長の大陸): 南岸の星見の村から北端の嵐の塔まで
   { id:'b_star',  name:'星降りの祭壇', x:-16500, y:-55800, cont:'north', kind:'星見の村', spr:'base_star', danger:5 },
-  { id:'b_inn',   name:'白風の宿場', x:-3000, y:-96000, cont:'north', kind:'宿場町', spr:'base_camp', danger:7 },
+  { id:'b_inn',   name:'白風の宿場', x:32000, y:-101000, cont:'north', kind:'宿場町', spr:'base_camp', danger:7 },
   { id:'b_storm', name:'嵐の塔',     x:8600, y:-146600, cont:'north', kind:'塔の街', spr:'base_tower', danger:9 },
   // 深緑の大陸(南の縦長の大陸): 北岸の社から南端の弔いの村まで
   { id:'b_green', name:'深緑の社',   x:-500, y:47500,  cont:'south', kind:'森の集落', spr:'base_grove', danger:3 },
-  { id:'b_moss',  name:'苔の庵',     x:-10000, y:86000, cont:'south', kind:'薬師の庵', spr:'base_grove', danger:5 },
+  { id:'b_moss',  name:'苔の庵',     x:25000, y:78000, cont:'south', kind:'薬師の庵', spr:'base_grove', danger:5 },
   { id:'b_grave', name:'墓標の祭壇', x:-27100, y:118400, cont:'south', kind:'弔いの村', spr:'base_grave', danger:7 },
   // 小島(一拠点だけの特別な土地)
   { id:'b_mist',  name:'霧の観測所', x:53100, y:-63300, cont:'i_mist', kind:'観測の村', spr:'base_mist', danger:5 },
@@ -1135,7 +1135,7 @@ DATA.SIDEQUESTS = {
       reward:{ coins:250, mats:{ beastfang:5 }, story:'gai_code' } },
     { id:'sq_yuta', npc:'npc_girl', npcName:'湯汲みのユタ', type:'hunt', enemy:'lizard', count:6,
       intro:['あたし、湯汲みのユタ。集落まで竜の湯を売りに来たの。','でも帰り道の尾根をリザードマンが塞いでて、帰れなくなっちゃった…6匹お願い!'],
-      done:['これで帰れる!ありがとう!','あたしの村はここから東の尾根沿い、「竜の湯」っていう湯治場だよ。','どんな傷にも効くんだから!地図に見当を描いとくね。'],
+      done:['これで帰れる!ありがとう!','あたしの村はここから南東、尾びれの岬にある「竜の湯」っていう湯治場だよ。','どんな傷にも効くんだから!地図に見当を描いとくね。'],
       reward:{ coins:200, hintBase:'b_spa', story:'yuta_home' } },
   ],
   b_mist: [
@@ -1167,7 +1167,7 @@ DATA.SIDEQUESTS = {
     { id:'sq_kage', npc:'npc_sage', npcName:'祠守カゲ', type:'delivery', need:{ mats:{ scrap:12 } },
       requiresStory:'dusk_song', lockedLine:'…扉を開く詩を知らぬ者に、祠は開かれぬ。黄昏の里の詩人なら、知っておろうがな。',
       intro:['詩を聞いてきたか。ならば手伝え。祠を守る魔物よけの囲い…結界が破れておる。','芯に使う鉄クズを12、持ってきてくれ。'],
-      done:['結界は戻った。礼に祠の記録を見せよう。','…ここから西へ、荒野を越えた先の「骨の祭場」。死者の民が集う野営地だ。地図に記した。'],
+      done:['結界は戻った。礼に祠の記録を見せよう。','…ここから北西へ、荒野を越えた先の「骨の祭場」。死者の民が集う野営地だ。地図に記した。'],
       reward:{ coins:200, hintBase:'b_bones', story:'black_rite' } },
   ],
   b_bones: [
@@ -1184,7 +1184,7 @@ DATA.SIDEQUESTS = {
       reward:{ coins:180, hintBase:'b_ember', story:'green_seed' } },
     { id:'sq_sen', npc:'npc_girl', npcName:'薬売りのセン', type:'delivery', need:{ mats:{ jelly:6 } },
       intro:['あたしは薬売りのセン。社の巡礼さんに傷薬を売ってるんだ。','でも材料のゼリーが切れちゃって…6個、分けてくれない?'],
-      done:['ありがと!これでまた薬が作れる。','…あたしの師匠がね、ここから南の森の奥に籠ってるんだ。「苔の庵」っていう薬師の庵。','気難しいけど腕は確かだよ。地図に見当を描いとくね。'],
+      done:['ありがと!これでまた薬が作れる。','…あたしの師匠がね、ここから南東の岬の森に籠ってるんだ。「苔の庵」っていう薬師の庵。','気難しいけど腕は確かだよ。地図に見当を描いとくね。'],
       reward:{ coins:200, hintBase:'b_moss', story:'sen_master' } },
   ],
   b_ember: [
@@ -1202,7 +1202,7 @@ DATA.SIDEQUESTS = {
       reward:{ coins:400, hintBase:'b_frost', story:'star_sign' } },
     { id:'sq_goro', npc:'npc_miner', npcName:'荷継ぎのゴロ', type:'delivery', need:{ mats:{ hide:8 } },
       intro:['俺は峠の荷継ぎ屋だ。星の村の水晶を、北の塔まで運んどる。','だが荷駄の覆いが破れちまってな。雪をかぶったら水晶が台無しだ。','毛皮8枚、都合してくれねえか。'],
-      done:['助かったぜ。これで峠を越えられる。','…北の峠道の先に「白風の宿場」って宿がある。荷はいつもあそこで継ぐんだ。','女将の飯は絶品だぜ。地図に見当を付けといてやる。'],
+      done:['助かったぜ。これで峠を越えられる。','…北東の峠道の先に「白風の宿場」って宿がある。荷はいつもあそこで継ぐんだ。','女将の飯は絶品だぜ。地図に見当を付けといてやる。'],
       reward:{ coins:220, hintBase:'b_inn', story:'goro_pass' } },
   ],
   b_frost: [
@@ -1310,7 +1310,7 @@ DATA.QUESTS = {
     intro:['…この祠のゲートは、静まりかえった心にしか開かれぬ。','だが彷徨える光魂(ウィスプ)が5つ、祠の静けさを乱しておる。','斬れ。それがお前の修行であり、ゲートを開く鍵だ。'],
     done:['…見事な太刀筋。祠は静けさを取り戻し、ゲートが開いた。','この祠はお前の心の拠り所となろう。'] },
   b_spa: { npc:'npc_elder', npcName:'湯守のゴエ', type:'hunt', nearLoc:true, enemy:'lavaslime', count:5,
-    intro:['おう、旅の人かい。ここは竜の湯…竜骨の大陸のへそから湧く、天下の湯治場よ。','ところがラヴァスライムが湯口に潜り込んでな、湯が煮えたぎって誰も入れやしねえ。','5匹、掬い出してくれや。ゲートなら湯気の奥だ…湯口が静まりゃ、湯の熱で灯る仕組みさ。'],
+    intro:['おう、旅の人かい。ここは竜の湯…竜の尾のつけ根に湧く、天下の湯治場よ。','ところがラヴァスライムが湯口に潜り込んでな、湯が煮えたぎって誰も入れやしねえ。','5匹、掬い出してくれや。ゲートなら湯気の奥だ…湯口が静まりゃ、湯の熱で灯る仕組みさ。'],
     done:['おお、湯がちょうどよくなった。…ほら、ゲートも湯気の向こうで灯ってるだろ。','ゆっくりしていきな。湯は逃げねえ、魔物も湯の中までは追ってこねえよ。'] },
   b_inn: { npc:'npc_girl', npcName:'宿場の女将トウカ', type:'delivery', need:{ coins:400, mats:{wood:15, hide:6} },
     intro:['おやまあ、雪まみれの客だね。ここは白風の宿場…星の村と嵐の塔を結ぶ峠道の、ただ一つの宿さ。','うちのゲートは囲炉裏の火から分けて灯すんだけどね、この寒波で薪も毛皮も底を突いちまった。','木材15と毛皮6、それと薪代に🪙400。都合してくれたら、ゲートに火を入れるよ。'],
@@ -1457,7 +1457,7 @@ Object.assign(DATA.QUESTS2, {
     done:['…すまなかったな。大炉は戻った。神鉄の火がお前の力になる。','(この基地のパワーアップ施設が使えるようになった!)'],
     reward:{ coins:500 } },
   b_moon: { npcName:'月の使者ツクヨ', type:'mark', enemy:'shade', rank:1,
-    markName:'聖句喰らいのシェイド', mark:{ x:-157100, y:-5200 },
+    markName:'聖句喰らいのシェイド', mark:{ x:-159400, y:-39000 },
     offer:'聖句を喰らう影の正体が知れた。斬っておくれ。',
     intro:['月光の聖句を喰らっていたのは、一体の肥えたシェイドだ。','月の出る丘に現れおる。地図に印を付けておいた。聖句が食い尽くされる前に…頼んだぞ。'],
     done:['聖句が守られた…月の祈りが修道院に降りる。','(この基地のパワーアップ施設が使えるようになった!)'],
