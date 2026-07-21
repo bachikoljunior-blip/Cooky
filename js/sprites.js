@@ -561,10 +561,26 @@ const Sprites = (() => {
     return cv;
   }
 
+  // 統一ライティング: どのスプライトも「上からの淡い光+足元の落ち影」を
+  // 生成時に一度だけ焼き込む ― 全ての絵が同じ光の中にいる質感になる
+  function shadePass(cv){
+    const g = cv.getContext('2d');
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    const gr = g.createLinearGradient(0, 0, 0, S);
+    gr.addColorStop(0, 'rgba(255,255,255,.16)');
+    gr.addColorStop(0.42, 'rgba(255,255,255,0)');
+    gr.addColorStop(1, 'rgba(8,10,20,.20)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    g.restore();
+    return cv;
+  }
+
   function gen(id){
     const cv = document.createElement('canvas'); cv.width = S; cv.height = S;
     const g = cv.getContext('2d');
     painter(g, DEFS[id] || { kind:'?', c:'#f0f', a:'#fff' });
+    shadePass(cv);
     // 輪郭はキャラ(敵・仲間に使う en_/boss_ と主人公)だけ。オブジェクトやUIアイコンはそのまま
     if (/^(en_|boss_)/.test(id) || id === 'player') return outline(cv);
     return cv;

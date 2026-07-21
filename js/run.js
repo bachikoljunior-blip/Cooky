@@ -2661,11 +2661,20 @@ const Run = (() => {
     Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, '#2ea043', 0.42);
     const atop = a.def.r * (a.sizeMul || 1);
     if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
-    if (a.waitAt) {
-      g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
-      g.fillText('待機中', a.x, a.y - atop - 16);
-    }
+    if (a.waitAt) labelChip(g, a.x, a.y - atop - 16, '待機中', '#7ee787');
     g.globalAlpha = 1;
+  }
+
+  // マップ内の名札: HUDと同じ「暗いガラスのピル」でそろえる
+  function labelChip(g, x, y, text, color, size){
+    const fs = size || 10.5;
+    g.font = (fs >= 11 ? 'bold ' : '') + fs + 'px sans-serif';
+    const w = g.measureText(text).width + 14;
+    const h = fs + 9;
+    g.fillStyle = 'rgba(8,12,22,.62)';
+    rrPath(g, x - w / 2, y - h + 3, w, h, h / 2); g.fill();
+    g.fillStyle = color; g.textAlign = 'center';
+    g.fillText(text, x, y - 3);
   }
 
   const RANK_COLORS = [null, '#ffd766', '#f85149', '#c084fc', '#a5f3fc'];   // 色違い: 金/紅/紫/青白
@@ -2740,7 +2749,8 @@ const Run = (() => {
         const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
         const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
         let c;
-        const chk = ((x0+ix) + (y0+iy)) % 2 === 0;
+        // 市松ではなく決定論ノイズのまだら ― 人工的な格子をなくし土地の質感に
+        const chk = tileHash(x0 + ix, y0 + iy) < 0.5;
         if (ti.t === 'grass') c = chk ? bio.g1 : bio.g2;
         else if (ti.t === 'sand') c = chk ? bio.s1 : bio.s2;
         else if (ti.t === 'sea') { const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
@@ -2906,8 +2916,7 @@ const Run = (() => {
       const pp = peddlerPos(b);
       if (pp) {
         Sprites.draw(g, 'npc_scholar', pp.x, pp.y - 6, 30);
-        g.fillStyle = '#e6edf3'; g.font = '10px sans-serif'; g.textAlign = 'center';
-        g.fillText('行商人', pp.x, pp.y - 28);
+        labelChip(g, pp.x, pp.y - 28, '行商人', '#e6edf3');
       }
     }
     // 訪問依頼の目的地: 実体のある目印(石積みの標)を立てる。📍だけの何もない空き地にしない
@@ -2922,17 +2931,13 @@ const Run = (() => {
       g.beginPath(); g.ellipse(vt.x + 6, vt.y + 2, 7, 6, 0, 0, 7); g.fill();
       g.fillStyle = '#adbac7';
       g.beginPath(); g.ellipse(vt.x, vt.y - 6, 7, 9, 0, 0, 7); g.fill();
-      if (vt.label) {
-        g.fillStyle = '#e6edf3'; g.font = 'bold 11px sans-serif'; g.textAlign = 'center';
-        g.fillText(vt.label, vt.x, vt.y - 22);
-      }
+      if (vt.label) labelChip(g, vt.x, vt.y - 22, vt.label, '#e6edf3', 11);
     }
     // 護送中のNPC
     if (R.escort && R.escort.state === 'go') {
       Sprites.draw(g, R.escort.spr, R.escort.x, R.escort.y, 30);
       drawBar(g, R.escort.x, R.escort.y - 26, 30, R.escort.hp / R.escort.maxHp, '#7ee787');
-      g.fillStyle = '#7ee787'; g.font = '10px sans-serif'; g.textAlign = 'center';
-      g.fillText('護衛中', R.escort.x, R.escort.y - 32);
+      labelChip(g, R.escort.x, R.escort.y - 32, '護衛中', '#7ee787');
     }
     // 色違い(弾ける)の爆発予兆
     for (const tb of (R.traitBursts || [])) {
@@ -3002,13 +3007,13 @@ const Run = (() => {
       if (SaveSys.data.ports[port.id]) {   // 修理済みの港町には貿易商が店を開く
         Sprites.draw(g, 'ob_crate', port.x - 132, port.y + 42, 20);
         Sprites.draw(g, 'npc_scholar', port.x - 118, port.y + 28, 30);
-        g.fillStyle = '#c9d1d9'; g.font = '10px sans-serif'; g.textAlign = 'center';
-        g.fillText('貿易商', port.x - 118, port.y + 8);
+        labelChip(g, port.x - 118, port.y + 8, '貿易商', '#c9d1d9');
       }
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
       else Sprites.draw(g, 'ob_wreck', port.seaX, port.seaY, 44);
-      g.fillStyle = '#e6edf3'; g.font = '11px sans-serif'; g.textAlign = 'center';
-      g.fillText((SaveSys.data.ports[port.id] ? '⚓ ' : '🛠 ') + port.name, port.x, port.y - 34);
+      labelChip(g, port.x, port.y - 34,
+        (SaveSys.data.ports[port.id] ? '⚓ ' : '🛠 ') + port.name,
+        SaveSys.data.ports[port.id] ? '#76e3ea' : '#e6edf3', 11);
     }
     for (const b of World.bases) {
       const un = SaveSys.data.bases[b.id];
@@ -3019,8 +3024,9 @@ const Run = (() => {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();
       }
-      g.fillStyle = un ? '#7ee787' : '#c9d1d9'; g.font = '11px sans-serif'; g.textAlign = 'center';
-      g.fillText((un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''), b.x, b.y - 54);
+      labelChip(g, b.x, b.y - 54,
+        (un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''),
+        un ? '#7ee787' : '#c9d1d9', 11);
       // 中に用事(未解放クエスト・報告・住民の依頼)があれば ❗
       if (baseHasBusiness(b)) {
         g.fillStyle = '#ffd766'; g.font = 'bold 15px sans-serif';
@@ -3187,8 +3193,24 @@ const Run = (() => {
 
     // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
 
+    drawVignette(g, W, H);   // 画面周縁をわずかに落として視線を中央へ
     drawMinimap(g, W);
     drawFullMap(g, W, H);   // 全画面の全体図(開いている時のみ)
+  }
+
+  // ビネット(サイズごとに一度だけ生成してキャッシュ)
+  let vigCache = null;
+  function drawVignette(g, W, H){
+    if (!vigCache || vigCache.w !== W || vigCache.h !== H) {
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
+      const c = cv.getContext('2d');
+      const grd = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.44, W / 2, H / 2, Math.hypot(W, H) / 2);
+      grd.addColorStop(0, 'rgba(6,10,20,0)');
+      grd.addColorStop(1, 'rgba(6,10,20,.30)');
+      c.fillStyle = grd; c.fillRect(0, 0, W, H);
+      vigCache = { cv, w: W, h: H };
+    }
+    g.drawImage(vigCache.cv, 0, 0);
   }
 
   function drawBar(g, x, y, w, ratio, color){
@@ -3201,6 +3223,11 @@ const Run = (() => {
   function drawEffects(g){
     for (const ef of R.effects) {
       const pr = ef.t / 0.5;
+      // 光もの(火花・波紋・雷など)は加算合成で発光させる。
+      // 攻撃予兆(meteorの着弾円・breathの扇)は視認性優先でそのまま
+      g.globalCompositeOperation =
+        (ef.type === 'meteor' || ef.type === 'breath' || ef.type === 'healline')
+          ? 'source-over' : 'lighter';
       switch(ef.type){
         case 'spark': {
           g.strokeStyle = ef.color; g.globalAlpha = 1 - pr; g.lineWidth = 2;
@@ -3263,6 +3290,7 @@ const Run = (() => {
       }
       g.globalAlpha = 1;
     }
+    g.globalCompositeOperation = 'source-over';
   }
 
   // 地図の描画本体(小さな周辺図・全画面の全体図で共用)。mk=マーカー拡大率

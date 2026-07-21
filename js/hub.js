@@ -141,7 +141,10 @@ const Hub = (() => {
     const hint = document.getElementById('interact-hint');
     const actBtn = document.getElementById('btn-act');
     if (H.interact) {
-      hint.textContent = 'E: ' + interactLabel(H.interact);
+      // 周回中と同じキーキャップ([E])表示
+      hint.innerHTML = '<kbd>E</kbd><span></span>';
+      hint.lastChild.textContent = interactLabel(H.interact);
+      hint.classList.remove('no-key');
       hint.classList.remove('hidden');
       actBtn.classList.remove('hidden');
     } else { hint.classList.add('hidden'); actBtn.classList.add('hidden'); }
@@ -800,12 +803,14 @@ const Hub = (() => {
     // 床
     g.fillStyle = (theme && theme.floor) || (H.area === 'main' ? '#131a2b' : '#16202b');
     g.fillRect(0, 0, W, H2);
+    // 床の質感: 市松ではなく決定論ノイズの石畳風のまだら
     const T = 48;
     const x0 = Math.floor(camX/T), y0 = Math.floor(camY/T);
+    g.fillStyle = 'rgba(255,255,255,.025)';
     for (let iy = 0; iy <= Math.ceil(H2/T)+1; iy++) {
       for (let ix = 0; ix <= Math.ceil(W/T)+1; ix++) {
-        if (((x0+ix)+(y0+iy)) % 2 === 0) continue;
-        g.fillStyle = 'rgba(255,255,255,.025)';
+        const hh = Math.abs(Math.sin((x0+ix) * 127.1 + (y0+iy) * 311.7) * 43758.5) % 1;
+        if (hh < 0.5) continue;
         g.fillRect((x0+ix)*T - camX, (y0+iy)*T - camY, T, T);
       }
     }
@@ -887,9 +892,7 @@ const Hub = (() => {
       g.fillStyle = gg;
       g.beginPath(); g.arc(sx, sy + 20, 66, 0, 7); g.fill();
       Sprites.draw(g, v.spr, sx, sy, 84);
-      g.fillStyle = glow ? '#ffd766' : '#c9d1d9';
-      g.font = '13px sans-serif'; g.textAlign = 'center';
-      g.fillText(v.label, sx, sy + 60);
+      labelChip(g, sx, sy + 62, v.label, glow ? '#ffd766' : '#c9d1d9', 12);
     }
 
     // プレイヤー(魂verは少し透ける)
@@ -899,15 +902,59 @@ const Hub = (() => {
 
     g.restore();
 
-    // 上部情報
-    g.fillStyle = 'rgba(0,0,0,.5)';
-    g.fillRect(0, 0, W, 40);
-    g.fillStyle = '#ffd766'; g.font = 'bold 17px sans-serif'; g.textAlign = 'left';
-    g.fillText(areaName() + '  🪙 ' + fmtNum(SaveSys.data.coins), 14, 26);
-    g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'right';
-    g.fillText('周回 ' + SaveSys.data.stats.runs + ' / 最長 ' + fmtTime(SaveSys.data.stats.bestTime), W - 14, 26);
+    drawVignette(g, W, H2);
+
+    // 上部情報: HUDと同じ「暗いガラスのピル」
+    g.font = 'bold 16px sans-serif'; g.textAlign = 'left';
+    const leftTxt = areaName() + '  🪙 ' + fmtNum(SaveSys.data.coins);
+    const lw = g.measureText(leftTxt).width + 26;
+    g.fillStyle = 'rgba(8,12,22,.62)';
+    rrPath(g, 10, 8, lw, 30, 15); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.10)'; g.lineWidth = 1;
+    rrPath(g, 10, 8, lw, 30, 15); g.stroke();
+    g.fillStyle = '#ffd766';
+    g.fillText(leftTxt, 23, 29);
+    g.font = '12.5px sans-serif'; g.textAlign = 'right';
+    const rightTxt = '周回 ' + SaveSys.data.stats.runs + ' / 最長 ' + fmtTime(SaveSys.data.stats.bestTime);
+    const rw = g.measureText(rightTxt).width + 24;
+    g.fillStyle = 'rgba(8,12,22,.62)';
+    rrPath(g, W - rw - 10, 10, rw, 26, 13); g.fill();
+    g.fillStyle = '#8b949e';
+    g.fillText(rightTxt, W - 22, 28);
 
     drawFacilityMap(g, W);
+  }
+
+  // 角丸長方形パス / 名札チップ / ビネット(周回画面と同じデザイン言語)
+  function rrPath(g, x, y, w, h, r){
+    g.beginPath();
+    g.moveTo(x + r, y);
+    g.arcTo(x + w, y, x + w, y + h, r); g.arcTo(x + w, y + h, x, y + h, r);
+    g.arcTo(x, y + h, x, y, r); g.arcTo(x, y, x + w, y, r);
+    g.closePath();
+  }
+  function labelChip(g, x, y, text, color, size){
+    const fs = size || 10.5;
+    g.font = (fs >= 11 ? 'bold ' : '') + fs + 'px sans-serif';
+    const w = g.measureText(text).width + 14;
+    const h = fs + 9;
+    g.fillStyle = 'rgba(8,12,22,.62)';
+    rrPath(g, x - w / 2, y - h + 3, w, h, h / 2); g.fill();
+    g.fillStyle = color; g.textAlign = 'center';
+    g.fillText(text, x, y - 3);
+  }
+  let vigCache = null;
+  function drawVignette(g, W, H2){
+    if (!vigCache || vigCache.w !== W || vigCache.h !== H2) {
+      const cv = document.createElement('canvas'); cv.width = W; cv.height = H2;
+      const c = cv.getContext('2d');
+      const grd = c.createRadialGradient(W / 2, H2 / 2, Math.min(W, H2) * 0.44, W / 2, H2 / 2, Math.hypot(W, H2) / 2);
+      grd.addColorStop(0, 'rgba(6,10,20,0)');
+      grd.addColorStop(1, 'rgba(6,10,20,.30)');
+      c.fillStyle = grd; c.fillRect(0, 0, W, H2);
+      vigCache = { cv, w: W, h: H2 };
+    }
+    g.drawImage(vigCache.cv, 0, 0);
   }
 
   // 施設マップ: どこに何のパワーアップ施設があるか一目でわかる
@@ -917,11 +964,16 @@ const Hub = (() => {
     const scale = mw / (bnd.x1 - bnd.x0);
     const mh = Math.ceil((bnd.y1 - bnd.y0) * scale);
     const x0 = W - mw - 10, y0 = 48;
-    g.fillStyle = 'rgba(5,9,18,.72)';
-    g.fillRect(x0, y0, mw, mh);
-    g.strokeStyle = '#30363d'; g.strokeRect(x0, y0, mw, mh);
+    g.fillStyle = '#0c1120';   // 下の実景が透けないように不透明
+    rrPath(g, x0 - 5, y0 - 5, mw + 10, mh + 27, 10); g.fill();
+    g.fillStyle = '#070c16';
+    rrPath(g, x0, y0, mw, mh, 6); g.fill();
+    g.strokeStyle = 'rgba(255,255,255,.18)'; g.lineWidth = 1;
+    rrPath(g, x0, y0, mw, mh, 6); g.stroke();
     const pt = (wx, wy) => ({ x: x0 + (wx - bnd.x0) * scale, y: y0 + (wy - bnd.y0) * scale });
     g.textAlign = 'center';
+    g.save();
+    rrPath(g, x0, y0, mw, mh, 6); g.clip();   // ラベルが枠からはみ出さないように
     for (const s of H.list) {
       const q = pt(s.x, s.y);
       const col = s.kind === 'gate' ? '#76e3ea' : s.kind === 'stats' ? '#8b949e' : '#ffd766';
@@ -936,8 +988,9 @@ const Hub = (() => {
     const pq = pt(H.player.x, H.player.y);
     g.fillStyle = '#fff';
     g.beginPath(); g.arc(pq.x, pq.y, 3, 0, 7); g.fill();
-    g.fillStyle = '#8b949e'; g.font = '10px sans-serif';
-    g.fillText('施設マップ', x0 + mw / 2, y0 + mh + 12);
+    g.restore();
+    g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
+    g.fillText('施設マップ', x0 + mw / 2, y0 + mh + 16);
   }
 
   return { enter, update, draw, doInteract, travel, enterFromRun, get state(){ return H; } };
