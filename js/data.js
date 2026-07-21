@@ -860,6 +860,7 @@ DATA.META = {
   g_north_supply:{ st:'b_north', fac:'lore', name:'兵站術',    desc:'素材ドロップ量 +3%', max:15, cost:gcost(180,1.42), effMul:{dropMul:.03} },
   g_north_march: { st:'b_north', fac:'lore', name:'行軍の号令',desc:'仲間の移動速度 +3%', max:15, cost:gcost(200,1.42), effMul:{allySpeed:.03} },
   g_north_fear:  { st:'b_north', fac:'war',  name:'威圧の号令', desc:'「威圧のオーラ」の効果量 +4%', max:15, cost:gcost(220,1.45) },
+  g_north_trail: { st:'b_north', fac:'lore', name:'斥候の道標',  desc:'移動速度 +1%(遠征の脚)', max:10, cost:gcost(260,1.45), effMul:{speed:.01} },
   // 東の遺跡: 武練場(範囲/射程) / 生命の祠(結界/回避) / 秘宝の蔵(叡智/仲間全能力)
   g_east_area:   { st:'b_east', fac:'war',  name:'魔力増幅',   desc:'スキルの効果範囲 +4%',  max:20, cost:gcost(180,1.42) },
   g_east_reach:  { st:'b_east', fac:'war',  name:'遠見の術',   desc:'攻撃の射程 +2%', max:15, cost:gcost(200,1.42), effMul:{range:.02} },
@@ -868,6 +869,7 @@ DATA.META = {
   g_east_cdr:    { st:'b_east', fac:'lore', name:'古代の叡智', desc:'武器の攻撃間隔 -1.5%(書庫と加算)', max:20, cost:gcost(180,1.42) },
   g_east_muster: { st:'b_east', fac:'lore', name:'遺跡の共鳴', desc:'仲間の攻撃力 +3%', max:15, cost:gcost(210,1.44), effMul:{allyAtk:.03} },
   g_east_sk:     { st:'b_east', fac:'lore', name:'【解放】遺跡の脈動', desc:'スキル「遺跡の脈動」を習得可能に(素材「遺物のかけら」も出現)', max:1, cost:gcost(2500,1) },
+  g_east_survey: { st:'b_east', fac:'lore', name:'測量術',      desc:'アイテム回収範囲 +5%(探索の手際)', max:10, cost:gcost(240,1.45), effMul:{magnet:.05} },
   // 南の泉: 武練場(浄化/会心) / 生命の祠(治癒/自然回復) / 秘宝の蔵(霊薬/仲間回復)
   g_south_bless: { st:'b_south', fac:'war',  name:'清めの刃',  desc:'全ダメージ +3%', max:15, cost:gcost(200,1.42), effMul:{atk:.03} },
   g_south_focus: { st:'b_south', fac:'war',  name:'澄んだ心',  desc:'会心率 +1%', max:12, cost:gcost(230,1.44), effAdd:{crit:.01} },
@@ -886,6 +888,7 @@ DATA.META = {
   g_west_temper: { st:'b_west', fac:'lore', name:'鍛えの絆',   desc:'仲間の最大HP +3%', max:15, cost:gcost(260,1.45), effMul:{allyHp:.03} },
   g_west_shield: { st:'b_west', fac:'life', name:'盾の鍛錬',   desc:'「ガーディアンシールド」の爆発威力 +5%', max:15, cost:gcost(280,1.45) },
   g_west_sk:     { st:'b_west', fac:'lore', name:'【解放】鍛冶の心火', desc:'スキル「鍛冶の心火」を習得可能に', max:1, cost:gcost(2500,1) },
+  g_west_keel:   { st:'b_west', fac:'lore', name:'竜骨の鋼材',  desc:'船の速度 +2%(渡海の脚)', max:10, cost:gcost(320,1.48), effMul:{boatSpeed:.02} },
   // --- 第1環 ---
   g_dragon_fang: { st:'b_dragon', fac:'war',  name:'竜牙の刃',  desc:'ボスへのダメージ +5%', max:15, cost:gcost(1800,1.45), effMul:{bossDmg:.05} },
   g_dragon_res:  { st:'b_dragon', fac:'life', name:'竜鱗の守り', desc:'リーパーからの被ダメージ -6%(最大90%)', max:15, cost:gcost(2000,1.5) },
@@ -894,8 +897,9 @@ DATA.META = {
   g_dragon_sk:   { st:'b_dragon', fac:'war', name:'【解放】竜鱗の陣', desc:'スキル「竜鱗の陣」を習得可能に', max:1, cost:gcost(3500,1) },
   g_dusk_slay:   { st:'b_dusk', fac:'war',  name:'終焉狩り',   desc:'リーパーへのダメージ +15%', max:20, cost:gcost(2000,1.5) },
   g_dusk_veil:   { st:'b_dusk', fac:'life', name:'黄昏の帳',   desc:'回避率 +0.8%', max:10, cost:gcost(2200,1.5), effAdd:{dodge:.008} },
-  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.05%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.0005} },
+  g_dusk_poem:   { st:'b_dusk', fac:'lore', name:'詩人の囁き', desc:'仲間になる確率 +0.1%', max:10, cost:gcost(2400,1.5), effAdd:{recruit:.001} },
   g_dusk_sk:     { st:'b_dusk', fac:'lore', name:'【解放】黄昏の帳', desc:'スキル「黄昏の帳」を習得可能に(素材「宵の紗」も出現)', max:1, cost:gcost(3500,1) },
+  g_dusk_walk:   { st:'b_dusk', fac:'lore', name:'詩人の足取り', desc:'移動速度 +1.5%(放浪の脚)', max:10, cost:gcost(2400,1.5), effMul:{speed:.015} },
   g_star_meteor: { st:'b_star', fac:'war',  name:'流星の火',   desc:'会心率 +1.5%', max:10, cost:gcost(2800,1.5), effAdd:{crit:.015} },
   g_star_time:   { st:'b_star', fac:'life', name:'星読みの加護', desc:'強い色違いの敵の出現を3%緩和(最大45%)', max:15, cost:gcost(3000,1.55) },
   g_star_chart:  { st:'b_star', fac:'lore', name:'星図の導き', desc:'移動速度 +1.5%', max:15, cost:gcost(2600,1.5), effMul:{speed:.015} },
@@ -911,6 +915,7 @@ DATA.META = {
   g_white_gold:  { st:'b_white', fac:'lore', name:'白亜の商才', desc:'コイン獲得量 +15%(金運と加算)', max:15, cost:gcost(3000,1.5) },
   g_white_magnet:{ st:'b_white', fac:'lore', name:'白亜の磁鉄', desc:'「マグネットフィールド」の効果量 +4%', max:15, cost:gcost(2900,1.5) },
   g_white_sk:    { st:'b_white', fac:'war', name:'【解放】白亜の灯', desc:'スキル「白亜の灯」を習得可能に', max:1, cost:gcost(3500,1) },
+  g_white_sail:  { st:'b_white', fac:'lore', name:'白帆の仕立て', desc:'船の速度 +3%(港街の誇り)', max:10, cost:gcost(3200,1.5), effMul:{boatSpeed:.03} },
   g_black_dark:  { st:'b_black', fac:'war',  name:'黒曜の契約', desc:'全ダメージ+10% / 最大HP+40', max:15, cost:gcost(4000,1.55) },
   g_black_skin:  { st:'b_black', fac:'life', name:'黒曜の皮膚', desc:'最大HP +20', max:15, cost:gcost(3800,1.5), effAdd:{maxHp:20} },
   g_black_pact:  { st:'b_black', fac:'lore', name:'契約の対価', desc:'コイン獲得量 +4%', max:15, cost:gcost(4200,1.55), effMul:{coinMul:.04} },
@@ -937,16 +942,19 @@ DATA.META = {
   g_spa_vigor:   { st:'b_spa', fac:'war',  name:'湯上がりの活力', desc:'全ダメージ +2%', max:10, cost:gcost(1600,1.5), effMul:{atk:.02} },
   g_spa_flow:    { st:'b_spa', fac:'lore', name:'湯の流れの心得', desc:'アイテム回収範囲 +6%', max:10, cost:gcost(1400,1.45), effMul:{magnet:.06} },
   g_spa_scale:   { st:'b_spa', fac:'lore', name:'竜鱗磨き',     desc:'コイン獲得量 +4%', max:15, cost:gcost(1500,1.5), effMul:{coinMul:.04} },
+  g_spa_onsen:   { st:'b_spa', fac:'life', name:'湯治の効能',   desc:'HP自動回復 +1/秒(長旅の体力)', max:10, cost:gcost(1800,1.5), effAdd:{regen:1} },
   // 白風の宿場(星嵐の峠道): 宿=旅支度と商い
   g_inn_hearth:  { st:'b_inn', fac:'life', name:'囲炉裏の温もり', desc:'最大HP +14', max:15, cost:gcost(2400,1.45), effAdd:{maxHp:14} },
   g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'全ダメージ +2%', max:10, cost:gcost(2600,1.5), effMul:{atk:.02} },
   g_inn_trade:   { st:'b_inn', fac:'lore', name:'宿場の商い',   desc:'コイン獲得量 +4%', max:15, cost:gcost(2500,1.5), effMul:{coinMul:.04} },
   g_inn_pack:    { st:'b_inn', fac:'lore', name:'荷継ぎの目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(2500,1.5), effMul:{dropMul:.03} },
+  g_inn_road:    { st:'b_inn', fac:'lore', name:'街道の早駆け', desc:'移動速度 +1.5%(峠越えの脚)', max:10, cost:gcost(2800,1.5), effMul:{speed:.015} },
   // 苔の庵(深緑の森の奥): 薬師=膏薬と急所の知識
   g_moss_salve:  { st:'b_moss', fac:'life', name:'薬師の膏薬',   desc:'最大HP +12', max:15, cost:gcost(1400,1.45), effAdd:{maxHp:12} },
   g_moss_ward:   { st:'b_moss', fac:'life', name:'苔の護り',     desc:'被ダメージ -1%', max:10, cost:gcost(1500,1.5), effAdd:{armor:.01} },
   g_moss_needle: { st:'b_moss', fac:'war',  name:'急所の心得',   desc:'クリティカル率 +1.5%', max:10, cost:gcost(1600,1.5), effAdd:{crit:.015} },
   g_moss_herb:   { st:'b_moss', fac:'lore', name:'薬草の目利き', desc:'素材ドロップ量 +3%', max:10, cost:gcost(1500,1.5), effMul:{dropMul:.03} },
+  g_moss_brew:   { st:'b_moss', fac:'life', name:'行薬の調合',   desc:'HP自動回復 +0.6/秒(旅の常備薬)', max:10, cost:gcost(1700,1.5), effAdd:{regen:.6} },
   g_frost_slow:  { st:'b_frost', fac:'war',  name:'霜の吐息',   desc:'全攻撃に3%で氷結(減速)を付与', max:10, cost:gcost(1600,1.5) },
   g_frost_armor: { st:'b_frost', fac:'life', name:'氷の鎧',    desc:'被ダメージ -1.2%', max:10, cost:gcost(1700,1.5), effAdd:{armor:.012} },
   g_frost_store: { st:'b_frost', fac:'lore', name:'氷室の保存', desc:'素材ドロップ量 +4%', max:15, cost:gcost(1500,1.45), effMul:{dropMul:.04} },
@@ -1009,6 +1017,7 @@ DATA.META = {
   g_sea_breath:  { st:'b_sea', fac:'life', name:'潮の息継ぎ',   desc:'自然回復 +0.2/秒',    max:10, cost:gcost(2600,1.45), effMul:{regenAdd:.2} },
   g_sea_pearl:   { st:'b_sea', fac:'lore', name:'真珠の目利き', desc:'コイン獲得 +4%',      max:15, cost:gcost(2400,1.45), effMul:{coinMul:.04} },
   g_sea_sk:      { st:'b_sea', fac:'war',  name:'【解放】潮汐の恵み', desc:'スキル「潮汐の恵み」を習得可能に', max:1, cost:gcost(2600,1) },
+  g_sea_current: { st:'b_sea', fac:'lore', name:'潮読み',       desc:'船の速度 +2%(沈み都の海図)', max:10, cost:gcost(2800,1.5), effMul:{boatSpeed:.02} },
 };
 
 // 基地マップの施設(基地ごとの特別強化は3種類の施設に分かれている)
