@@ -121,14 +121,17 @@ const Sprites = (() => {
     ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
     ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
     ob_well:    { kind:'building',c:'#8fa8b5', a:'#76e3ea', opt:{sym:'⛲'} },
-    st_altar:   { kind:'building',c:'#f0883e', a:'#ffd766', opt:{sym:'⚔'} },
-    st_lab:     { kind:'building',c:'#3fb950', a:'#7ee787', opt:{sym:'⚗'} },
-    st_camp:    { kind:'building',c:'#58a6ff', a:'#a5d8ff', opt:{sym:'🏕'} },
-    st_lib:     { kind:'building',c:'#c084fc', a:'#d2a8ff', opt:{sym:'📖'} },
-    st_armory:  { kind:'building',c:'#f85149', a:'#ffa198', opt:{sym:'🗡'} },
-    st_war:     { kind:'building',c:'#da3633', a:'#ffb3ad', opt:{sym:'⚔'} },
-    st_life:    { kind:'building',c:'#2ea043', a:'#7ee787', opt:{sym:'❤'} },
-    st_lore:    { kind:'building',c:'#d29922', a:'#ffd766', opt:{sym:'📦'} },
+    // 広場の施設は「その施設にしか見えない」専用の造形(祭壇・研究小屋・宿営・書庫塔・鍛冶場)
+    st_altar:   { kind:'altarb',  c:'#9aa5b1', a:'#ffd766' },
+    st_lab:     { kind:'labb',    c:'#3fb950', a:'#7ee787' },
+    st_camp:    { kind:'campb',   c:'#58a6ff', a:'#a5d8ff' },
+    st_lib:     { kind:'libb',    c:'#c084fc', a:'#d2a8ff' },
+    st_armory:  { kind:'armoryb', c:'#8b949e', a:'#f85149' },
+    st_stone:   { kind:'steleb',  c:'#768390', a:'#76e3ea' },
+    // 基地の特別強化施設も専用の造形(武練場・生命の祠・秘宝の蔵)
+    st_war:     { kind:'warb',  c:'#da3633', a:'#ffb3ad' },
+    st_life:    { kind:'lifeb', c:'#2ea043', a:'#7ee787' },
+    st_lore:    { kind:'loreb', c:'#d29922', a:'#ffd766' },
     st_gate:    { kind:'gate',    c:'#ffd766', a:'#f0883e' },
     st_warp:    { kind:'gate',    c:'#76e3ea', a:'#1f6feb' },
 
@@ -527,6 +530,82 @@ const Sprites = (() => {
         g.beginPath(); g.moveTo(-22,-8); g.lineTo(0,-24); g.lineTo(22,-8); g.closePath(); g.fill();
         g.fillStyle='#0d1117'; rr(g,-6,2,12,14,3);
         g.fillStyle=a; g.font='12px sans-serif'; g.textAlign='center'; g.fillText(o.sym||'?',0,-10); break;
+      case 'altarb':   // 強化の祭壇: 段のある石壇+魂の炎(先人オウが築いたもの)
+        g.fillStyle='#57606a'; rr(g,-24,14,48,9,3);
+        g.fillStyle=c;         rr(g,-18,6,36,10,3);
+        g.fillStyle='#adbac7'; rr(g,-11,-2,22,10,3);
+        g.fillStyle=a;
+        g.beginPath(); g.moveTo(-7,-2); g.quadraticCurveTo(0,-26,7,-2); g.closePath(); g.fill();
+        g.fillStyle='#fff8c5';
+        g.beginPath(); g.moveTo(-3,-2); g.quadraticCurveTo(0,-15,3,-2); g.closePath(); g.fill(); break;
+      case 'labb':     // 素材研究所: 丸屋根の工房+蒸留器の煙突
+        g.fillStyle='#6e4c30'; rr(g,-19,-2,38,20,3);
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-22,-2); g.quadraticCurveTo(0,-26,22,-2); g.closePath(); g.fill();
+        g.fillStyle='#0d1117'; rr(g,-5,4,10,14,3);
+        g.fillStyle='#57606a'; g.fillRect(12,-18,5,14);
+        g.fillStyle=a; g.beginPath(); g.arc(14.5,-21,4.5,0,7); g.fill();
+        g.fillStyle='#fff'; g.globalAlpha=.6; g.beginPath(); g.arc(13.5,-22,1.5,0,7); g.fill(); g.globalAlpha=1; break;
+      case 'campb':    // 仲間の宿舎: 大小の天幕
+        g.fillStyle='#3d4a63';
+        g.beginPath(); g.moveTo(6,4); g.lineTo(17,-12); g.lineTo(27,4); g.closePath(); g.fill();
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-26,16); g.lineTo(-4,-20); g.lineTo(18,16); g.closePath(); g.fill();
+        g.fillStyle='#0d1117';
+        g.beginPath(); g.moveTo(-10,16); g.lineTo(-4,3); g.lineTo(2,16); g.closePath(); g.fill();
+        g.strokeStyle=a; g.lineWidth=2;
+        g.beginPath(); g.moveTo(-4,-20); g.lineTo(-4,-27); g.stroke();
+        g.fillStyle=a; g.beginPath(); g.moveTo(-4,-27); g.lineTo(6,-24); g.lineTo(-4,-21); g.closePath(); g.fill(); break;
+      case 'libb':     // スキル書庫: 本の詰まった塔
+        g.fillStyle='#57443a'; rr(g,-14,-16,28,36,3);
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-18,-16); g.lineTo(0,-28); g.lineTo(18,-16); g.closePath(); g.fill();
+        for (let i=0;i<3;i++){
+          g.fillStyle='#2b2622'; g.fillRect(-11,-12+i*11,22,8);
+          const bc=['#f0883e',a,'#7ee787','#58a6ff','#ffd766'];
+          for (let j=0;j<5;j++){ g.fillStyle=bc[(i*2+j)%bc.length]; g.fillRect(-10+j*4.3,-11+i*11,3.2,6); }
+        } break;
+      case 'armoryb':  // 武器庫: 石造りの武具庫+交差する剣
+        g.fillStyle=c; rr(g,-20,-6,40,24,3);
+        g.fillStyle='#484f58';
+        g.beginPath(); g.moveTo(-23,-6); g.lineTo(0,-18); g.lineTo(23,-6); g.closePath(); g.fill();
+        g.fillStyle='#0d1117'; rr(g,-6,2,12,16,3);
+        g.save(); g.translate(0,-22);
+        g.strokeStyle='#c9d1d9'; g.lineWidth=3;
+        g.beginPath(); g.moveTo(-8,-7); g.lineTo(8,7); g.moveTo(8,-7); g.lineTo(-8,7); g.stroke();
+        g.strokeStyle=a; g.lineWidth=2;
+        g.beginPath(); g.moveTo(-5,3); g.lineTo(-8,7); g.moveTo(5,3); g.lineTo(8,7); g.stroke();
+        g.restore(); break;
+      case 'warb':     // 武練場: 稽古場の的と交差した槍
+        g.fillStyle='#57443a'; rr(g,-22,12,44,8,2);
+        g.strokeStyle='#8b5a2b'; g.lineWidth=3;
+        g.beginPath(); g.moveTo(-14,14); g.lineTo(6,-22); g.moveTo(14,14); g.lineTo(-6,-22); g.stroke();
+        g.fillStyle=c; g.beginPath(); g.moveTo(6,-22); g.lineTo(9,-29); g.lineTo(11,-21); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(-6,-22); g.lineTo(-9,-29); g.lineTo(-11,-21); g.closePath(); g.fill();
+        g.fillStyle='#e6d2b5'; g.beginPath(); g.arc(0,-2,10,0,7); g.fill();
+        g.fillStyle=c; g.beginPath(); g.arc(0,-2,6.5,0,7); g.fill();
+        g.fillStyle='#e6d2b5'; g.beginPath(); g.arc(0,-2,3,0,7); g.fill(); break;
+      case 'lifeb':    // 生命の祠: 苔むした小祠と灯り
+        g.fillStyle='#57606a'; rr(g,-16,-4,32,22,3);
+        g.fillStyle='#2a2f36'; rr(g,-6,2,12,16,3);
+        g.fillStyle='#6e4c30';
+        g.beginPath(); g.moveTo(-21,-4); g.lineTo(0,-18); g.lineTo(21,-4); g.closePath(); g.fill();
+        g.fillStyle=c; rr(g,-16,10,10,8,2); rr(g,8,-2,8,6,2);   // 苔
+        g.fillStyle=a; g.globalAlpha=.85; rr(g,-3,4,6,9,2); g.globalAlpha=1; break;
+      case 'loreb':    // 秘宝の蔵: 白壁の蔵に金の飾り
+        g.fillStyle='#c9d1d9'; rr(g,-17,-8,34,26,2);
+        g.fillStyle='#57606a';
+        g.beginPath(); g.moveTo(-21,-8); g.lineTo(0,-22); g.lineTo(21,-8); g.closePath(); g.fill();
+        g.fillStyle='#8b949e'; rr(g,-17,12,34,6,2);
+        g.fillStyle='#0d1117'; rr(g,-6,-2,12,18,2);
+        g.fillStyle=a; g.beginPath(); g.arc(0,4,3.4,0,7); g.fill();
+        g.fillStyle=c; g.fillRect(-17,-8,34,2.5); break;
+      case 'steleb':   // 記録の石碑: 刻まれた立石
+        g.fillStyle='#57606a'; rr(g,-15,16,30,7,2);
+        g.fillStyle=c; rr(g,-11,-22,22,40,4);
+        g.fillStyle=a; g.globalAlpha=.8;
+        for (let i=0;i<4;i++) g.fillRect(-6,-16+i*8,12,2.5);
+        g.globalAlpha=1; break;
       case 'gate':
         g.strokeStyle=c; g.lineWidth=5;
         g.beginPath(); g.ellipse(0,0,13,19,0,0,7); g.stroke();
@@ -561,10 +640,26 @@ const Sprites = (() => {
     return cv;
   }
 
+  // 統一ライティング: どのスプライトも「上からの淡い光+足元の落ち影」を
+  // 生成時に一度だけ焼き込む ― 全ての絵が同じ光の中にいる質感になる
+  function shadePass(cv){
+    const g = cv.getContext('2d');
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    const gr = g.createLinearGradient(0, 0, 0, S);
+    gr.addColorStop(0, 'rgba(255,255,255,.16)');
+    gr.addColorStop(0.42, 'rgba(255,255,255,0)');
+    gr.addColorStop(1, 'rgba(8,10,20,.20)');
+    g.fillStyle = gr; g.fillRect(0, 0, S, S);
+    g.restore();
+    return cv;
+  }
+
   function gen(id){
     const cv = document.createElement('canvas'); cv.width = S; cv.height = S;
     const g = cv.getContext('2d');
     painter(g, DEFS[id] || { kind:'?', c:'#f0f', a:'#fff' });
+    shadePass(cv);
     // 輪郭はキャラ(敵・仲間に使う en_/boss_ と主人公)だけ。オブジェクトやUIアイコンはそのまま
     if (/^(en_|boss_)/.test(id) || id === 'player') return outline(cv);
     return cv;

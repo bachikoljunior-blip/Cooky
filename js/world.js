@@ -250,6 +250,101 @@ const World = (() => {
     return list;
   }
 
+  // ---- 地形の障害(岩場): 壊せない自然の岩。周回マップのところどころに自然に配置 ----
+  // 基地・港・道・出発点のそばには置かない。決定論(チャンクのハッシュ)で常に同じ場所に出る
+  function chunkCrags(cx, cy){
+    const list = [];
+    if (hash(cx, cy, 91) > 0.06) return list;   // 数チャンクに1群れ
+    const bx = (cx + 0.5) * CHUNK, by = (cy + 0.5) * CHUNK;
+    if (Math.hypot(bx, by) < 700) return list;
+    for (const p of ports) if (Math.hypot(bx - p.x, by - p.y) < 460) return list;
+    let nearBase = null;
+    for (const b of bases) {
+      const d = Math.hypot(bx - b.x, by - b.y);
+      if (d < 460) return list;
+      if (d < 5600) nearBase = b;
+    }
+    const rd = nearBase ? roadOf(nearBase.id) : null;
+    const n = 1 + Math.floor(hash(cx, cy, 92) * 2.5);
+    for (let i = 0; i < n; i++) {
+      const x = bx + (hash(cx, cy, 93 + i) - 0.5) * CHUNK * 0.9;
+      const y = by + (hash(cx, cy, 97 + i) - 0.5) * CHUNK * 0.9;
+      const t = terrainAt(x, y);
+      if (t !== 'grass' && t !== 'sand') continue;
+      if (rd && roadDist(rd, x, y) < 120) continue;   // 基地の小道は塞がない
+      list.push({ x, y, r: 20 + hash(cx, cy, 101 + i) * 22 });
+    }
+    return list;
+  }
+  // ---- ランドマーク: 見晴らし台(高台の露岩)と古の祠 ----
+  // 見晴らし台: 登ると周囲の地形が地図に刻まれる(探索の目印)。先人の手記が残されている
+  // 古の祠: 祈ると一定時間の加護(周回ごとに一度)
+  function chunkLandmarks(cx, cy){
+    const list = [];
+    const roll = hash(cx, cy, 111);
+    if (roll > 0.0062) return list;
+    const x = (cx + 0.35 + hash(cx, cy, 112) * 0.3) * CHUNK;
+    const y = (cy + 0.35 + hash(cx, cy, 113) * 0.3) * CHUNK;
+    if (terrainAt(x, y) !== 'grass') return list;
+    if (Math.hypot(x, y) < 900) return list;
+    for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 500) return list;
+    for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 500) return list;
+    list.push({ key: 'lm' + cx + ',' + cy, x, y, kind: roll < 0.0022 ? 'vantage' : 'shrine' });
+    return list;
+  }
+  // 先人の遺物: 朽ちた野営跡・折れた剣の塚・風化した旗。
+  // 先代の死に戻り(城主オウ)の旅路を、テキストではなく地形そのものが語る。
+  // 装飾のみ(当たり判定・インタラクトなし)
+  function chunkRelics(cx, cy){
+    const list = [];
+    const roll = hash(cx, cy, 131);
+    if (roll > 0.004) return list;
+    const x = (cx + 0.3 + hash(cx, cy, 132) * 0.4) * CHUNK;
+    const y = (cy + 0.3 + hash(cx, cy, 133) * 0.4) * CHUNK;
+    if (terrainAt(x, y) !== 'grass') return list;
+    if (Math.hypot(x, y) < 900) return list;
+    for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 400) return list;
+    for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 400) return list;
+    const kinds = ['camp', 'sword', 'banner'];
+    list.push({ x, y, kind: kinds[Math.floor(hash(cx, cy, 134) * kinds.length)] });
+    return list;
+  }
+  let relCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyRelics(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (relCache.cx === cx && relCache.cy === cy) return relCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkRelics(ix, iy));
+    relCache = { cx, cy, list };
+    return list;
+  }
+
+  let lmCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyLandmarks(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (lmCache.cx === cx && lmCache.cy === cy) return lmCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkLandmarks(ix, iy));
+    lmCache = { cx, cy, list };
+    return list;
+  }
+
+  let cragCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyCrags(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (cragCache.cx === cx && cragCache.cy === cy) return cragCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkCrags(ix, iy));
+    cragCache = { cx, cy, list };
+    return list;
+  }
+
   // プレイヤー周辺のオブジェクトを列挙(キャッシュ付き)
   let objCache = { cx:1e9, cy:1e9, list:[] };
   function nearbyObjects(px, py, radius){
@@ -631,7 +726,7 @@ const World = (() => {
   }
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
-           nearbyObjects, destroyObject, objectDrops,
+           nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks, nearbyRelics,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };

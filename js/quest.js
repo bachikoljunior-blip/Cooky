@@ -126,6 +126,12 @@ const Quest = (() => {
     }
     if (kind === 'side') {
       if ((SaveSys.data.sideDone || {})[id]) {
+        // 城主オウ: 先人の手記を全頁集めてから会うと、後日談が結実する
+        if (id === 'sq_ou' && DATA.MEMOIR_OU &&
+            (SaveSys.data.memoirs || 0) >= (DATA.MEMOIRS || []).length) {
+          Game.dialog(def.npcName, face, DATA.MEMOIR_OU, null);
+          return;
+        }
         Game.dialog(def.npcName, face, [def.done[def.done.length - 1]], null);   // 後日談
         return;
       }
