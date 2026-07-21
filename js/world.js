@@ -292,6 +292,35 @@ const World = (() => {
     list.push({ key: 'lm' + cx + ',' + cy, x, y, kind: roll < 0.0022 ? 'vantage' : 'shrine' });
     return list;
   }
+  // 先人の遺物: 朽ちた野営跡・折れた剣の塚・風化した旗。
+  // 先代の死に戻り(城主オウ)の旅路を、テキストではなく地形そのものが語る。
+  // 装飾のみ(当たり判定・インタラクトなし)
+  function chunkRelics(cx, cy){
+    const list = [];
+    const roll = hash(cx, cy, 131);
+    if (roll > 0.004) return list;
+    const x = (cx + 0.3 + hash(cx, cy, 132) * 0.4) * CHUNK;
+    const y = (cy + 0.3 + hash(cx, cy, 133) * 0.4) * CHUNK;
+    if (terrainAt(x, y) !== 'grass') return list;
+    if (Math.hypot(x, y) < 900) return list;
+    for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 400) return list;
+    for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 400) return list;
+    const kinds = ['camp', 'sword', 'banner'];
+    list.push({ x, y, kind: kinds[Math.floor(hash(cx, cy, 134) * kinds.length)] });
+    return list;
+  }
+  let relCache = { cx: 1e9, cy: 1e9, list: [] };
+  function nearbyRelics(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    if (relCache.cx === cx && relCache.cy === cy) return relCache.list;
+    const rng = Math.ceil(radius / CHUNK);
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkRelics(ix, iy));
+    relCache = { cx, cy, list };
+    return list;
+  }
+
   let lmCache = { cx: 1e9, cy: 1e9, list: [] };
   function nearbyLandmarks(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
@@ -697,7 +726,7 @@ const World = (() => {
   }
 
   return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
-           nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks,
+           nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks, nearbyRelics,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };

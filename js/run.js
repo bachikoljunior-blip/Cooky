@@ -2537,6 +2537,7 @@ const Run = (() => {
     cragPush(p, 14);
     // ランドマーク(見晴らし台・古の祠)
     R.landmarks = World.nearbyLandmarks(p.x, p.y, (R.offscreenR || 700) + 400);
+    R.relics = World.nearbyRelics(p.x, p.y, (R.offscreenR || 700) + 400);
 
     // 探索記録(行ったことのある場所がマップに残る)
     R.exploreAcc = (R.exploreAcc || 0) - dt;
@@ -2805,6 +2806,48 @@ const Run = (() => {
       g.lineTo(c.x + s * 0.05, c.y - s * 0.15);
       g.closePath(); g.fill();
     }
+    // 先人の遺物(環境語り): 朽ちた野営跡・折れた剣の塚・風化した旗。
+    // 先代の死に戻りの旅路を、テキストではなく地形そのものが語る(装飾のみ)
+    for (const rl of R.relics || []) {
+      if (Math.abs(rl.x - p.x) > effW * 0.75 || Math.abs(rl.y - p.y) > effH * 0.75) continue;
+      g.fillStyle = 'rgba(0,0,0,.18)';
+      g.beginPath(); g.ellipse(rl.x, rl.y + 6, 22, 8, 0, 0, 7); g.fill();
+      if (rl.kind === 'camp') {
+        // 火の消えた野営跡: 環状の石と炭
+        g.fillStyle = '#57606a';
+        for (let i2 = 0; i2 < 7; i2++) {
+          const a2 = i2 / 7 * Math.PI * 2;
+          g.beginPath(); g.arc(rl.x + Math.cos(a2) * 14, rl.y + Math.sin(a2) * 8, 3.2, 0, 7); g.fill();
+        }
+        g.fillStyle = '#2b2622';
+        g.beginPath(); g.ellipse(rl.x, rl.y, 8, 4.5, 0, 0, 7); g.fill();
+        g.fillStyle = '#40382f';
+        g.fillRect(rl.x - 6, rl.y - 2, 12, 2);
+      } else if (rl.kind === 'sword') {
+        // 折れた剣の塚: 小さな土盛りに斜めの剣
+        g.fillStyle = '#4a5240';
+        g.beginPath(); g.ellipse(rl.x, rl.y + 2, 15, 7, 0, 0, 7); g.fill();
+        g.save();
+        g.translate(rl.x, rl.y - 2); g.rotate(-0.22);
+        g.fillStyle = '#77808c'; g.fillRect(-2, -26, 4, 24);   // 刃(先が欠けている)
+        g.fillStyle = '#8b949e'; g.fillRect(-8, -4, 16, 3);    // 鍔
+        g.fillStyle = '#6e4c30'; g.fillRect(-1.5, -1, 3, 7);   // 柄
+        g.restore();
+      } else {
+        // 風化した旗: 傾いた竿に破れた布
+        g.strokeStyle = '#6e5c48'; g.lineWidth = 2.5;
+        g.beginPath(); g.moveTo(rl.x, rl.y + 4); g.lineTo(rl.x + 6, rl.y - 40); g.stroke();
+        const fw2 = Math.sin(R.time * 2.2 + rl.x) * 3;
+        g.fillStyle = 'rgba(140,80,70,.75)';
+        g.beginPath();
+        g.moveTo(rl.x + 6, rl.y - 40);
+        g.lineTo(rl.x + 24 + fw2, rl.y - 34);
+        g.lineTo(rl.x + 15 + fw2, rl.y - 30);
+        g.lineTo(rl.x + 21 + fw2, rl.y - 25);
+        g.lineTo(rl.x + 6, rl.y - 22);
+        g.closePath(); g.fill();
+      }
+    }
     // ランドマーク: 見晴らし台(旗の立つ高岩)と古の祠
     for (const lm of R.landmarks || []) {
       if (Math.abs(lm.x - p.x) > effW * 0.75 || Math.abs(lm.y - p.y) > effH * 0.75) continue;
@@ -3019,6 +3062,24 @@ const Run = (() => {
       const un = SaveSys.data.bases[b.id];
       // 周回マップ上の基地は「特色に合わせた転移シンボル」だけ。
       // 村の暮らし・住民・依頼は、転移した先の基地マップにある。
+      // ゲートの光柱: 繋がった(解放済みの)基地は魂色の光が立ち昇る。
+      // 「人里はゲートの光の下にしか残らない」という物語を、そのまま画面に描く ―
+      // 遠くからでも「あそこに繋がった人里がある」と分かる導きにもなる
+      if (un) {
+        const pl = 0.75 + 0.25 * Math.sin(R.time * 1.3 + b.x * 0.001);
+        g.save();
+        g.globalCompositeOperation = 'lighter';
+        const beam = g.createLinearGradient(0, b.y - 620, 0, b.y - 10);
+        beam.addColorStop(0, 'rgba(118,227,234,0)');
+        beam.addColorStop(0.7, 'rgba(118,227,234,' + (0.17 * pl).toFixed(3) + ')');
+        beam.addColorStop(1, 'rgba(118,227,234,' + (0.36 * pl).toFixed(3) + ')');
+        g.fillStyle = beam;
+        g.beginPath();
+        g.moveTo(b.x - 34, b.y - 10); g.lineTo(b.x - 12, b.y - 620);
+        g.lineTo(b.x + 12, b.y - 620); g.lineTo(b.x + 34, b.y - 10);
+        g.closePath(); g.fill();
+        g.restore();
+      }
       Sprites.draw(g, b.spr || 'st_warp', b.x, b.y, 78);
       if (un) {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
