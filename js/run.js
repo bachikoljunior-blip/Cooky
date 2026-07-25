@@ -472,8 +472,12 @@ const Run = (() => {
     for (const e of R.enemies) {
       const d = Math.hypot(e.x - x, e.y - y);
       if (d < radius && d > 1) {
-        e.x += (e.x - x) / d * force * 0.12;
-        e.y += (e.y - y) / d * force * 0.12;
+        // 吹き飛ばしでも地形の外へは出さない(陸の魔物が海に浮かばない)
+        const nx = e.x + (e.x - x) / d * force * 0.12;
+        const ny = e.y + (e.y - y) / d * force * 0.12;
+        if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; }
+        else if (canStand(e.def, nx, e.y)) e.x = nx;
+        else if (canStand(e.def, e.x, ny)) e.y = ny;
       }
     }
   }
@@ -1572,7 +1576,11 @@ const Run = (() => {
                   if (tw > 0) { fx -= dxp / dl * tw; fy -= dyp / dl * tw; }
                 }
               }
-              ent.x += fx; ent.y += fy;
+              // 押し合いで地形の外へ出さない(陸の魔物が海に、海の魔物が陸に立たない)
+              const tx = ent.x + fx, ty = ent.y + fy;
+              const env = ent.def && ent.def.env;
+              if ((env === 'land' || env === 'sea') && (World.isLand(tx, ty) !== (env === 'land'))) return;
+              ent.x = tx; ent.y = ty;
             };
             if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); push(u, -nx * tot * f, -ny * tot * f); }
             if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); push(v, nx * tot * f, ny * tot * f); }

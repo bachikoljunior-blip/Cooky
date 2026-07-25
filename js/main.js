@@ -179,7 +179,12 @@ const Game = (() => {
     if (deaths >= 30) lines.push('(' + deaths + '回の死に戻り。それでも立ち上がる魂を、この土地の誰もが敬い始めている)');
     else if (deaths >= 15) lines.push('(何度でも帰ってくるお前を、この村はもう当たり前のように迎えてくれる)');
     else if (deaths >= 5) lines.push('(「本当に、戻ってくるのだな」― 死に戻りを見るその目から、驚きが消え始めている)');
-    lines.push(...(q.after ? q.after.slice() : ['(もうすっかり顔なじみだ。今日も変わらぬ様子で迎えてくれた)']));
+    // 物語が進むと第一声が変わる人がいる(afterIf: フラグ → 台詞)
+    let said = null;
+    for (const flag in q.afterIf || {})
+      if ((SaveSys.data.story || {})[flag]) { said = q.afterIf[flag]; break; }
+    lines.push(...(said ? [].concat(said)
+      : q.after ? q.after.slice() : ['(もうすっかり顔なじみだ。今日も変わらぬ様子で迎えてくれた)']));
     // 豆知識は話者の口調と混ざらないよう、地の文(見聞きした噂)として添える
     lines.push('(別れ際、こんな噂話も聞かせてくれた ―「' + tip + '」)');
     const q2 = DATA.QUESTS2[baseId];

@@ -148,9 +148,13 @@ const Quest = (() => {
         }
         // 後日談: 専用のafterがあればそれを、無ければ「地の文(括弧)で始まらない最後の台詞」を話す
         // (システム括弧文が本人の台詞として出るのを防ぐ)
-        const talk = def.after ||
+        // 物語が進むと第一声が変わる人がいる(afterIf: フラグ → 台詞)
+        let talk = null;
+        for (const flag in def.afterIf || {})
+          if ((SaveSys.data.story || {})[flag]) { talk = def.afterIf[flag]; break; }
+        talk = talk || def.after ||
           [...def.done].reverse().find(l => !/^[((]/.test(l)) || def.done[def.done.length - 1];
-        Game.dialog(def.npcName, face, [talk], null);
+        Game.dialog(def.npcName, face, [].concat(talk), null);
         return;
       }
       // ストーリーが進むまで受けられない依頼

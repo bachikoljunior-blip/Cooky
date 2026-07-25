@@ -191,7 +191,8 @@ const Hub = (() => {
       return st ? st.name : name + (fac ? '(' + fac.desc + ')' : '');
     }
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return (q ? q.npcName : 'NPC') + 'と話す'; }
-    if (s.kind === 'portnpc') return SaveSys.data.ports[s.port] ? '船大工と話す' : '船大工と話す(船の修理)';
+    if (s.kind === 'portnpc') { const q = DATA.QUESTS[s.port]; const nm = (q && q.npcName) || '船大工';
+      return SaveSys.data.ports[s.port] ? nm + 'と話す' : nm + 'と話す(船の修理)'; }
     if (s.kind === 'trader') return '貿易商と取引(相場は周回ごとに変わる)';
     if (s.kind === 'sidenpc') return s.name + 'と話す';
     if (s.kind === 'villager') return s.v.name + 'と話す';
@@ -566,7 +567,8 @@ const Hub = (() => {
 
   // ---------------- 描画 ----------------
   function stationVisual(s){
-    if (s.kind === 'portnpc') return { spr:'npc_sailor', label:'船大工', short:'船大工' };
+    if (s.kind === 'portnpc') { const q = DATA.QUESTS[s.port];
+      return { spr:'npc_sailor', label:(q && q.npcName) || '船大工', short:'船大工' }; }
     if (s.kind === 'trader') return { spr:'npc_scholar', label:'貿易商', short:'貿易' };
     // 建物そのものが施設なので、看板の絵は置かない。帳場の奥に立つ「主」を描く
     if (s.kind === 'meta') {
@@ -585,7 +587,6 @@ const Hub = (() => {
     if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
     if (s.kind === 'villager') return { spr: s.v.spr, label: s.v.name, short: '住民' };
     if (s.kind === 'board') return { spr:'st_board', label:'依頼板', short:'依頼' };
-    if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
     if (s.kind === 'stats') return { spr:'st_stone', label:'記録の石碑', short:'石碑' };
     return { spr:'st_altar', label:'', short:'' };
@@ -1008,7 +1009,7 @@ const Hub = (() => {
     g.beginPath(); g.arc(pq.x, pq.y, 3, 0, 7); g.fill();
     g.restore();
     g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
-    g.fillText('施設マップ', x0 + mw / 2, y0 + mh + 16);
+    g.fillText('街の見取り図', x0 + mw / 2, y0 + mh + 16);
   }
 
   return { enter, update, draw, doInteract, travel, enterFromRun, get state(){ return H; } };
