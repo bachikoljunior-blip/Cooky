@@ -19,51 +19,51 @@ const Sprites = (() => {
 
     en_slime:   { kind:'blob',    c:'#7ee787', a:'#2ea043' },
     en_bat:     { kind:'flying',  c:'#8b949e', a:'#c9d1d9' },
-    en_skel:    { kind:'humanoid',c:'#e6edf3', a:'#8b949e' },
+    en_skel:    { kind:'humanoid',c:'#e6edf3', a:'#8b949e', opt:{bones:true} },
     en_wolf:    { kind:'beast',   c:'#b08968', a:'#6e4c30' },
     en_goblin:  { kind:'humanoid',c:'#57ab5a', a:'#8b5a2b', opt:{bow:true} },
-    en_shaman:  { kind:'humanoid',c:'#c084fc', a:'#7ee787', opt:{staff:true} },
+    en_shaman:  { kind:'humanoid',c:'#c084fc', a:'#7ee787', opt:{staff:true,skullstaff:true} },
     en_crab:    { kind:'crab',    c:'#f0883e', a:'#9aa5b1' },
-    en_orc:     { kind:'humanoid',c:'#3fb950', a:'#8b1e24', opt:{big:true} },
+    en_orc:     { kind:'humanoid',c:'#3fb950', a:'#8b1e24', opt:{big:true,tusk:true} },
     en_golem:   { kind:'golem',   c:'#9aa5b1', a:'#58a6ff' },
     en_wisp:    { kind:'ghost',   c:'#a5d8ff', a:'#ffffff' },
     en_jelly:   { kind:'jellyfish',c:'#d2a8ff',a:'#f778ba' },
     en_shark:   { kind:'fish',    c:'#8b949e', a:'#e6edf3', opt:{fin:true} },
-    en_siren:   { kind:'humanoid',c:'#76e3ea', a:'#f778ba', opt:{staff:true} },
+    en_siren:   { kind:'humanoid',c:'#76e3ea', a:'#f778ba', opt:{staff:true,fintail:true} },
     en_lizard:  { kind:'humanoid',c:'#2dd4bf', a:'#116329', opt:{tail:true} },
-    en_ogre:    { kind:'humanoid',c:'#d29922', a:'#8b1e24', opt:{big:true} },
+    en_ogre:    { kind:'humanoid',c:'#d29922', a:'#8b1e24', opt:{big:true,oneeye:true} },
     en_knight:  { kind:'armor',   c:'#484f58', a:'#f85149' },
     en_necro:   { kind:'ghost',   c:'#6e40c9', a:'#7ee787', opt:{hood:true} },
     en_serpent: { kind:'serpent', c:'#1f6feb', a:'#76e3ea' },
     en_whelp:   { kind:'dragon',  c:'#2dd4bf', a:'#ffd766' },
     en_dragon:  { kind:'dragon',  c:'#f85149', a:'#ffd766', opt:{big:true} },
     en_demon:   { kind:'demon',   c:'#da3633', a:'#ffa657' },
-    en_abyss:   { kind:'demon',   c:'#6e40c9', a:'#76e3ea', opt:{big:true} },
+    en_abyss:   { kind:'demon',   c:'#6e40c9', a:'#76e3ea', opt:{big:true,abyss:true} },
     en_reaper:  { kind:'reaper',  c:'#0d1117', a:'#f85149' },
     en_rainbow: { kind:'rainbowblob', c:'#e879f9', a:'#fde047' },
     // --- バイオドーム別の敵(既存kindを配色替えして種類を増やす) ---
-    en_boar:     { kind:'beast',    c:'#8b5a2b', a:'#5a3a1b', opt:{big:true} },
-    en_mush:     { kind:'blob',     c:'#f0883e', a:'#7ee787' },
-    en_iceslime: { kind:'blob',     c:'#a5d8ff', a:'#58a6ff' },
-    en_frostwolf:{ kind:'beast',    c:'#cbe6f0', a:'#5a7585' },
-    en_yeti:     { kind:'humanoid', c:'#e6edf3', a:'#8fa8b5', opt:{big:true} },
-    en_icewisp:  { kind:'ghost',    c:'#a5d8ff', a:'#ffffff' },
-    en_lavaslime:{ kind:'blob',     c:'#ff6b35', a:'#8b1e24' },
-    en_emberbat: { kind:'flying',   c:'#f85149', a:'#ffa657' },
-    en_fireimp:  { kind:'demon',    c:'#ff6b35', a:'#ffd766' },
-    en_magmagolem:{kind:'golem',    c:'#733220', a:'#ff6b35' },
-    en_scarab:   { kind:'crab',     c:'#d29922', a:'#8a6d35' },
-    en_mummy:    { kind:'humanoid', c:'#b8b098', a:'#8a6d35' },
-    en_sandwurm: { kind:'serpent',  c:'#b09252', a:'#d29922' },
-    en_shade:    { kind:'ghost',    c:'#6e40c9', a:'#c084fc', opt:{hood:true} },
-    en_voidwisp: { kind:'ghost',    c:'#a78bfa', a:'#76e3ea' },
-    en_hornedimp:{ kind:'demon',    c:'#8b1e24', a:'#c084fc' },
-    en_stormwisp:{ kind:'ghost',    c:'#fde047', a:'#8b949e' },
-    en_galehound:{ kind:'beast',    c:'#8b949e', a:'#76e3ea' },
-    en_kingslime: { kind:'blob',     c:'#2ea043', a:'#7ee787' },
-    en_frostgiant:{ kind:'humanoid', c:'#a5d8ff', a:'#5a7585', opt:{big:true} },
-    en_magmatitan:{ kind:'golem',    c:'#8b1e24', a:'#ff6b35' },
-    en_voidtitan: { kind:'golem',    c:'#2d1b4e', a:'#a78bfa' },
+    en_boar:     { kind:'beast',    c:'#8b5a2b', a:'#5a3a1b', opt:{big:true,boar:true} },
+    en_mush:     { kind:'blob',     c:'#f0883e', a:'#7ee787', opt:{mush:true} },
+    en_iceslime: { kind:'blob',     c:'#a5d8ff', a:'#58a6ff', opt:{icy:true} },
+    en_frostwolf:{ kind:'beast',    c:'#cbe6f0', a:'#5a7585', opt:{frost:true} },
+    en_yeti:     { kind:'humanoid', c:'#e6edf3', a:'#8fa8b5', opt:{big:true,fur:true} },
+    en_icewisp:  { kind:'ghost',    c:'#a5d8ff', a:'#ffffff', opt:{icy:true} },
+    en_lavaslime:{ kind:'blob',     c:'#ff6b35', a:'#8b1e24', opt:{lava:true} },
+    en_emberbat: { kind:'flying',   c:'#f85149', a:'#ffa657', opt:{ember:true} },
+    en_fireimp:  { kind:'demon',    c:'#ff6b35', a:'#ffd766', opt:{imp:true} },
+    en_magmagolem:{kind:'golem',    c:'#733220', a:'#ff6b35', opt:{crack:true} },
+    en_scarab:   { kind:'crab',     c:'#d29922', a:'#8a6d35', opt:{scarab:true} },
+    en_mummy:    { kind:'humanoid', c:'#b8b098', a:'#8a6d35', opt:{wrap:true} },
+    en_sandwurm: { kind:'serpent',  c:'#b09252', a:'#d29922', opt:{wurm:true} },
+    en_shade:    { kind:'ghost',    c:'#6e40c9', a:'#c084fc', opt:{hood:true,tatter:true} },
+    en_voidwisp: { kind:'ghost',    c:'#a78bfa', a:'#76e3ea', opt:{voidEye:true} },
+    en_hornedimp:{ kind:'demon',    c:'#8b1e24', a:'#c084fc', opt:{bighorn:true} },
+    en_stormwisp:{ kind:'ghost',    c:'#fde047', a:'#8b949e', opt:{bolt:true} },
+    en_galehound:{ kind:'beast',    c:'#8b949e', a:'#76e3ea', opt:{gale:true} },
+    en_kingslime: { kind:'blob',     c:'#2ea043', a:'#7ee787', opt:{king:true} },
+    en_frostgiant:{ kind:'humanoid', c:'#a5d8ff', a:'#5a7585', opt:{big:true,icicle:true} },
+    en_magmatitan:{ kind:'golem',    c:'#8b1e24', a:'#ff6b35', opt:{arms:true} },
+    en_voidtitan: { kind:'golem',    c:'#2d1b4e', a:'#a78bfa', opt:{shards:true} },
 
     boss_golem: { kind:'golem',   c:'#d29922', a:'#f85149', opt:{big:true} },
     boss_fenrir:{ kind:'beast',   c:'#484f58', a:'#f85149', opt:{big:true} },
@@ -73,12 +73,12 @@ const Sprites = (() => {
 
     ob_tree:    { kind:'tree',    c:'#2ea043', a:'#8b5a2b' },
     ob_tree_dry: { kind:'drytree', c:'#8a6d4a', a:'#5a4632' },
-    ob_tree_snow:{ kind:'tree',    c:'#dfe9f0', a:'#6e5c48' },
+    ob_tree_snow:{ kind:'tree',    c:'#dfe9f0', a:'#6e5c48', opt:{snow:true} },
     ob_rock:    { kind:'rock',    c:'#8b949e', a:'#484f58' },
     ob_crate:   { kind:'crate',   c:'#b08968', a:'#6e4c30' },
     ob_wreck:   { kind:'wreck',   c:'#6e4c30', a:'#9aa5b1' },
     ob_coral:   { kind:'coralob', c:'#ff8fa3', a:'#f778ba' },
-    ob_goldtree:{ kind:'tree',    c:'#f59e0b', a:'#92600a' },
+    ob_goldtree:{ kind:'tree',    c:'#f59e0b', a:'#92600a', opt:{gold:true} },
     ob_pearl:   { kind:'pearlobj',c:'#f1f5f9', a:'#ffd6a5' },
     ob_flag:    { kind:'flag',    c:'#58a6ff', a:'#e6edf3' },
     ob_dock:    { kind:'dock',    c:'#8b5a2b', a:'#e6edf3' },
@@ -86,44 +86,44 @@ const Sprites = (() => {
     coin:       { kind:'coin',    c:'#ffd766', a:'#d29922' },
     potion:     { kind:'potion',  c:'#f85149', a:'#e6edf3' },
 
-    npc_elder:  { kind:'humanoid',c:'#8b949e', a:'#e6edf3', opt:{staff:true} },
-    npc_smith:  { kind:'humanoid',c:'#f0883e', a:'#6e4c30', opt:{big:true} },
-    npc_miko:   { kind:'humanoid',c:'#f1f5f9', a:'#f85149', opt:{staff:true} },
-    npc_sailor: { kind:'humanoid',c:'#1f6feb', a:'#e6edf3', opt:{} },
-    npc_sage:   { kind:'ghost',   c:'#6e40c9', a:'#d2a8ff', opt:{hood:true} },
-    npc_scholar:{ kind:'humanoid',c:'#3fb950', a:'#a5d8ff', opt:{} },
-    npc_girl:   { kind:'humanoid',c:'#f778ba', a:'#ffd6a5', opt:{} },
-    npc_boy:    { kind:'humanoid',c:'#57ab5a', a:'#a5d8ff', opt:{} },
-    npc_mapper: { kind:'humanoid',c:'#d29922', a:'#e6edf3', opt:{staff:true} },
-    npc_miner:  { kind:'humanoid',c:'#8b5a2b', a:'#9aa5b1', opt:{big:true} },
+    npc_elder:  { kind:'humanoid',c:'#8b949e', a:'#e6edf3', opt:{staff:true,beard:true} },
+    npc_smith:  { kind:'humanoid',c:'#f0883e', a:'#6e4c30', opt:{big:true,apron:true} },
+    npc_miko:   { kind:'humanoid',c:'#f1f5f9', a:'#f85149', opt:{staff:true,miko:true} },
+    npc_sailor: { kind:'humanoid',c:'#1f6feb', a:'#e6edf3', opt:{cap:true} },
+    npc_sage:   { kind:'ghost',   c:'#6e40c9', a:'#d2a8ff', opt:{hood:true,lamp:true} },
+    npc_scholar:{ kind:'humanoid',c:'#3fb950', a:'#a5d8ff', opt:{specs:true} },
+    npc_girl:   { kind:'humanoid',c:'#f778ba', a:'#ffd6a5', opt:{braid:true} },
+    npc_boy:    { kind:'humanoid',c:'#57ab5a', a:'#a5d8ff', opt:{tuft:true} },
+    npc_mapper: { kind:'humanoid',c:'#d29922', a:'#e6edf3', opt:{staff:true,scroll:true} },
+    npc_miner:  { kind:'humanoid',c:'#8b5a2b', a:'#9aa5b1', opt:{big:true,helm:true} },
     // 基地の転移シンボル(集落の特色に合わせた建造物)
     base_fort:    { kind:'settlement', c:'#9aa5b1', a:'#58a6ff', opt:{v:'fort'} },
     base_academy: { kind:'settlement', c:'#e6d9b8', a:'#3fb950', opt:{v:'academy'} },
     base_spring:  { kind:'settlement', c:'#8fa8b5', a:'#76e3ea', opt:{v:'spring'} },
     base_forge:   { kind:'settlement', c:'#6e4c30', a:'#ff6b35', opt:{v:'forge'} },
     base_lodge:   { kind:'settlement', c:'#b08968', a:'#e6edf3', opt:{v:'lodge'} },
-    base_camp:    { kind:'settlement', c:'#8f8a78', a:'#e6edf3', opt:{v:'lodge'} },
+    base_camp:    { kind:'settlement', c:'#8f8a78', a:'#e6edf3', opt:{v:'camp'} },
     base_poet:    { kind:'settlement', c:'#5c4a5e', a:'#f778ba', opt:{v:'hut'} },
-    base_hermit:  { kind:'settlement', c:'#33244a', a:'#a78bfa', opt:{v:'hut'} },
+    base_hermit:  { kind:'settlement', c:'#33244a', a:'#a78bfa', opt:{v:'hermit'} },
     base_star:    { kind:'settlement', c:'#3a4468', a:'#a5d8ff', opt:{v:'observatory'} },
-    base_mist:    { kind:'settlement', c:'#6e7a6a', a:'#a5d8ff', opt:{v:'observatory'} },
+    base_mist:    { kind:'settlement', c:'#6e7a6a', a:'#a5d8ff', opt:{v:'mistobs'} },
     base_grove:   { kind:'settlement', c:'#2ea043', a:'#7ee787', opt:{v:'grove'} },
     base_port:    { kind:'settlement', c:'#e6edf3', a:'#f85149', opt:{v:'lighthouse'} },
     base_shrine:  { kind:'settlement', c:'#484f58', a:'#2dd4bf', opt:{v:'abbey'} },
-    base_frost:   { kind:'settlement', c:'#8fa8b5', a:'#a5d8ff', opt:{v:'abbey'} },
-    base_ember:   { kind:'settlement', c:'#5c3a28', a:'#ff6b35', opt:{v:'forge'} },
-    base_factory: { kind:'settlement', c:'#484f58', a:'#fde047', opt:{v:'forge'} },
-    base_abbey:   { kind:'settlement', c:'#3a4468', a:'#f1f5f9', opt:{v:'abbey'} },
+    base_frost:   { kind:'settlement', c:'#8fa8b5', a:'#a5d8ff', opt:{v:'frostshrine'} },
+    base_ember:   { kind:'settlement', c:'#5c3a28', a:'#ff6b35', opt:{v:'emberforge'} },
+    base_factory: { kind:'settlement', c:'#484f58', a:'#fde047', opt:{v:'factory'} },
+    base_abbey:   { kind:'settlement', c:'#3a4468', a:'#f1f5f9', opt:{v:'abbeytower'} },
     base_tower:   { kind:'settlement', c:'#5a655c', a:'#9aa5b1', opt:{v:'tower'} },
     base_grave:   { kind:'settlement', c:'#8b949e', a:'#ffd766', opt:{v:'grave'} },
     base_temple:  { kind:'settlement', c:'#a8894a', a:'#ffd766', opt:{v:'temple'} },
     base_portal:  { kind:'settlement', c:'#6e40c9', a:'#76e3ea', opt:{v:'portal'} },
     base_castle:  { kind:'settlement', c:'#54242c', a:'#ffd766', opt:{v:'castle'} },
     base_spa:     { kind:'settlement', c:'#7fd1c9', a:'#9be3db', opt:{v:'spa'} },
-    base_sunken:  { kind:'settlement', c:'#2dd4bf', a:'#76e3ea', opt:{v:'spring'} },
-    ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
-    ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
-    ob_well:    { kind:'building',c:'#8fa8b5', a:'#76e3ea', opt:{sym:'⛲'} },
+    base_sunken:  { kind:'settlement', c:'#2dd4bf', a:'#76e3ea', opt:{v:'sunken'} },
+    ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3' },
+    ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{row:true} },
+    ob_well:    { kind:'building',c:'#8fa8b5', a:'#76e3ea', opt:{well:true} },
     // 広場の施設は「その施設にしか見えない」専用の造形(祭壇・研究小屋・宿営・書庫塔・鍛冶場)
     st_altar:   { kind:'altarb',  c:'#9aa5b1', a:'#ffd766' },
     st_lab:     { kind:'labb',    c:'#3fb950', a:'#7ee787' },
@@ -137,12 +137,12 @@ const Sprites = (() => {
     st_life:    { kind:'lifeb', c:'#2ea043', a:'#7ee787' },
     st_lore:    { kind:'loreb', c:'#d29922', a:'#ffd766' },
     st_gate:    { kind:'gate',    c:'#ffd766', a:'#f0883e' },
-    st_warp:    { kind:'gate',    c:'#76e3ea', a:'#1f6feb' },
+    st_warp:    { kind:'gate',    c:'#76e3ea', a:'#1f6feb', opt:{warp:true} },
 
     sk_bolt:    { kind:'icon', c:'#58a6ff', a:'#a5d8ff', opt:{sym:'●' } },
     sk_homing:  { kind:'icon', c:'#f0883e', a:'#ffd766', opt:{sym:'➤' } },
     sk_orbit:   { kind:'icon', c:'#c084fc', a:'#d2a8ff', opt:{sym:'◎' } },
-    sk_chain:   { kind:'icon', c:'#ffd766', a:'#fff8c5', opt:{sym:'⚡' } },
+    sk_chain:   { kind:'icon', c:'#ffd766', a:'#fff8c5', opt:{sym:'⛓' } },
     sk_flame:   { kind:'icon', c:'#f85149', a:'#ffa657', opt:{sym:'✹' } },
     sk_nova:    { kind:'icon', c:'#76e3ea', a:'#a5d8ff', opt:{sym:'❄' } },
     sk_poison:  { kind:'icon', c:'#7ee787', a:'#2ea043', opt:{sym:'☁' } },
@@ -157,7 +157,7 @@ const Sprites = (() => {
     sk_charisma:{ kind:'icon', c:'#f778ba', a:'#ffd6a5', opt:{sym:'♪' } },
     sk_bond:    { kind:'icon', c:'#3fb950', a:'#7ee787', opt:{sym:'∞' } },
     sk_fear:    { kind:'icon', c:'#da3633', a:'#ffa657', opt:{sym:'!' } },
-    sk_area:    { kind:'icon', c:'#76e3ea', a:'#a5d8ff', opt:{sym:'◎' } },
+    sk_area:    { kind:'icon', c:'#76e3ea', a:'#a5d8ff', opt:{sym:'◍' } },
     sk_ember:   { kind:'icon', c:'#ff6b35', a:'#ffd766', opt:{sym:'✸' } },
     sk_frostaura:{ kind:'icon', c:'#a5d8ff', a:'#e6edf3', opt:{sym:'❆' } },
     sk_bonecall:{ kind:'icon', c:'#e6edf3', a:'#8b949e', opt:{sym:'☠' } },
@@ -171,20 +171,20 @@ const Sprites = (() => {
     sk_beacon:  { kind:'icon', c:'#f1f5f9', a:'#ffd766', opt:{sym:'☀' } },
     sk_pact:    { kind:'icon', c:'#484f58', a:'#ffd766', opt:{sym:'契' } },
     sk_mistwalk:{ kind:'icon', c:'#8b949e', a:'#a5d8ff', opt:{sym:'〜' } },
-    sk_fguard:  { kind:'icon', c:'#9aa5b1', a:'#58a6ff', opt:{sym:'⛨' } },
-    sk_moonrush:{ kind:'icon', c:'#a5d8ff', a:'#f1f5f9', opt:{sym:'♞' } },
-    sk_stormcall:{ kind:'icon', c:'#fde047', a:'#8b949e', opt:{sym:'⚡' } },
+    sk_fguard:  { kind:'icon', c:'#9aa5b1', a:'#58a6ff', opt:{sym:'⛉' } },
+    sk_moonrush:{ kind:'icon', c:'#a5d8ff', a:'#f1f5f9', opt:{sym:'☽' } },
+    sk_stormcall:{ kind:'icon', c:'#fde047', a:'#8b949e', opt:{sym:'Ϟ' } },
     sk_gravemark:{ kind:'icon', c:'#c084fc', a:'#e6edf3', opt:{sym:'✝' } },
-    sk_sunburst:{ kind:'icon', c:'#d29922', a:'#ff6b35', opt:{sym:'☀' } },
+    sk_sunburst:{ kind:'icon', c:'#d29922', a:'#ff6b35', opt:{sym:'❂' } },
     sk_voidgrip:{ kind:'icon', c:'#6e40c9', a:'#76e3ea', opt:{sym:'◉' } },
     sk_endpact: { kind:'icon', c:'#8b1e24', a:'#ffd766', opt:{sym:'終' } },
-    sk_sharpen: { kind:'icon', c:'#f0883e', a:'#e6edf3', opt:{sym:'⚒' } },
-    sk_focus:   { kind:'icon', c:'#1f6feb', a:'#a5d8ff', opt:{sym:'◉' } },
+    sk_sharpen: { kind:'icon', c:'#f0883e', a:'#e6edf3', opt:{sym:'⌃' } },
+    sk_focus:   { kind:'icon', c:'#1f6feb', a:'#a5d8ff', opt:{sym:'⊙' } },
     sk_vampire: { kind:'icon', c:'#8b1e24', a:'#f85149', opt:{sym:'♥' } },
     sk_treasure:{ kind:'icon', c:'#d29922', a:'#ffd766', opt:{sym:'$' } },
     sk_confuse: { kind:'icon', c:'#c084fc', a:'#e6edf3', opt:{sym:'?' } },
     sk_curse:   { kind:'icon', c:'#6e40c9', a:'#a78bfa', opt:{sym:'†' } },
-    sk_prism:   { kind:'icon', c:'#e879f9', a:'#fde047', opt:{sym:'✧' } },
+    sk_prism:   { kind:'icon', c:'#e879f9', a:'#fde047', opt:{sym:'✳' } },
     sk_oath:    { kind:'icon', c:'#8b949e', a:'#ffd766', opt:{sym:'誓' } },
     sk_relic:   { kind:'icon', c:'#3fb950', a:'#a5d8ff', opt:{sym:'遺' } },
     sk_laser:   { kind:'icon', c:'#d2a8ff', a:'#ffffff', opt:{sym:'≡' } },
@@ -198,17 +198,29 @@ const Sprites = (() => {
     crystal:'m_shard', shell:'m_shell', magic:'m_orb', coral:'m_coral',
     scale:'m_scale', star:'m_star', abyss:'m_abyss',
     prism:'m_prism', amber:'m_amber', pearl:'m_pearl',
+    // 以前は全て同じ菱形(gem)だった素材にも固有の形を与える
+    cinder:'m_cinder', iceshard:'m_ice', soulshard:'m_soul', relic:'m_relic',
+    dew:'m_dew', duskveil:'m_veil', stardust:'m_dust', beastfang:'m_fang',
+    obsidshard:'m_obsid', sunstone:'m_sun',
   };
   for (const m in DATA.MATERIALS) {
     DEFS['mat_' + m] = { kind: MAT_KINDS[m] || 'gem', c:DATA.MATERIALS[m].color, a:'#ffffff' };
   }
   // 心得(パッシブ)スキル等、専用アイコン未定義のスキルは素材色の◆アイコンを自動生成
+  // 心得(パッシブ)は内容の分かる固有の記号にする(全部◆の使い回しにしない)
+  const PASSIVE_SYM = {
+    sk_p_shepherd:'☘', sk_p_vanguard:'⛬', sk_p_warcry:'⌇', sk_p_mend:'✜',
+    sk_p_stand:'⩕', sk_p_recruit:'⚭', sk_p_swift:'⤳',
+  };
+  let symFallback = 0;
+  const SPARE_SYM = ['◈','⬖','⬗','⬘','⬙','⧫','⬢','⬣','⬠','⬡','⌾','⍟','⏣','☖','☗'];
   for (const sid in DATA.SKILLS) {
     const def = DATA.SKILLS[sid];
     if (!DEFS[def.icon]) {
       const cost = def.cost(1);
       const m0 = Object.keys(cost)[0];
-      DEFS[def.icon] = { kind:'icon', c:(DATA.MATERIALS[m0] || {color:'#8b949e'}).color, a:'#e6edf3', opt:{sym:'◆'} };
+      const sym = PASSIVE_SYM[def.icon] || SPARE_SYM[symFallback++ % SPARE_SYM.length];
+      DEFS[def.icon] = { kind:'icon', c:(DATA.MATERIALS[m0] || {color:'#8b949e'}).color, a:'#e6edf3', opt:{sym} };
     }
   }
 
@@ -226,25 +238,160 @@ const Sprites = (() => {
         g.fillStyle=a; rr(g,-10,-24,20,8,4);                       // 帽子
         eye(-3,-13); eye(3,-13);
         g.fillStyle=a; rr(g,10,-4,4,14,2); break;                  // 杖
-      case 'blob':
-        g.fillStyle=c; g.beginPath(); g.ellipse(0,4,16,13,0,0,7); g.fill();
-        g.fillStyle=a; g.beginPath(); g.ellipse(0,7,11,7,0,0,7); g.fill();
-        eye(-5,0); eye(5,0); break;
+      case 'blob': {
+        const bw=o.king?18:16, bh=o.king?12:13;
+        if(o.icy){                                   // 氷: 角ばった結晶の体
+          g.fillStyle=c; g.beginPath();
+          g.moveTo(-16,10); g.lineTo(-11,-6); g.lineTo(-3,-12); g.lineTo(7,-9);
+          g.lineTo(15,3); g.lineTo(12,15); g.lineTo(-11,16); g.closePath(); g.fill();
+          g.fillStyle='rgba(255,255,255,.35)'; g.beginPath();
+          g.moveTo(-8,-2); g.lineTo(-2,-10); g.lineTo(2,-2); g.closePath(); g.fill();
+        } else {
+          g.fillStyle=c; g.beginPath(); g.ellipse(0,4,bw,bh,0,0,7); g.fill();
+        }
+        g.fillStyle=a; g.beginPath(); g.ellipse(0,7,bw*0.68,7,0,0,7); g.fill();
+        if(o.mush){                                  // キノコ: 斑点のある傘
+          g.fillStyle=a; g.beginPath(); g.arc(0,-6,15,Math.PI,0); g.closePath(); g.fill();
+          g.fillStyle='#fff8e7';
+          for(const[dx,dy,r2]of[[-8,-10,2.6],[0,-14,3.2],[8,-9,2.4]]){g.beginPath();g.arc(dx,dy,r2,0,7);g.fill();}
+        }
+        if(o.lava){                                  // 溶岩: 体の割れ目と滴り
+          g.strokeStyle=a; g.lineWidth=2.2; g.lineCap='round';
+          g.beginPath(); g.moveTo(-11,-2); g.lineTo(-4,4); g.lineTo(-7,10); g.stroke();
+          g.beginPath(); g.moveTo(9,-3); g.lineTo(4,5); g.stroke(); g.lineCap='butt';
+          g.fillStyle=a; g.beginPath(); g.arc(-9,16,2.4,0,7); g.arc(7,17,1.8,0,7); g.fill();
+        }
+        if(o.king){                                  // 王: 小さな体を背に乗せる
+          g.fillStyle=c; g.beginPath(); g.ellipse(-9,-11,8,6.5,0,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.ellipse(-9,-9,5,3.4,0,0,7); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(-11,-12,1.4,0,7); g.arc(-6,-12,1.4,0,7); g.fill();
+        }
+        eye(-5,0); eye(5,0); break; }
       case 'flying':
         g.fillStyle=c;
         g.beginPath(); g.moveTo(0,0); g.lineTo(-20,-8); g.lineTo(-12,4); g.closePath(); g.fill();
         g.beginPath(); g.moveTo(0,0); g.lineTo(20,-8); g.lineTo(12,4); g.closePath(); g.fill();
-        g.fillStyle=a; g.beginPath(); g.arc(0,0,8,0,7); g.fill(); eye(-3,-1,2); eye(3,-1,2); break;
+        g.fillStyle=a; g.beginPath(); g.arc(0,0,8,0,7); g.fill();
+        if(o.ember){                  // 燃えさし: 翼から散る火の粉と裂けた翼端
+          g.fillStyle=c;
+          g.beginPath(); g.moveTo(-20,-8); g.lineTo(-24,-1); g.lineTo(-17,-3); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(20,-8); g.lineTo(24,-1); g.lineTo(17,-3); g.closePath(); g.fill();
+          g.fillStyle='#ffb066';
+          for(const[dx,dy,r2]of[[-15,7,2.2],[-9,11,1.6],[14,8,2],[8,12,1.4]]){
+            g.beginPath(); g.arc(dx,dy,r2,0,7); g.fill(); }
+        }
+        eye(-3,-1,2); eye(3,-1,2); break;
       case 'humanoid':
         g.fillStyle=c; rr(g,-9,-4,18,20,5);
         g.beginPath(); g.arc(0,-12,8,0,7); g.fill();
+        if(o.fur){                                   // 毛むくじゃら: 輪郭のギザギザ
+          g.fillStyle=c;
+          for(let i=-4;i<=4;i++){ g.beginPath();
+            g.moveTo(i*2.6-1.4,-4); g.lineTo(i*2.6,-9); g.lineTo(i*2.6+1.4,-4); g.closePath(); g.fill(); }
+          for(const sx of[-1,1]) for(let i=0;i<3;i++){ g.beginPath();
+            g.moveTo(sx*9,-1+i*6); g.lineTo(sx*14,1+i*6); g.lineTo(sx*9,4+i*6); g.closePath(); g.fill(); }
+        }
         eye(-3,-12,2.4); eye(3,-12,2.4);
+        if(o.bones){                                 // 骨: 肋骨の線
+          g.strokeStyle='#8b949e'; g.lineWidth=1.6;
+          for(let i=0;i<3;i++){ g.beginPath(); g.moveTo(-6,1+i*5); g.lineTo(6,1+i*5); g.stroke(); }
+          g.beginPath(); g.moveTo(0,0); g.lineTo(0,12); g.stroke();
+        }
+        if(o.wrap){                                  // 包帯: 斜めに巻いた帯と垂れ
+          g.strokeStyle='#e6dcc4'; g.lineWidth=2.6;
+          for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(-9,-1+i*5); g.lineTo(9,-3+i*5); g.stroke(); }
+          g.beginPath(); g.moveTo(-8,-15); g.lineTo(6,-10); g.stroke();
+          g.fillStyle='#e6dcc4'; g.fillRect(7,-2,2.4,10);
+        }
+        if(o.tusk){                                  // 牙: 下あごから突き出る2本
+          g.fillStyle='#f0f4f8';
+          for(const sx of[-1,1]){ g.beginPath();
+            g.moveTo(sx*3,-8); g.lineTo(sx*4.6,-14); g.lineTo(sx*6,-8); g.closePath(); g.fill(); }
+        }
+        if(o.oneeye){                                // 一つ目の鬼: 単眼と担いだ棍棒
+          g.fillStyle='#6e4c30';
+          g.save(); g.translate(15,-2); g.rotate(-0.35);
+          g.fillRect(-3,-16,6,26); g.fillStyle='#8b5a2b'; rr(g,-6,-22,12,10,3); g.restore();
+          g.fillStyle=c; g.beginPath(); g.arc(0,-12,8,0,7); g.fill();
+          g.fillStyle='#fff'; g.beginPath(); g.arc(0,-12,5,0,7); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,-12,2.4,0,7); g.fill();
+        }
+        if(o.icicle){                                // 氷柱: 肩から下がる氷
+          g.fillStyle='#cfeaf5';
+          for(const sx of[-1,1]){ g.beginPath();
+            g.moveTo(sx*7,-3); g.lineTo(sx*9,8); g.lineTo(sx*11,-3); g.closePath(); g.fill(); }
+        }
+        if(o.cap){                                   // 船乗り帽
+          g.fillStyle='#0d2b3d'; g.beginPath(); g.arc(0,-15,8.5,Math.PI,0); g.closePath(); g.fill();
+          g.fillStyle=a; g.fillRect(-10,-16,20,2.6);
+        }
+        if(o.specs){                                 // 丸眼鏡と本
+          g.strokeStyle='#0d1117'; g.lineWidth=1.4;
+          g.beginPath(); g.arc(-3,-12,3.6,0,7); g.arc(3,-12,3.6,0,7); g.stroke();
+          g.beginPath(); g.moveTo(0,-12); g.lineTo(0,-12); g.stroke();
+          g.fillStyle=a; rr(g,7,2,9,11,1.5); g.fillStyle='#fff'; g.fillRect(9,4,5,1.6);
+        }
+        if(o.braid){                                 // おさげ
+          g.fillStyle=a;
+          for(const sx of[-1,1]){ g.beginPath(); g.ellipse(sx*9,-9,3,7,sx*0.3,0,7); g.fill();
+            g.beginPath(); g.arc(sx*10,-2,2.6,0,7); g.fill(); }
+        }
+        if(o.tuft){                                  // 跳ねた髪
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-5,-18); g.quadraticCurveTo(0,-25,6,-19); g.quadraticCurveTo(1,-19,-5,-18); g.fill();
+        }
+        if(o.apron){                                 // 鍛冶の前掛けと槌
+          g.fillStyle='#57443a'; rr(g,-7,0,14,15,2);
+          g.strokeStyle='#8b5a2b'; g.lineWidth=2; g.beginPath(); g.moveTo(-6,0); g.lineTo(6,0); g.stroke();
+          g.strokeStyle='#6e4c30'; g.lineWidth=2.6; g.beginPath(); g.moveTo(13,-14); g.lineTo(13,2); g.stroke();
+          g.fillStyle='#8b949e'; rr(g,8,-19,11,6,1.5);
+        }
+        if(o.helm){                                  // 坑夫のヘルメットとつるはし
+          g.fillStyle='#d29922'; g.beginPath(); g.arc(0,-14,8.6,Math.PI,0); g.closePath(); g.fill();
+          g.fillStyle='#fff8c5'; g.beginPath(); g.arc(0,-18,2.4,0,7); g.fill();
+          g.strokeStyle='#6e4c30'; g.lineWidth=2.4; g.beginPath(); g.moveTo(-13,4); g.lineTo(-11,-14); g.stroke();
+          g.strokeStyle='#9aa5b1'; g.lineWidth=2.6;
+          g.beginPath(); g.moveTo(-18,-12); g.quadraticCurveTo(-11,-18,-5,-12); g.stroke();
+        }
         if(o.staff){ g.strokeStyle=a; g.lineWidth=3; g.beginPath(); g.moveTo(12,-20); g.lineTo(12,10); g.stroke();
-          g.fillStyle=a; g.beginPath(); g.arc(12,-20,4,0,7); g.fill(); }
+          if(o.skullstaff){            // 杖の先が髑髏
+            g.fillStyle='#e6edf3'; g.beginPath(); g.arc(12,-21,4.6,0,7); g.fill();
+            g.fillStyle='#0d1117'; g.beginPath(); g.arc(10.4,-21.6,1.3,0,7); g.arc(13.6,-21.6,1.3,0,7); g.fill();
+            g.fillRect(11,-18.6,2,2);
+          } else if(o.miko){           // 巫女: 紙垂(しで)の付いた幣
+            g.fillStyle='#fff'; 
+            for(let i=0;i<3;i++) g.fillRect(8+i*3,-22+i*1.5,2.2,7);
+          } else if(o.scroll){         // 地図職人: 杖ではなく巻物を抱える
+            g.fillStyle='#0d1117'; g.clearRect(9,-22,6,34);
+            g.fillStyle='#e6dcc4'; rr(g,6,-2,15,7,3);
+            g.strokeStyle='#8b5a2b'; g.lineWidth=1.4;
+            g.beginPath(); g.moveTo(8,1.5); g.lineTo(19,1.5); g.stroke();
+          } else {
+            g.fillStyle=a; g.beginPath(); g.arc(12,-20,4,0,7); g.fill();
+          }
+        }
+        if(o.beard){                   // 長老: 長い白髭
+          g.fillStyle='#e6edf3'; g.beginPath();
+          g.moveTo(-6,-8); g.quadraticCurveTo(0,10,6,-8); g.quadraticCurveTo(0,-4,-6,-8); g.fill();
+        }
+        if(o.miko){                    // 巫女: 緋袴と白衣の切り替え
+          g.fillStyle='#d1495b'; rr(g,-9,4,18,12,3);
+          g.fillStyle='#fff'; g.fillRect(-9,2,18,2.6);
+        }
+        if(o.fintail){                 // セイレーン: 脚ではなく尾ひれ
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-8,14); g.lineTo(0,10); g.lineTo(8,14);
+          g.lineTo(13,22); g.lineTo(0,17); g.lineTo(-13,22); g.closePath(); g.fill();
+        }
         if(o.bow){ g.strokeStyle=a; g.lineWidth=2.5; g.beginPath(); g.arc(13,-2,9,-1.2,1.2); g.stroke(); }
         if(o.tail){ g.strokeStyle=c; g.lineWidth=5; g.beginPath(); g.moveTo(-8,12); g.quadraticCurveTo(-20,14,-18,4); g.stroke(); }
         break;
       case 'beast':
+        if(o.gale){                   // 疾風犬: 後方に流れる風の筋
+          g.strokeStyle='rgba(230,237,243,.5)'; g.lineWidth=1.8; g.lineCap='round';
+          for(let i=0;i<3;i++){ g.beginPath(); g.moveTo(-22,-6+i*7); g.lineTo(-9,-5+i*7); g.stroke(); }
+          g.lineCap='butt';
+        }
         // 横向きのオオカミ(右向き)。脚・尻尾・突き出た口吻・尖った耳で犬科に見せる
         g.strokeStyle=a; g.lineWidth=3.4; g.lineCap='round';
         g.beginPath();
@@ -267,6 +414,23 @@ const Sprites = (() => {
         // 差し色: 腹の陰影・鼻先・耳の内側
         g.fillStyle=a; g.beginPath(); g.ellipse(-2,4,9,4,0,0,7); g.fill();
         g.beginPath(); g.arc(25.5,-3,1.8,0,7); g.fill();   // 鼻
+        if(o.frost){                  // 霜狼: 背に生える氷の板
+          g.fillStyle='#cfeaf5';
+          for(const[dx,dy,h]of[[-4,-9,7],[3,-11,9],[9,-9,6]]){
+            g.beginPath(); g.moveTo(dx-3,dy); g.lineTo(dx,dy-h); g.lineTo(dx+3,dy); g.closePath(); g.fill(); }
+        }
+        if(o.gale){                   // 疾風犬: 長く後ろへ流れる耳
+          g.fillStyle=c; g.beginPath();
+          g.moveTo(10,-12); g.quadraticCurveTo(-2,-24,-10,-18);
+          g.quadraticCurveTo(2,-16,12,-9); g.closePath(); g.fill();
+        }
+        if(o.boar){                   // 猪: 上を向く牙と平たい鼻
+          g.fillStyle='#f0f4f8';
+          for(const[dx,dy]of[[21,-2],[23,0]]){ g.beginPath();
+            g.moveTo(dx,dy); g.quadraticCurveTo(dx+5,dy-4,dx+3,dy-9);
+            g.quadraticCurveTo(dx+1,dy-4,dx-1,dy); g.closePath(); g.fill(); }
+          g.fillStyle=a; g.beginPath(); g.ellipse(25.5,-3,3.2,2.4,0,0,7); g.fill();
+        }
         eye(15,-6,2.2); break;
       case 'crab':
         g.fillStyle=c; g.beginPath(); g.ellipse(0,2,15,10,0,0,7); g.fill();
@@ -274,17 +438,88 @@ const Sprites = (() => {
         for(const s of[-1,1]){ g.beginPath(); g.moveTo(10*s,6); g.lineTo(18*s,12); g.stroke();
           g.beginPath(); g.moveTo(12*s,0); g.lineTo(20*s,2); g.stroke();
           g.fillStyle=a; g.beginPath(); g.arc(16*s,-8,5,0,7); g.fill(); g.fillStyle=c; }
+        if(o.scarab){                 // スカラベ: 甲の合わせ目と一本角
+          g.strokeStyle=a; g.lineWidth=1.6;
+          g.beginPath(); g.moveTo(0,-7); g.lineTo(0,11); g.stroke();
+          g.beginPath(); g.moveTo(-11,0); g.lineTo(11,0); g.stroke();
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-2,-8); g.lineTo(0,-18); g.lineTo(2,-8); g.closePath(); g.fill();
+        }
         eye(-4,-2,2.4); eye(4,-2,2.4); break;
       case 'golem':
-        g.fillStyle=c; rr(g,-14,-14,28,28,6);
+        if(o.shards){                 // 虚無: 本体の周りに欠片が浮く
+          g.fillStyle=c; g.globalAlpha=.9; rr(g,-12,-12,24,24,6); g.globalAlpha=1;
+          g.fillStyle=a;
+          for(const[dx,dy,r2]of[[-19,-6,4],[18,-10,3.4],[16,8,3],[-17,10,3.4]]){
+            g.beginPath(); g.moveTo(dx,dy-r2); g.lineTo(dx+r2,dy); g.lineTo(dx,dy+r2); g.lineTo(dx-r2,dy); g.closePath(); g.fill(); }
+        } else if(o.arms){            // 巨腕: 左右に張り出す太い腕
+          g.fillStyle=c; rr(g,-13,-12,26,26,6);
+          g.fillStyle=c; rr(g,-24,-4,11,16,4); rr(g,13,-4,11,16,4);
+          g.fillStyle='rgba(255,255,255,.12)'; rr(g,-22,-2,7,5,2); rr(g,15,-2,7,5,2);
+        } else {
+          g.fillStyle=c; rr(g,-14,-14,28,28,6);
+        }
+        if(o.crack){                  // 溶岩: 体を走る割れ目と、足元へ滴る溶岩
+          g.fillStyle=a;
+          g.beginPath(); g.moveTo(-9,14); g.lineTo(-7,22); g.lineTo(-4,14); g.closePath(); g.fill();
+          g.beginPath(); g.arc(8,19,2.6,0,7); g.fill();
+          g.strokeStyle=a; g.lineWidth=2.4; g.lineCap='round';
+          g.beginPath(); g.moveTo(-10,-12); g.lineTo(-3,-2); g.lineTo(-8,8); g.stroke();
+          g.beginPath(); g.moveTo(8,-10); g.lineTo(3,0); g.lineTo(9,10); g.stroke();
+          g.lineCap='butt';
+        }
         g.fillStyle=a; rr(g,-8,-6,6,6,2); rr(g,2,-6,6,6,2);
         g.fillStyle='#0d1117'; rr(g,-6,6,12,4,2); break;
       case 'ghost':
         g.fillStyle=c; g.beginPath(); g.arc(0,-4,13,Math.PI,0);
         g.lineTo(13,12); g.lineTo(8,7); g.lineTo(3,12); g.lineTo(-3,7); g.lineTo(-8,12); g.lineTo(-13,7);
         g.closePath(); g.fill();
+        if(o.voidEye){            // 虚無: 外へ伸びる触手
+          g.strokeStyle=c; g.lineWidth=3; g.lineCap='round';
+          for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*11,4);
+            g.quadraticCurveTo(sx*22,6,sx*19,17); g.stroke(); }
+          g.lineCap='butt';
+        }
+        if(o.bolt){               // 嵐: 外へ走る稲妻
+          g.strokeStyle='#fde047'; g.lineWidth=2;
+          g.beginPath(); g.moveTo(11,-8); g.lineTo(20,-14); g.lineTo(16,-11); g.lineTo(25,-17); g.stroke();
+          g.beginPath(); g.moveTo(-11,-6); g.lineTo(-19,-13); g.stroke();
+        }
+        if(o.hood){               // 死霊術師: 袖から覗く骨の手
+          g.strokeStyle='#e6edf3'; g.lineWidth=2; g.lineCap='round';
+          for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*10,2); g.lineTo(sx*18,-6); g.stroke();
+            for(let i=-1;i<=1;i++){ g.beginPath(); g.moveTo(sx*18,-6);
+              g.lineTo(sx*22+i*1.5,-11+i*3); g.stroke(); } }
+          g.lineCap='butt';
+        }
+        if(o.tatter){             // 影: 裾が大きく裂ける
+          g.fillStyle='#0d1117'; g.beginPath();
+          g.moveTo(-13,7); g.lineTo(-6,16); g.lineTo(0,6); g.lineTo(6,17); g.lineTo(13,7);
+          g.lineTo(13,14); g.lineTo(-13,14); g.closePath(); g.fill();
+        }
         if(o.hood){ g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,-5,8,0,7); g.fill(); }
-        g.fillStyle=a; g.beginPath(); g.arc(-4,-5,2.5,0,7); g.arc(5,-5,2.5,0,7); g.fill(); break;
+        if(o.icy){                  // 氷: 周囲に舞う氷の粒
+          g.fillStyle='#dff4fb';
+          for(const[dx,dy]of[[-14,-12],[13,-14],[16,2],[-16,3]]){
+            g.beginPath(); g.moveTo(dx,dy-3); g.lineTo(dx+2.4,dy); g.lineTo(dx,dy+3); g.lineTo(dx-2.4,dy); g.closePath(); g.fill(); }
+        }
+        if(o.bolt){                 // 嵐: 体を走る稲妻
+          g.strokeStyle='#fde047'; g.lineWidth=2.2;
+          g.beginPath(); g.moveTo(-6,-14); g.lineTo(1,-4); g.lineTo(-3,-2); g.lineTo(4,10); g.stroke();
+        }
+        if(o.lamp){                 // 賢者: 手元の静かな灯り
+          g.strokeStyle='#8b949e'; g.lineWidth=1.6;
+          g.beginPath(); g.moveTo(14,-10); g.lineTo(14,-2); g.stroke();
+          g.fillStyle='#ffd766'; g.beginPath(); g.arc(14,2,4,0,7); g.fill();
+          g.fillStyle='rgba(255,215,102,.35)'; g.beginPath(); g.arc(14,2,7.5,0,7); g.fill();
+        }
+        if(o.voidEye){              // 虚無: 大きな縦長の単眼
+          g.fillStyle='#0d1117'; g.beginPath(); g.ellipse(0,-5,7,9,0,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.ellipse(0,-5,2.6,6,0,0,7); g.fill();
+        } else {
+          g.fillStyle=a; g.beginPath(); g.arc(-4,-5,2.5,0,7); g.arc(5,-5,2.5,0,7); g.fill();
+        }
+        break;
       case 'jellyfish':
         g.fillStyle=c; g.beginPath(); g.arc(0,-3,13,Math.PI,0); g.closePath(); g.fill();
         g.strokeStyle=a; g.lineWidth=2.5;
@@ -301,6 +536,14 @@ const Sprites = (() => {
         g.beginPath(); g.moveTo(-18,10); g.quadraticCurveTo(-8,-14,2,2); g.quadraticCurveTo(10,14,16,-6); g.stroke();
         g.fillStyle=c; g.beginPath(); g.arc(16,-8,8,0,7); g.fill();
         g.fillStyle=a; g.beginPath(); g.moveTo(-16,12); g.lineTo(-24,18); g.lineTo(-14,18); g.closePath(); g.fill();
+        if(o.wurm){                   // 砂蟲: 体の節と、丸く開いた口
+          g.strokeStyle=a; g.lineWidth=1.8;
+          for(const[x1,y1,x2,y2]of[[-12,-2,-9,8],[-2,-6,1,4],[8,0,11,10]]){
+            g.beginPath(); g.moveTo(x1,y1); g.lineTo(x2,y2); g.stroke(); }
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(19,-9,4.6,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.arc(19,-9,2.2,0,7); g.fill();
+          break;
+        }
         eye(18,-10,2.2); break;
       case 'dragon':
         g.fillStyle=c; g.beginPath(); g.ellipse(0,2,14,11,0,0,7); g.fill();
@@ -310,9 +553,25 @@ const Sprites = (() => {
         g.fillStyle=c; g.beginPath(); g.moveTo(-3,-13); g.lineTo(0,-20); g.lineTo(3,-13); g.closePath(); g.fill();
         eye(-3,-8,2); eye(3,-8,2); break;
       case 'demon':
+        if(o.abyss){                  // 深淵: 体の下から伸びる触腕
+          g.strokeStyle=c; g.lineWidth=4; g.lineCap='round';
+          for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*6,14);
+            g.quadraticCurveTo(sx*18,18,sx*15,26); g.stroke(); }
+          g.lineCap='butt';
+        }
         g.fillStyle=c; rr(g,-11,-8,22,24,6);
-        g.beginPath(); g.moveTo(-9,-8); g.lineTo(-15,-20); g.lineTo(-4,-12); g.closePath(); g.fill();
-        g.beginPath(); g.moveTo(9,-8); g.lineTo(15,-20); g.lineTo(4,-12); g.closePath(); g.fill();
+        if(o.bighorn){                // 大角: 太く外へ巻く角
+          g.beginPath(); g.moveTo(-9,-8); g.lineTo(-24,-24); g.lineTo(-3,-13); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(9,-8); g.lineTo(24,-24); g.lineTo(3,-13); g.closePath(); g.fill();
+        } else {
+          g.beginPath(); g.moveTo(-9,-8); g.lineTo(-15,-20); g.lineTo(-4,-12); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(9,-8); g.lineTo(15,-20); g.lineTo(4,-12); g.closePath(); g.fill();
+        }
+        if(o.imp){                    // 小鬼: 炎の尾
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(10,10); g.quadraticCurveTo(22,10,20,0);
+          g.quadraticCurveTo(24,8,14,15); g.closePath(); g.fill();
+        }
         g.fillStyle=a; g.beginPath(); g.arc(-4,-2,3,0,7); g.arc(5,-2,3,0,7); g.fill();
         g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.moveTo(-5,8); g.lineTo(5,8); g.stroke(); break;
       case 'reaper':
@@ -328,7 +587,24 @@ const Sprites = (() => {
       case 'tree':
         g.fillStyle=a; rr(g,-4,2,8,16,2);
         g.fillStyle=c; g.beginPath(); g.arc(0,-8,14,0,7); g.fill();
-        g.beginPath(); g.arc(-9,0,9,0,7); g.fill(); g.beginPath(); g.arc(9,0,9,0,7); g.fill(); break;
+        g.beginPath(); g.arc(-9,0,9,0,7); g.fill(); g.beginPath(); g.arc(9,0,9,0,7); g.fill();
+        if(o.snow){                   // 雪: 枝葉に積もる白
+          g.fillStyle='#f2f8fc';
+          g.beginPath(); g.arc(0,-13,9,Math.PI,0); g.closePath(); g.fill();
+          g.beginPath(); g.arc(-11,-3,5.5,Math.PI,0); g.closePath(); g.fill();
+          g.beginPath(); g.arc(11,-3,5.5,Math.PI,0); g.closePath(); g.fill();
+        }
+        if(o.gold){                   // 金の古木: 垂れ下がる金の枝と実
+          g.strokeStyle=a; g.lineWidth=2.2; g.lineCap='round';
+          for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*12,-4);
+            g.quadraticCurveTo(sx*21,0,sx*19,9); g.stroke();
+            g.fillStyle='#fff3b0'; g.beginPath(); g.arc(sx*19,12,3,0,7); g.fill(); }
+          g.lineCap='butt';
+          g.fillStyle='#fff3b0';
+          for(const[dx,dy]of[[-7,-11],[6,-13],[0,-3],[11,2],[-11,1]]){
+            g.beginPath(); g.arc(dx,dy,2.8,0,7); g.fill(); }
+        }
+        break;
       case 'rock':
         g.fillStyle=c; g.beginPath(); g.moveTo(-14,12); g.lineTo(-10,-6); g.lineTo(0,-13); g.lineTo(12,-4); g.lineTo(14,12); g.closePath(); g.fill();
         g.fillStyle=a; g.beginPath(); g.moveTo(-2,-10); g.lineTo(6,-4); g.lineTo(0,2); g.closePath(); g.fill(); break;
@@ -361,6 +637,72 @@ const Sprites = (() => {
         g.fillStyle=c; g.beginPath(); g.moveTo(0,-11); g.lineTo(9,0); g.lineTo(0,11); g.lineTo(-9,0); g.closePath(); g.fill();
         g.fillStyle='rgba(255,255,255,.55)'; g.beginPath(); g.moveTo(0,-11); g.lineTo(9,0); g.lineTo(0,0); g.closePath(); g.fill(); break;
       // ---- 素材の固有形状 ----
+      case 'm_cinder':  // 燃えさし: 火の粉を散らす炭
+        g.fillStyle='#3a2a24'; g.beginPath();
+        g.moveTo(-9,6); g.lineTo(-4,-4); g.lineTo(4,-6); g.lineTo(9,4); g.lineTo(2,10); g.closePath(); g.fill();
+        g.fillStyle=c; g.beginPath(); g.moveTo(-4,3); g.lineTo(0,-2); g.lineTo(4,3); g.closePath(); g.fill();
+        g.fillStyle='#ffb066';
+        for(const[dx,dy,r2]of[[-8,-8,1.8],[5,-11,1.4],[10,-4,1.2]]){g.beginPath();g.arc(dx,dy,r2,0,7);g.fill();}
+        break;
+      case 'm_ice':     // 氷片: 六方の結晶
+        g.strokeStyle=c; g.lineWidth=3; g.lineCap='round';
+        for(let i=0;i<3;i++){ const t2=i*Math.PI/3;
+          g.beginPath(); g.moveTo(-Math.cos(t2)*11,-Math.sin(t2)*11);
+          g.lineTo(Math.cos(t2)*11,Math.sin(t2)*11); g.stroke(); }
+        g.strokeStyle='rgba(255,255,255,.7)'; g.lineWidth=1.4;
+        for(let i=0;i<3;i++){ const t2=i*Math.PI/3;
+          g.beginPath(); g.moveTo(Math.cos(t2)*7,Math.sin(t2)*7);
+          g.lineTo(Math.cos(t2)*7+3,Math.sin(t2)*7-3); g.stroke(); }
+        g.lineCap='butt'; break;
+      case 'm_soul':    // 魂のかけら: 尾を引く炎の粒
+        g.fillStyle=c; g.beginPath();
+        g.moveTo(0,-12); g.quadraticCurveTo(8,-2,4,6);
+        g.quadraticCurveTo(0,12,-4,6); g.quadraticCurveTo(-8,-2,0,-12); g.fill();
+        g.fillStyle='rgba(255,255,255,.75)'; g.beginPath(); g.ellipse(0,1,2.6,4,0,0,7); g.fill(); break;
+      case 'm_relic':   // 遺物: 欠けた歯車つきの円盤
+        g.fillStyle=c; g.beginPath(); g.arc(0,0,10,0.5,6.0); g.closePath(); g.fill();
+        g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,3.6,0,7); g.fill();
+        g.fillStyle=c;
+        for(let i=0;i<5;i++){ const t2=1+i*1.05;
+          g.beginPath(); g.arc(Math.cos(t2)*11,Math.sin(t2)*11,2.2,0,7); g.fill(); }
+        break;
+      case 'm_dew':     // 雫: 葉に載った露
+        g.fillStyle='#2ea043'; g.beginPath();
+        g.moveTo(-11,6); g.quadraticCurveTo(0,12,11,4); g.quadraticCurveTo(0,2,-11,6); g.fill();
+        g.fillStyle=c; g.beginPath();
+        g.moveTo(0,-11); g.quadraticCurveTo(7,-2,0,3); g.quadraticCurveTo(-7,-2,0,-11); g.fill();
+        g.fillStyle='rgba(255,255,255,.8)'; g.beginPath(); g.arc(-2,-3,1.8,0,7); g.fill(); break;
+      case 'm_veil':    // 帳(とばり): たなびく薄布
+        g.fillStyle=c; g.globalAlpha=.85; g.beginPath();
+        g.moveTo(-11,-8); g.quadraticCurveTo(0,-3,11,-9);
+        g.lineTo(11,5); g.quadraticCurveTo(4,11,-2,5);
+        g.quadraticCurveTo(-7,10,-11,4); g.closePath(); g.fill(); g.globalAlpha=1;
+        g.strokeStyle='rgba(255,255,255,.5)'; g.lineWidth=1.2;
+        g.beginPath(); g.moveTo(-6,-6); g.lineTo(-5,5); g.moveTo(5,-7); g.lineTo(6,4); g.stroke(); break;
+      case 'm_dust':    // 星屑: 大小の粒が散る
+        g.fillStyle=c;
+        for(const[dx,dy,r2]of[[0,-7,3.4],[-8,3,2.4],[7,4,2.8],[-3,9,1.6],[9,-5,1.6]]){
+          g.beginPath(); g.arc(dx,dy,r2,0,7); g.fill(); }
+        g.fillStyle='rgba(255,255,255,.85)'; g.beginPath(); g.arc(0,-7,1.4,0,7); g.fill(); break;
+      case 'm_fang':    // 獣の牙: 反った一本牙
+        g.fillStyle=c; g.beginPath();
+        g.moveTo(-4,-11); g.quadraticCurveTo(6,-4,3,11);
+        g.quadraticCurveTo(-1,2,-6,-6); g.closePath(); g.fill();
+        g.fillStyle='rgba(255,255,255,.5)'; g.beginPath();
+        g.moveTo(-3,-9); g.quadraticCurveTo(2,-4,1,2); g.quadraticCurveTo(-2,-3,-4,-7); g.fill(); break;
+      case 'm_obsid':   // 黒曜: 鋭く割れた黒い刃
+        g.fillStyle=c; g.beginPath();
+        g.moveTo(-2,-12); g.lineTo(7,-1); g.lineTo(2,12); g.lineTo(-7,2); g.closePath(); g.fill();
+        g.fillStyle='rgba(255,255,255,.4)'; g.beginPath();
+        g.moveTo(-2,-12); g.lineTo(7,-1); g.lineTo(-1,-2); g.closePath(); g.fill(); break;
+      case 'm_sun':     // 陽の石: 光条をもつ円
+        g.fillStyle=c; g.beginPath(); g.arc(0,0,7,0,7); g.fill();
+        g.strokeStyle=c; g.lineWidth=2.2; g.lineCap='round';
+        for(let i=0;i<8;i++){ const t2=i*Math.PI/4;
+          g.beginPath(); g.moveTo(Math.cos(t2)*9,Math.sin(t2)*9);
+          g.lineTo(Math.cos(t2)*12.5,Math.sin(t2)*12.5); g.stroke(); }
+        g.lineCap='butt';
+        g.fillStyle='rgba(255,255,255,.7)'; g.beginPath(); g.arc(-2,-2,2.4,0,7); g.fill(); break;
       case 'm_drop':   // ゼリー: しずく
         g.fillStyle=c; g.beginPath(); g.moveTo(0,-13); g.quadraticCurveTo(11,2,7,8);
         g.arc(0,8,8,0,Math.PI); g.quadraticCurveTo(-11,2,0,-13); g.fill();
@@ -436,6 +778,10 @@ const Sprites = (() => {
           g.beginPath(); g.ellipse(0,4,16-i*2.6,13-i*2.2,0,0,7); g.fill();
         }
         g.globalAlpha=1;
+        g.fillStyle='#fff'; g.globalAlpha=.9;   // 外へ散る虹の輝き
+        for(const[dx,dy,r2]of[[-20,-8,2.4],[19,-11,2],[22,4,1.8],[-18,9,2.2],[0,-19,2.6]]){
+          g.beginPath(); g.arc(dx,dy,r2,0,7); g.fill(); }
+        g.globalAlpha=1;
         g.fillStyle='#0d1117'; g.beginPath(); g.arc(-5,0,3,0,7); g.arc(5,0,3,0,7); g.fill();
         g.fillStyle='#fff'; g.beginPath(); g.arc(-6,-1,1.2,0,7); g.arc(4,-1,1.2,0,7); g.fill(); break;
       case 'm_abyss':  // 深淵の核: 暗黒球+紫リング
@@ -471,6 +817,68 @@ const Sprites = (() => {
           g.fillStyle=c; g.beginPath(); g.moveTo(-20,18); g.lineTo(0,-18); g.lineTo(20,18); g.closePath(); g.fill();
           g.fillStyle='#0d1117'; g.beginPath(); g.moveTo(-7,18); g.lineTo(0,2); g.lineTo(7,18); g.closePath(); g.fill();
           g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.moveTo(-4,-16); g.lineTo(-10,-26); g.moveTo(4,-16); g.lineTo(10,-26); g.stroke();
+        } else if (v === 'emberforge') {  // 火の民: 岩の裂け目から噴く御神火
+          g.fillStyle='#3a2a24'; g.beginPath();
+          g.moveTo(-20,18); g.lineTo(-12,-6); g.lineTo(-4,4); g.lineTo(6,-10); g.lineTo(20,18); g.closePath(); g.fill();
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-6,6); g.quadraticCurveTo(-2,-10,1,-20); g.quadraticCurveTo(6,-8,8,6); g.closePath(); g.fill();
+          g.fillStyle='#ffe0a8'; g.beginPath();
+          g.moveTo(-2,6); g.quadraticCurveTo(0,-4,2,-12); g.quadraticCurveTo(4,-4,5,6); g.closePath(); g.fill();
+        } else if (v === 'factory') {     // 工房都市: 並ぶ煙突と歯車
+          g.fillStyle=c; rr(g,-22,-2,44,22,2);
+          g.fillStyle='#57606a';
+          for(const x of[-14,-2,10]) g.fillRect(x,-16,7,16);
+          g.fillStyle='rgba(139,148,158,.55)';
+          for(const[dx,dy,r2]of[[-11,-22,4],[-5,-28,3],[13,-21,3.4]]){g.beginPath();g.arc(dx,dy,r2,0,7);g.fill();}
+          g.strokeStyle=a; g.lineWidth=2.4; g.beginPath(); g.arc(12,10,6,0,7); g.stroke();
+          for(let i=0;i<6;i++){const t2=i/6*6.28; g.beginPath();
+            g.moveTo(12+Math.cos(t2)*6,10+Math.sin(t2)*6);
+            g.lineTo(12+Math.cos(t2)*9,10+Math.sin(t2)*9); g.stroke();}
+        } else if (v === 'frostshrine') { // 霜の祠: 氷柱に覆われた小祠
+          g.fillStyle='#5b6b78'; rr(g,-14,-2,28,20,2);
+          g.fillStyle='#8fa8b5'; g.beginPath();
+          g.moveTo(-19,-2); g.lineTo(0,-16); g.lineTo(19,-2); g.closePath(); g.fill();
+          g.fillStyle=a;
+          for(const[dx,h]of[[-13,9],[-6,13],[2,10],[10,14]]){ g.beginPath();
+            g.moveTo(dx-2.4,-2); g.lineTo(dx,-2+h); g.lineTo(dx+2.4,-2); g.closePath(); g.fill(); }
+          g.fillStyle='#0d1117'; rr(g,-4,6,8,12,1.5);
+        } else if (v === 'abbeytower') {  // 修道院: 高い鐘楼
+          g.fillStyle=c; rr(g,-8,-18,16,36,2);
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-11,-18); g.lineTo(0,-30); g.lineTo(11,-18); g.closePath(); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,-11,4.6,Math.PI,0); g.closePath(); g.fill();
+          g.fillStyle=a; g.beginPath(); g.arc(0,-11,2.4,0,7); g.fill();
+          g.fillStyle=c; rr(g,-18,4,36,14,2);
+        } else if (v === 'sunken') {      // 沈み都: 水面下に沈む尖塔と気泡
+          g.fillStyle='rgba(120,190,215,.30)'; g.fillRect(-24,-8,48,28);
+          g.fillStyle=c; g.beginPath();
+          g.moveTo(-10,18); g.lineTo(-6,-12); g.lineTo(0,-22); g.lineTo(6,-12); g.lineTo(10,18); g.closePath(); g.fill();
+          g.fillStyle=a; rr(g,-18,8,36,10,2);
+          g.fillStyle='rgba(255,255,255,.5)';
+          for(const[dx,dy,r2]of[[-14,-2,2.4],[13,-6,2],[8,-14,1.6]]){g.beginPath();g.arc(dx,dy,r2,0,7);g.fill();}
+        } else if (v === 'camp') {        // 宿場: 並ぶ天幕と焚き火
+          g.fillStyle=c;
+          g.beginPath(); g.moveTo(-22,16); g.lineTo(-11,-6); g.lineTo(0,16); g.closePath(); g.fill();
+          g.beginPath(); g.moveTo(2,16); g.lineTo(11,-2); g.lineTo(20,16); g.closePath(); g.fill();
+          g.fillStyle='#0d1117';
+          g.beginPath(); g.moveTo(-15,16); g.lineTo(-11,5); g.lineTo(-7,16); g.closePath(); g.fill();
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-3,18); g.quadraticCurveTo(0,8,3,18); g.closePath(); g.fill();
+        } else if (v === 'hermit') {      // 庵: 岩室と一本の細道
+          g.fillStyle='#4a5260'; g.beginPath();
+          g.moveTo(-20,18); g.lineTo(-14,-6); g.lineTo(2,-14); g.lineTo(18,-2); g.lineTo(20,18); g.closePath(); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,10,7,Math.PI,0); g.closePath(); g.fill();
+          g.fillStyle=a; g.globalAlpha=.6; g.beginPath(); g.arc(0,12,3,0,7); g.fill(); g.globalAlpha=1;
+          g.strokeStyle='rgba(214,192,148,.5)'; g.lineWidth=2.4;
+          g.beginPath(); g.moveTo(0,18); g.lineTo(-4,24); g.stroke();
+        } else if (v === 'mistobs') {     // 霧の観測所: 霧に沈む観測窓と霧笛
+          g.fillStyle=c; rr(g,-16,-6,32,24,2);
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,0,7,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.arc(-2,-2,3,0,7); g.fill();
+          g.fillStyle='#57606a'; g.beginPath();
+          g.moveTo(11,-6); g.lineTo(20,-14); g.lineTo(20,-4); g.closePath(); g.fill();
+          g.fillStyle='rgba(200,214,220,.45)';
+          for(const[dy,w]of[[10,22],[15,17]]){ g.beginPath(); g.ellipse(0,dy,w,3.4,0,0,7); g.fill(); }
         } else if (v === 'spa') {     // 湯治場: 岩組みの湯壺+湯気+のれん
           g.fillStyle='#57606a'; g.beginPath(); g.ellipse(0,12,22,10,0,0,7); g.fill();
           g.fillStyle=a; g.beginPath(); g.ellipse(0,10,17,7,0,0,7); g.fill();
@@ -541,10 +949,33 @@ const Sprites = (() => {
         }
         break; }
       case 'building':
-        g.fillStyle=c; rr(g,-18,-8,36,24,4);
+        if(o.well){                  // 井戸: 石積みと屋根を支える柱・釣瓶
+          g.fillStyle='#57606a'; rr(g,-13,2,26,16,3);
+          g.strokeStyle='#3d4650'; g.lineWidth=1.4;
+          g.beginPath(); g.moveTo(-13,9); g.lineTo(13,9); g.moveTo(0,2); g.lineTo(0,9); g.stroke();
+          g.fillStyle='#6e4c30'; g.fillRect(-11,-14,3.4,17); g.fillRect(7.6,-14,3.4,17);
+          g.fillStyle=c; g.beginPath();
+          g.moveTo(-16,-14); g.lineTo(0,-24); g.lineTo(16,-14); g.closePath(); g.fill();
+          g.strokeStyle=a; g.lineWidth=1.4; g.beginPath(); g.moveTo(0,-14); g.lineTo(0,-4); g.stroke();
+          g.fillStyle='#6e4c30'; rr(g,-4,-6,8,6,1);
+          break;
+        }
+        if(o.row){                   // 集合家屋: 二棟が寄り添う切妻
+          g.fillStyle=c; rr(g,-20,-4,22,20,2);
+          g.beginPath(); g.moveTo(-23,-4); g.lineTo(-9,-17); g.lineTo(5,-4); g.closePath(); g.fill();
+          g.fillStyle='#5b626b'; rr(g,2,0,18,16,2);
+          g.beginPath(); g.moveTo(0,0); g.lineTo(11,-11); g.lineTo(22,0); g.closePath(); g.fill();
+          g.fillStyle=a; g.fillRect(-14,2,6,6); g.fillRect(8,5,5,5);
+          g.fillStyle='#0d1117'; rr(g,-5,6,7,10,1.5);
+          g.fillStyle='#57606a'; g.fillRect(-4,-22,4,6);   // 煙突
+          break;
+        }
+        g.fillStyle=c; rr(g,-18,-8,36,24,4);   // 一軒家
         g.beginPath(); g.moveTo(-22,-8); g.lineTo(0,-24); g.lineTo(22,-8); g.closePath(); g.fill();
         g.fillStyle='#0d1117'; rr(g,-6,2,12,14,3);
-        g.fillStyle=a; g.font='12px sans-serif'; g.textAlign='center'; g.fillText(o.sym||'?',0,-10); break;
+        g.fillStyle=a; g.fillRect(-15,-2,7,7); g.fillRect(8,-2,7,7);   // 灯りの窓
+        g.fillStyle='#57606a'; g.fillRect(9,-22,5,8);                  // 煙突
+        break;
       case 'altarb':   // 強化の祭壇: 段のある石壇+魂の炎(先人オウが築いたもの)
         g.fillStyle='#57606a'; rr(g,-24,14,48,9,3);
         g.fillStyle=c;         rr(g,-18,6,36,10,3);
@@ -640,7 +1071,18 @@ const Sprites = (() => {
       case 'gate':
         g.strokeStyle=c; g.lineWidth=5;
         g.beginPath(); g.ellipse(0,0,13,19,0,0,7); g.stroke();
-        g.fillStyle=a; g.globalAlpha=.5; g.beginPath(); g.ellipse(0,0,9,15,0,0,7); g.fill(); g.globalAlpha=1; break;
+        g.fillStyle=a; g.globalAlpha=.5; g.beginPath(); g.ellipse(0,0,9,15,0,0,7); g.fill(); g.globalAlpha=1;
+        if(o.warp){                   // 転移の渦(魂の広場のゲートとは別物)。外側にもう一つ環
+          g.strokeStyle=c; g.lineWidth=2;
+          g.beginPath(); g.ellipse(0,0,19,25,0,0,7); g.stroke();
+          g.strokeStyle=a; g.lineWidth=2;
+          g.beginPath();
+          for(let i=0;i<=40;i++){ const t2=i/40*4.2, r2=1.2+t2*2.1;
+            const x2=Math.cos(t2)*r2*0.7, y2=Math.sin(t2)*r2;
+            i?g.lineTo(x2,y2):g.moveTo(x2,y2); }
+          g.stroke();
+        }
+        break;
       case 'icon':
         g.fillStyle='#161b22'; rr(g,-22,-22,44,44,10);
         g.strokeStyle=c; g.lineWidth=3; strokeRR(g,-22,-22,44,44,10);
