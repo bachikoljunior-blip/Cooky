@@ -209,6 +209,8 @@ const Run = (() => {
         setTimeout(tryAnnounce, 2500);
       }
     }
+    R.usedShrines = {};   // 古の祠は「周回に一度」― 新しい周回では祈り直せる
+    R.bless = null;       // 前の周回の加護は持ち越さない
     R.foeMap = new Map();         // マップ用の敵目撃情報 cellKey -> {x,y,t,boss}(離れて消えても保持)
     R.foeScanT = 0;
     R.interact = null;
@@ -2220,7 +2222,8 @@ const Run = (() => {
     if (!p.onBoat) {
       for (const port of World.ports) {
         if (Math.hypot(p.x - port.x, p.y - port.y) < 110) {
-          R.interact = { type:'enterport', port, label:'E: 港町「' + port.name + '」に入る' };
+          R.interact = { type:'enterport', port,
+            label: port.name.includes('港') ? 'E: 「' + port.name + '」に入る' : 'E: 港町「' + port.name + '」に入る' };
           break;
         }
         if (SaveSys.data.ports[port.id] && Math.hypot(p.x - port.seaX, p.y - port.seaY) < 100) {
@@ -2315,7 +2318,7 @@ const Run = (() => {
     R.bless = { name: bl.name, c: bl.c, mul: bl.mul, until: R.time + 75 };
     effect('ring', lm.x, lm.y, { color: bl.c, r: 110 });
     Sfx.skill();
-    R.warnMsg = '⛩ 古の祠の加護:「' + bl.name + '」(75秒)';
+    R.warnMsg = '⛩ 「' + bl.name + '」を授かった(75秒)';
     R.warnColor = bl.c; R.warnT = 4;
     R.noInteractT = 0.8;
   }
@@ -2585,12 +2588,12 @@ const Run = (() => {
         if (L) {
           const bio = DATA.BIOMES[bd.biome] || DATA.BIOMES.grass;
           const mm = faunaMats(DATA.BIOME_FAUNA[bd.biome] || []);
-          if (!warnBusy) R.warnMsg = '― バイオドーム <' + bio.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          if (!warnBusy) R.warnMsg = '― 風土〈' + bio.name + '〉―' + (mm ? '\nよく採れる: ' + mm : '');
           R.bioFxT = 2.4; R.bioFxColors = bio.deco;   // 越境の演出(その土地の色の粒子)
         } else {
           const sb = DATA.SEA_BIOMES[seaKey] || { name:'海', fauna: DATA.SEA_FAUNA };
           const mm = faunaMats(sb.fauna || []);
-          if (!warnBusy) R.warnMsg = '― 海域 <' + sb.name + '> ―' + (mm ? ' 出る素材: ' + mm : '');
+          if (!warnBusy) R.warnMsg = '― 海域〈' + sb.name + '〉―' + (mm ? '\nよく採れる: ' + mm : '');
           R.bioFxT = 2.4; R.bioFxColors = ['#e6edf3', sb.c1 || '#58a6ff', '#76e3ea'];
         }
         if (!warnBusy) { R.warnColor = '#a5d8ff'; R.warnT = 4; }
@@ -2710,7 +2713,20 @@ const Run = (() => {
     // HPゲージはボスも含め全モンスター共通仕様(頭上に表示。通常敵は一定幅、ボスは体の大きさぶん)
     if (e.hp < e.maxHp) {
       const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
-      drawBar(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12, bw, e.hp / e.maxHp, '#f85149');
+      const bh = e.boss ? 7 : 4;   // ボスは太めのバーで残りが読める
+      const by2 = e.y - e.def.r * (e.sizeMul || 1) - 12;
+      if (e.boss) {
+        g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(e.x - bw / 2, by2, bw, bh);
+        g.fillStyle = '#f85149';
+        g.fillRect(e.x - bw / 2, by2, bw * Math.max(0, Math.min(1, e.hp / e.maxHp)), bh);
+      } else {
+        drawBar(g, e.x, by2, bw, e.hp / e.maxHp, '#f85149');
+      }
+    }
+    // ボス・リーパーは名前を頭上に(名のある強敵だと一目で分かる)
+    if (e.boss || e.def.isReaper) {
+      labelChip(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 22,
+        e.bossName || e.def.name, e.boss ? '#ffd766' : '#c084fc', 11);
     }
     if (e.def.heal) {
       g.fillStyle = '#7ee787'; g.font = 'bold 12px sans-serif'; g.textAlign = 'center';
@@ -3081,7 +3097,9 @@ const Run = (() => {
       }
       if (SaveSys.data.ports[port.id]) Sprites.draw(g, 'boat', port.seaX, port.seaY, 44);
       else Sprites.draw(g, 'ob_wreck', port.seaX, port.seaY, 44);
-      labelChip(g, port.x, port.y - 34,
+      // 画面上端に隠れる時は名札をシンボルの下側へ
+      const plY = port.y - 34 < camY + 140 / (R.zoom || 1) ? port.y + 64 : port.y - 34;
+      labelChip(g, port.x, plY,
         (SaveSys.data.ports[port.id] ? '⚓ ' : '🛠 ') + port.name,
         SaveSys.data.ports[port.id] ? '#76e3ea' : '#e6edf3', 11);
     }
@@ -3112,7 +3130,9 @@ const Run = (() => {
         g.strokeStyle = 'rgba(88,166,255,.5)'; g.lineWidth = 2;
         g.beginPath(); g.arc(b.x, b.y, 150, 0, 7); g.stroke();
       }
-      labelChip(g, b.x, b.y - 54,
+      // 画面上端に隠れる時は名札をシンボルの下側へ
+      const blY = b.y - 54 < camY + 140 / (R.zoom || 1) ? b.y + 66 : b.y - 54;
+      labelChip(g, b.x, blY,
         (un ? '✦ ' : '') + b.name + (b.kind ? '〈' + b.kind + '〉' : ''),
         un ? '#7ee787' : '#c9d1d9', 11);
       // 中に用事(未解放クエスト・報告・住民の依頼)があれば ❗
@@ -3190,10 +3210,12 @@ const Run = (() => {
     // エフェクト
     drawEffects(g);
 
-    // ダメージポップ
+    // ダメージポップ: 暗い縁取り付きで、どのバイオームの地面でも読める
     g.font = 'bold 13px sans-serif'; g.textAlign = 'center';
+    g.strokeStyle = 'rgba(8,12,22,.85)'; g.lineWidth = 3; g.lineJoin = 'round';
     for (const pp of R.popups) {
       g.globalAlpha = Math.min(1, pp.t * 2);
+      g.strokeText(pp.txt, pp.x, pp.y);
       g.fillStyle = pp.color;
       g.fillText(pp.txt, pp.x, pp.y);
     }
@@ -3281,24 +3303,8 @@ const Run = (() => {
 
     // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
 
-    drawVignette(g, W, H);   // 画面周縁をわずかに落として視線を中央へ
-    drawMinimap(g, W);
+    if (!R.mapFull) drawMinimap(g, W);   // 全体図表示中は周辺図を重ねない
     drawFullMap(g, W, H);   // 全画面の全体図(開いている時のみ)
-  }
-
-  // ビネット(サイズごとに一度だけ生成してキャッシュ)
-  let vigCache = null;
-  function drawVignette(g, W, H){
-    if (!vigCache || vigCache.w !== W || vigCache.h !== H) {
-      const cv = document.createElement('canvas'); cv.width = W; cv.height = H;
-      const c = cv.getContext('2d');
-      const grd = c.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.44, W / 2, H / 2, Math.hypot(W, H) / 2);
-      grd.addColorStop(0, 'rgba(6,10,20,0)');
-      grd.addColorStop(1, 'rgba(6,10,20,.30)');
-      c.fillStyle = grd; c.fillRect(0, 0, W, H);
-      vigCache = { cv, w: W, h: H };
-    }
-    g.drawImage(vigCache.cv, 0, 0);
   }
 
   function drawBar(g, x, y, w, ratio, color){
@@ -3415,6 +3421,7 @@ const Run = (() => {
     // 基地・港は「発見済み」か「解放済み」だけ表示(行くまでわからない)。
     // 場所を知る手段は物語のヒント(?)・visit依頼の📍・実際に画面で見ること、だけ。
     // 見つけた場所は霧の上でもはっきり見える印+全体図では名前つき
+    const labelRects = [];   // 置いたラベルの矩形(重なったら位置を退避)
     const marker = (wx, wy, c, r, label) => {
       if (!view.inView(wx, wy)) return;
       const q = view.toMM(wx, wy);
@@ -3424,9 +3431,25 @@ const Run = (() => {
       g.strokeStyle = '#0b0f1a'; g.lineWidth = Math.max(1, 1.2 * mk);
       g.beginPath(); g.arc(mx, my, (r || 3.5) * mk, 0, 7); g.fill(); g.stroke();
       if (label && mode === 'world') {
-        g.font = 'bold ' + Math.round(8.5 * mk) + 'px sans-serif'; g.textAlign = 'center';
-        g.fillStyle = '#0b0f1a'; g.fillText(label, mx + 1, my - 5.5 * mk + 1);   // 影(霧の上でも読める)
-        g.fillStyle = c; g.fillText(label, mx, my - 5.5 * mk);
+        g.font = 'bold ' + Math.round(8.5 * mk) + 'px sans-serif';
+        const lw2 = g.measureText(label).width;
+        // 候補: 上 → 下 → 右。全部ふさがっていたらドットのみ(この縮尺では読めないため)
+        const cand = [
+          { x: mx, y: my - 5.5 * mk, align: 'center' },
+          { x: mx, y: my + 13 * mk, align: 'center' },
+          { x: mx + 7 * mk, y: my + 3, align: 'left' },
+        ];
+        for (const cd of cand) {
+          const lx = cd.align === 'center' ? cd.x - lw2 / 2 : cd.x;
+          const rect = { x1: lx - 2, y1: cd.y - 9 * mk, x2: lx + lw2 + 2, y2: cd.y + 2 };
+          if (labelRects.some(o => rect.x1 < o.x2 && rect.x2 > o.x1 && rect.y1 < o.y2 && rect.y2 > o.y1)) continue;
+          labelRects.push(rect);
+          g.textAlign = cd.align;
+          g.fillStyle = '#0b0f1a'; g.fillText(label, cd.x + 1, cd.y + 1);   // 影(霧の上でも読める)
+          g.fillStyle = c; g.fillText(label, cd.x, cd.y);
+          g.textAlign = 'center';
+          break;
+        }
       }
     };
     const seen = SaveSys.data.seen || {};
@@ -3452,7 +3475,17 @@ const Run = (() => {
       g.fillStyle = '#ff7b72'; g.font = 'bold ' + Math.round(10 * mk) + 'px sans-serif'; g.textAlign = 'center';
       g.fillText('📍', x0 + q.x * mmScale, y0 + q.y * mmScale + 3);
     }
-    dot(R.player.x, R.player.y, '#fff', 3.5);
+    // 自機: 明るい地色のバイオームでも見失わない黒リング付きの白丸
+    if (view.inView(R.player.x, R.player.y)) {
+      const q = view.toMM(R.player.x, R.player.y);
+      if (q.x >= 0 && q.x <= World.MM_SIZE && q.y >= 0 && q.y <= World.MM_SIZE) {
+        const px2 = x0 + q.x * mmScale, py2 = y0 + q.y * mmScale;
+        g.fillStyle = '#fff';
+        g.beginPath(); g.arc(px2, py2, 3.5 * mk, 0, 7); g.fill();
+        g.strokeStyle = '#0b0f1a'; g.lineWidth = Math.max(1.5, 1.2 * mk);
+        g.beginPath(); g.arc(px2, py2, 3.5 * mk, 0, 7); g.stroke();
+      }
+    }
     // 拠点ヒント: 話に聞いただけの場所は「おおよその見当」。正確な位置ではなく
     // 少しずれた所に?を描く ― 現地では煙や灯台の光を目で探して見つける
     const pulse = 0.65 + 0.35 * Math.sin(R.time * 5);
@@ -3619,6 +3652,8 @@ const Run = (() => {
       const isAlarm = !R.warnColor || R.warnColor === '#ff7b72' || R.warnColor === '#f85149';
       warnEl.classList.toggle('danger', isAlarm);
       warnEl.classList.remove('hidden');
+      // 危険警告はクエスト帯より優先(重なって警告が読めない事故を防ぐ)
+      if (isAlarm) qObj.classList.add('hidden');
     } else { warnEl.classList.add('hidden'); R.warnColor = null; }
     if (R.interact && R.interact.type !== 'land') {
       // 「E: 〜」はキーキャップ+本文に分けて表示

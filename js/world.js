@@ -241,10 +241,18 @@ const World = (() => {
       if (near) continue;
       const ohp = rare ? 70 : (type === 'rock' ? 30 : (type === 'wreck' ? 40 : 18));
       const curHp = objHp.has(key) ? objHp.get(key) : ohp;   // 削ったHPは回復しない
+      // 木は風土に合わせた見た目に(砂漠・火山・魔界などは枯れ木、氷原・月影は雪木)。
+      // HP・ドロップは変えない ― 見た目のみ
+      let spr = { tree:'ob_tree', rock:'ob_rock', crate:'ob_crate', wreck:'ob_wreck', coral:'ob_coral',
+                  goldtree:'ob_goldtree', pearlshell:'ob_pearl' }[type];
+      if (type === 'tree') {
+        const bio = biodomeAt(x, y).biome;
+        if (['desert', 'bones', 'volcano', 'magma', 'makai', 'void', 'end'].includes(bio)) spr = 'ob_tree_dry';
+        else if (['frost', 'moon'].includes(bio)) spr = 'ob_tree_snow';
+      }
       list.push({ key, x, y, type, rare,
         hp: curHp, maxHp: ohp,
-        sprite: { tree:'ob_tree', rock:'ob_rock', crate:'ob_crate', wreck:'ob_wreck', coral:'ob_coral',
-                  goldtree:'ob_goldtree', pearlshell:'ob_pearl' }[type],
+        sprite: spr,
         r: 16 });
     }
     return list;

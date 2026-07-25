@@ -30,7 +30,7 @@ const Hub = (() => {
         { kind:'stats',  x:-280, y:235 },
         // ストーリーで移り住んでくる住民たち(泉の向かい・広場の東側で暮らす)
         ...((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
-          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:210 + i * 230, y:135 })),
+          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:150 + i * 160, y:135 })),
       ];
     }
     // 港町エリア: 船大工・(修理後)貿易商・住民・ゲート。船は実寸大で桟橋に停泊
@@ -39,7 +39,11 @@ const Hub = (() => {
       const plist = [
         { kind:'portnpc', port: pid, x:-300, y:-60 },
         { kind:'gate', x:-420, y:250 },
-        { kind:'villager', v: DATA.VILLAGERS[4], x:340, y:-120 },   // 渡りの漁師
+        // 住民は港ごとに顔ぶれが変わり、桟橋の上に立つ(海面に浮かばない)
+        { kind:'villager', v: DATA.VILLAGERS[(() => {
+            let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
+            return Math.abs(h) % DATA.VILLAGERS.length;
+          })()], x:250, y:155 },
       ];
       if (SaveSys.data.ports[pid]) plist.push({ kind:'trader', port: pid, x:-120, y:-140 });
       return plist;
@@ -52,7 +56,13 @@ const Hub = (() => {
       const x = (i - (present.length - 1) / 2) * 260;
       list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
     });
-    if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:0, y:-330 });
+    if (DATA.QUESTS[H.area]) {
+      // 本殿の正面脇に立つ(屋根に重ねない)。テーマの障害と重なる場合は逆側・外側へ
+      const th2 = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
+      const npcX = [-160, 160, -230, 230].find(x2 =>
+        !(th2 && th2.obst || []).some(o => Math.hypot(x2 - o.x, -330 - o.y) < o.r + 55)) ?? -160;
+      list.push({ kind:'npc', base:H.area, x:npcX, y:-330 });
+    }
     // 住民(サイドクエスト): しに戻り後もここで依頼を受けられる
     // 住民は依頼NPC(x:0)と重ならないよう左右交互に並べる
     (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).filter(sq => Quest.sideVisible(sq)).forEach((sq, i) => {
@@ -76,10 +86,11 @@ const Hub = (() => {
     if (H.area === 'main') return '魂の広場';
     if (H.area.startsWith('port:')) {
       const pp = DATA.PORTS.find(p => p.id === H.area.slice(5));
-      return pp ? '港町「' + pp.name + '」' : '港町';
+      // 「港町「東の港町」」の同語重複を避ける
+      return pp ? (pp.name.includes('港') ? '「' + pp.name + '」' : '港町「' + pp.name + '」') : '港町';
     }
     const b = DATA.BASES.find(b => b.id === H.area);
-    return b ? '拠点「' + b.name + '」' : '拠点';
+    return b ? '基地「' + b.name + '」' : '基地';
   }
 
   function enter(){
@@ -131,6 +142,12 @@ const Hub = (() => {
     // 段差(崖の縁): 石段の口以外は上り下りできない
     const tr = terraceOf();
     for (const sg of tr.segs) segPush(p, sg.x1, tr.edgeY + 10, sg.x2, tr.edgeY + 10, 14);
+    // 港町: 海は歩けない。渚で止まり、桟橋(y104..226)だけ先端まで歩ける
+    if (H.area.startsWith('port:')) {
+      const onPier = p.y > 104 && p.y < 226;
+      if (onPier) p.x = Math.min(p.x, 316);
+      else p.x = Math.min(p.x, 58);
+    }
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
     // 住民は定位置のまわりを行き来する(作業している感)
@@ -218,14 +235,14 @@ const Hub = (() => {
     for (let i = 0; i < nH; i++) {
       houses.push({ spr: rnd2(2) ? 'ob_house' : 'ob_house2',
         x: -560 + i * (150 + rnd2(90)) + rnd2(70),
-        y: i === 0 ? -305 + rnd2(30) : -195 + rnd2(90) + (i % 2) * 60,
+        y: i === 0 ? -305 + rnd2(30) : -150 + rnd2(80) + (i % 2) * 40,   // 下段の家は崖面に食い込まない高さ
         s: 74 + rnd2(34) });
     }
     const barrels = [];
     const bx = -480 + rnd2(360), by = 20 + rnd2(90);
     for (let i = 0; i < 2 + rnd2(2); i++) barrels.push({ x: bx + i * 26 + rnd2(10), y: by + (i % 2) * 18, s: 22 + rnd2(8) });
     const net = { x: -600 + rnd2(260), y: 90 + rnd2(120), w: 84 + rnd2(60) };
-    const lantern = { x: 180 + rnd2(120), y: 88 + rnd2(24) };
+    const lantern = { x: 140 + rnd2(160), y: 140 + rnd2(50) };   // 桟橋(y120..210)の上に立つ
     const obst = houses.map(hs => ({ x: hs.x, y: hs.y + hs.s * 0.15, r: hs.s * 0.42 }))
       .concat([{ x: bx + 24, y: by + 8, r: 30 }]);
     return (portSceneryCache[pid] = { houses, barrels, net, lantern, obst });
@@ -304,7 +321,7 @@ const Hub = (() => {
         const fs = (DATA.FAC_STATE || {})[s.st] || { look:['施設は静まり返り、なんの力も感じられない…'] };
         Game.dialog('', null, fs.look, null); return;
       }
-      if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は しに戻ってから 落ち着いて行おう。'], null); return; }
+      if (H.fromRun) { Game.dialog('', null, ['ここは戦いの最中。強化は、死に戻ってからゆっくりと。'], null); return; }
       openMetaPanel(s.st, s.fac);
     }
     else if (s.kind === 'npc') {
@@ -338,10 +355,9 @@ const Hub = (() => {
     const body = document.getElementById('station-body');
     // 周回中に転移してきた時は「周回に戻る」だけ
     if (H.fromRun) {
-      const b = DATA.BASES.find(b => b.id === H.area);
-      body.innerHTML = `<p class="small">ここは周回中の拠点「${b ? b.name : ''}」。強化はしに戻ってから。</p>
+      body.innerHTML = `<p class="small">ここは周回中の${areaName()}。強化は死に戻ってから。</p>
         <div class="up-card"><div class="info">
-          <div class="name">周回に戻る</div><div class="desc">この拠点の場所から探索を続ける</div></div>
+          <div class="name">周回に戻る</div><div class="desc">この場所から探索を続ける</div></div>
           <button class="buy-btn" data-resume="1">戻る</button></div>`;
       body.querySelector('[data-resume]').onclick = () => { Sfx.buy(); Game.closeStation(); Game.resumeRun(); };
       return;
@@ -353,13 +369,14 @@ const Hub = (() => {
       <button class="buy-btn" data-depart="__origin">出撃</button></div>`;
     for (const b of unlocked) {
       h += `<div class="up-card"><div class="info">
-        <div class="name">${b.name}</div><div class="desc">解放済みの基地から出撃する(危険度に注意)</div></div>
+        <div class="name">${b.name}</div><div class="desc">危険度 ${World.ringOf(b.x, b.y) + 1} ― この基地から出撃する</div></div>
         <button class="buy-btn" data-depart="${b.id}">出撃</button></div>`;
     }
     // 船を直した港からも出撃できる(常夜灯にゲートの分け火が灯っている)
     for (const pt of DATA.PORTS.filter(p => SaveSys.data.ports[p.id])) {
+      const wp = World.ports.find(q => q.id === pt.id) || pt;
       h += `<div class="up-card"><div class="info">
-        <div class="name">⚓ ${pt.name}</div><div class="desc">船を直した港から出撃する(常夜灯の分け火)</div></div>
+        <div class="name">⚓ ${pt.name}</div><div class="desc">危険度 ${World.ringOf(wp.x, wp.y) + 1} ― この港から出撃する</div></div>
         <button class="buy-btn" data-depart="port:${pt.id}">出撃</button></div>`;
     }
     h += '<div class="sec-head">基地へ移動(それぞれの基地に特別強化の施設がある)</div>';
@@ -413,7 +430,7 @@ const Hub = (() => {
     document.getElementById('station-title').textContent =
       '🗡 武器庫 ― 攻撃手段はここで選ぶ ― 🪙 ' + fmtNum(SaveSys.data.coins);
     const body = document.getElementById('station-body');
-    let h = '<p class="small">主人公の攻撃手段は周回中のスキルでは手に入らない。ここで購入・強化し、どれか1つを選んで出撃する。</p>';
+    let h = '<p class="small">攻撃手段はここで購入・強化し、1つ選んで出撃する(周回中のスキルでは増えない)。</p>';
     for (const id in DATA.WEAPONS) {
       const def = DATA.WEAPONS[id];
       const lv = SaveSys.weaponLv(id);
@@ -539,13 +556,13 @@ const Hub = (() => {
       const seen = SaveSys.data.skillsSeen || {};
       const ids = Object.keys(seen).filter(id => DATA.SKILLS[id]);
       if (ids.length) {
-        h += '<div class="sec-head">周回中のスキル獲得設定(いらないスキルを獲得候補から外せる)</div>';
+        h += '<div class="sec-head">周回中のスキル獲得設定</div>';
         for (const id of ids) {
           const hidden = SaveSys.data.skillHidden && SaveSys.data.skillHidden[id];
           h += `<div class="up-card"><div class="info">
             <div class="name">${DATA.SKILLS[id].name}</div>
             <div class="desc">${hidden ? '周回中は獲得できない(リストにも出ない)' : '周回中に獲得できる'}</div></div>
-            <button class="buy-btn" data-hide="${id}" style="background:${hidden ? '#8b1e24' : '#1f6feb'}">${hidden ? '獲得しない' : '獲得する'}</button>
+            <button class="buy-btn" data-hide="${id}" style="background:${hidden ? '#8b1e24' : '#1f6feb'}">${hidden ? '候補に戻す' : '候補から外す'}</button>
           </div>`;
         }
       }
@@ -625,7 +642,7 @@ const Hub = (() => {
         .sort((a, b) => (SaveSys.data.ach[a.id] ? 1 : 0) - (SaveSys.data.ach[b.id] ? 1 : 0));
       for (const a of items) {
         const done = SaveSys.data.ach[a.id];
-        h += `<p style="opacity:${done ? 1 : .55};margin-left:8px">${done ? '✅' : '⬜'} <b>${a.name}</b> ― ${a.desc}
+        h += `<p style="opacity:${done ? 1 : .8};margin-left:8px">${done ? '✅' : '⬜'} <b style="color:${done ? '#e6edf3' : '#adbac7'}">${a.name}</b> ― ${a.desc}
           ${done ? '' : `<span class="small"> 進捗 ${prog(a)}</span>`}<br><span class="small">報酬: ${a.reward}</span></p>`;
       }
     }
@@ -670,7 +687,7 @@ const Hub = (() => {
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
     if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
     if (s.kind === 'villager') return { spr: s.v.spr, label: s.v.name, short: '住民' };
-    if (s.kind === 'board') return { spr:'ob_house2', label:'依頼板', short:'依頼' };
+    if (s.kind === 'board') return { spr:'st_board', label:'依頼板', short:'依頼' };
     if (s.kind === 'armory') return { spr:'st_armory', label:'武器庫', short:'武器' };
     if (s.kind === 'gate') return { spr:'st_gate', label:'転送ゲート', short:'ゲート' };
     if (s.kind === 'stats') return { spr:'st_stone', label:'記録の石碑', short:'石碑' };
@@ -1026,8 +1043,8 @@ const Hub = (() => {
       Sprites.draw(g, SaveSys.data.ports[pid] ? 'boat' : 'ob_wreck', 400, 90, 300);
       // 陸側: 港ごとに配置の違う家並み・網干し場・樽・灯柱(決定論)
       drawPortScenery(g, pid, wt);
-      g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
-      g.fillText('― 港町「' + (pp ? pp.name : '') + '」 ―', -200, bnd.y0 + 200);
+      if (pp) labelChip(g, -200, bnd.y0 + 150,
+        '― ' + (pp.name.includes('港') ? pp.name : '港町「' + pp.name + '」') + ' ―', '#8b949e', 12);
     }
     else if (H.area !== 'main') {
       const bd = DATA.BASES.find(b => b.id === H.area);
@@ -1169,16 +1186,21 @@ const Hub = (() => {
     g.textAlign = 'center';
     g.save();
     rrPath(g, x0, y0, mw, mh, 6); g.clip();   // ラベルが枠からはみ出さないように
+    let li = 0;
     for (const s of H.list) {
       const q = pt(s.x, s.y);
       const col = s.kind === 'gate' ? '#76e3ea' : s.kind === 'stats' ? '#8b949e' : '#ffd766';
       g.fillStyle = col;
       g.beginPath(); g.arc(q.x, q.y, 3, 0, 7); g.fill();
+      if (s.kind === 'villager') continue;   // ふつうの住民はドットだけ(ラベルの団子を防ぐ)
       const v = stationVisual(s);
       const short = s.kind === 'meta' && SHORT_NAMES[s.st] ? SHORT_NAMES[s.st] : v.short;
       g.font = '9px sans-serif';
       g.fillStyle = H.interact === s ? '#ffd766' : '#c9d1d9';
-      g.fillText(short, q.x, q.y - 6);
+      // 同じ高さの並びは上下に振り分け、枠の上端では下側に出す(見切れ・重なり防止)
+      let ly = (li++ % 2 === 0) ? q.y - 6 : q.y + 13;
+      if (q.y - 6 < y0 + 12) ly = q.y + 13;
+      g.fillText(short, q.x, ly);
     }
     const pq = pt(H.player.x, H.player.y);
     g.fillStyle = '#fff';

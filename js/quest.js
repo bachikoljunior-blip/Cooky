@@ -88,13 +88,13 @@ const Quest = (() => {
   }
 
   function objSummary(def, loc){
-    if (def.type === 'mark') return '「' + def.markName + '」を討つ(マップに📍)';
-    if (def.type === 'escort') return '「' + (def.dest.label || '目的地') + '」まで護衛する(📍)';
+    if (def.type === 'mark') return '「' + def.markName + '」を討つ(地図に📍)';
+    if (def.type === 'escort') return '「' + (def.dest.label || '目的地') + '」まで護衛する(地図に📍)';
     if (def.type === 'hunt') return (def.nearLoc && loc && loc.name ? '「' + loc.name + '」の近くで' : '') +
       (def.minRank ? '色違いの' : '') + DATA.ENEMIES[def.enemy].name + 'を' + def.count + '体討伐する';
     if (def.type === 'survive') return (loc && loc.name ? '「' + loc.name + '」' : 'この場所') + 'の近くで' + def.time + '秒間守り抜く';
-    if (def.type === 'delivery') return '素材とコインを届ける';
-    if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(マップに📍)';
+    if (def.type === 'delivery') return '必要な素材とコインを' + (def.npcName || '依頼主') + 'に届ける';
+    if (def.type === 'visit') return '「' + (def.visit.label || '目的地') + '」を見てくる(地図に📍)';
     return '依頼をこなす';
   }
   function oneObjText(a){
@@ -106,9 +106,9 @@ const Quest = (() => {
       const near = a.near ? '' : '(「' + (a.loc && a.loc.name ? a.loc.name : 'その場所') + '」に近づくと始まる)';
       return '📜 防衛: あと ' + Math.ceil(a.timer) + '秒 ' + near;
     }
-    if (d.type === 'visit') return '📜 目的地へ: ' + (d.visit.label || '') + '(マップの📍)';
-    if (d.type === 'mark') return '📜 討伐: 「' + d.markName + '」(マップの📍)';
-    if (d.type === 'escort') return '📜 護衛中: 「' + (d.dest.label || '目的地') + '」へ(📍)';
+    if (d.type === 'visit') return '📜 目的地へ: ' + (d.visit.label || '') + '(地図の📍)';
+    if (d.type === 'mark') return '📜 討伐: 「' + d.markName + '」(地図の📍)';
+    if (d.type === 'escort') return '📜 護衛中: 「' + (d.dest.label || '目的地') + '」へ(地図の📍)';
     return '📜 ' + objSummary(d);
   }
   function objText(){ return actives.map(oneObjText).join('\n'); }
@@ -132,7 +132,11 @@ const Quest = (() => {
           Game.dialog(def.npcName, face, DATA.MEMOIR_OU, null);
           return;
         }
-        Game.dialog(def.npcName, face, [def.done[def.done.length - 1]], null);   // 後日談
+        // 後日談: 専用のafterがあればそれを、無ければ「地の文(括弧)で始まらない最後の台詞」を話す
+        // (システム括弧文が本人の台詞として出るのを防ぐ)
+        const talk = def.after ||
+          [...def.done].reverse().find(l => !/^[((]/.test(l)) || def.done[def.done.length - 1];
+        Game.dialog(def.npcName, face, [talk], null);
         return;
       }
       // ストーリーが進むまで受けられない依頼
@@ -206,10 +210,13 @@ const Quest = (() => {
       removeActive(kind, id);
       complete(kind, id, d);
     } else {
+      // 途中経過は誰の台詞にもなる内容なので、話者の口調と混ざらないよう地の文で語る
       const hint = d.type === 'hunt'
-        ? 'まだ敵が残っているぞ。あと' + (d.count - a.killed) + '体だ。'
-        : d.type === 'visit' ? 'マップの📍の場所じゃ。頼んだぞ。'
-        : '今は持ちこたえてくれ!';
+        ? '(依頼の相手は、あと' + (d.count - a.killed) + '体残っている)'
+        : d.type === 'visit' ? '(頼まれた場所は、地図の📍に印されている。まだ確かめていない)'
+        : d.type === 'mark' ? '(討つべき相手は、地図の📍に印されている)'
+        : d.type === 'escort' ? '(護衛はまだ道の途中だ)'
+        : '(依頼はまだ途中だ)';
       Game.dialog(d.npcName, face, [hint], null);
     }
   }
@@ -428,7 +435,7 @@ const Quest = (() => {
           Sfx.skill(); persist();
         } else if (st2 === 'dead') {
           removeActive(a.kind, a.id);
-          R.warnMsg = '…護衛に失敗した。また頼まれるところからやり直せる';
+          R.warnMsg = '…護衛に失敗した(依頼はもう一度受け直せる)';
           R.warnColor = '#f85149'; R.warnT = 4;
         }
         continue;

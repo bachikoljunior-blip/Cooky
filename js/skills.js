@@ -234,7 +234,7 @@ const Skills = (() => {
     }
     h += '</div>';
     if (!any) h += '<p class="small" style="padding:8px 4px">まだ素材がない。敵やオブジェクトを壊すと手に入る。</p>';
-    else h += '<p class="small" style="padding:8px 4px">エリアごとに採れやすい素材が違う。レア素材は特定のレアモンスター・オブジェクト限定。</p>';
+    else h += '<p class="small" style="padding:8px 4px">土地ごとに採れやすい素材が違う。レア素材は特定のレア魔物・オブジェクトだけが落とす。</p>';
     return h;
   }
 
@@ -243,13 +243,13 @@ const Skills = (() => {
     const st = (typeof Run !== 'undefined' && Run.state && Run.state.stats) ? Run.state.stats : null;
     if (!st) return '<p class="small" style="padding:20px">周回中のみ表示できる。</p>';
     const R = Run.state;
-    const pct = v => Math.round((v - 1) * 100) + '%';
+    const pct = v => { const p2 = Math.round((v - 1) * 100); return (p2 >= 0 ? '+' : '') + p2 + '%'; };
     const rows = [
       ['HP', Math.ceil(Math.max(0, R.player.hp)) + ' / ' + Math.round(st.maxHp)],
-      ['攻撃倍率', '+' + pct(st.atk)],
+      ['攻撃倍率', pct(st.atk)],
       ['移動速度', Math.round(st.speed)],
-      ['射程', '+' + pct(st.range)],
-      ['効果範囲', '+' + pct(st.area)],
+      ['射程', pct(st.range)],
+      ['効果範囲', pct(st.area)],
       ['攻撃間隔短縮', Math.round(st.cdr * 100) + '%'],
       ['会心率', Math.round(st.crit * 100) + '%'],
       ['被ダメ軽減', Math.round(st.armor * 100) + '%'],
@@ -257,9 +257,9 @@ const Skills = (() => {
       ['HP自動回復', st.regen.toFixed(1) + '/秒'],
       ['回収範囲', Math.round(st.magnet)],
       ['勧誘率', (st.recruit * 100).toFixed(1) + '%'],
-      ['仲間攻撃/HP', '+' + pct(st.allyAtk) + ' / +' + pct(st.allyHp)],
-      ['コイン/ドロップ', '+' + pct(st.coinMul) + ' / +' + pct(st.dropMul)],
-      ['リーパー耐性/特効', Math.round(st.reaperRes * 100) + '% / +' + pct(st.reaperDmg)],
+      ['仲間攻撃/HP', pct(st.allyAtk) + ' / ' + pct(st.allyHp)],
+      ['コイン/ドロップ', pct(st.coinMul) + ' / ' + pct(st.dropMul)],
+      ['リーパー被ダメ減/与ダメ増', Math.round(st.reaperRes * 100) + '% / ' + pct(st.reaperDmg)],
       ['仲間の数', R.allies.length + '体'],
     ];
     let h = '<div class="sec-head">ステータス</div><div class="st-grid">';
@@ -344,7 +344,7 @@ const Skills = (() => {
       if (ids.length) h = ids.map(id => skillCard(id)).join('');
       else h = tab === 'up'
         ? '<p class="small" style="padding:20px">このカテゴリの取得済みスキルはまだない。</p>'
-        : '<p class="small" style="padding:20px">スキルは無数にある。素材を集めると、素材が揃ったスキルがここに現れる(一度現れたスキルは残り続ける)。</p>';
+        : '<p class="small" style="padding:20px">スキルは無数にある。素材が揃ったものから、ここに現れる(一度現れたら残り続ける)。</p>';
     }
     listEl.innerHTML = h;
     listEl.querySelectorAll('.pin-btn').forEach(b => {

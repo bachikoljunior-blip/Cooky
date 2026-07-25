@@ -72,6 +72,8 @@ const Sprites = (() => {
     boss_demon: { kind:'demon',   c:'#8b1e24', a:'#ffd766', opt:{big:true} },
 
     ob_tree:    { kind:'tree',    c:'#2ea043', a:'#8b5a2b' },
+    ob_tree_dry: { kind:'drytree', c:'#8a6d4a', a:'#5a4632' },
+    ob_tree_snow:{ kind:'tree',    c:'#dfe9f0', a:'#6e5c48' },
     ob_rock:    { kind:'rock',    c:'#8b949e', a:'#484f58' },
     ob_crate:   { kind:'crate',   c:'#b08968', a:'#6e4c30' },
     ob_wreck:   { kind:'wreck',   c:'#6e4c30', a:'#9aa5b1' },
@@ -117,6 +119,7 @@ const Sprites = (() => {
     base_temple:  { kind:'settlement', c:'#a8894a', a:'#ffd766', opt:{v:'temple'} },
     base_portal:  { kind:'settlement', c:'#6e40c9', a:'#76e3ea', opt:{v:'portal'} },
     base_castle:  { kind:'settlement', c:'#54242c', a:'#ffd766', opt:{v:'castle'} },
+    base_spa:     { kind:'settlement', c:'#7fd1c9', a:'#9be3db', opt:{v:'spa'} },
     base_sunken:  { kind:'settlement', c:'#2dd4bf', a:'#76e3ea', opt:{v:'spring'} },
     ob_house:   { kind:'building',c:'#8b5a2b', a:'#e6edf3', opt:{sym:'🏠'} },
     ob_house2:  { kind:'building',c:'#6e7681', a:'#ffd766', opt:{sym:'🏘'} },
@@ -128,6 +131,7 @@ const Sprites = (() => {
     st_lib:     { kind:'libb',    c:'#c084fc', a:'#d2a8ff' },
     st_armory:  { kind:'armoryb', c:'#8b949e', a:'#f85149' },
     st_stone:   { kind:'steleb',  c:'#768390', a:'#76e3ea' },
+    st_board:   { kind:'boardk',  c:'#6e4c30', a:'#e6d2b5' },
     // 基地の特別強化施設も専用の造形(武練場・生命の祠・秘宝の蔵)
     st_war:     { kind:'warb',  c:'#da3633', a:'#ffb3ad' },
     st_life:    { kind:'lifeb', c:'#2ea043', a:'#7ee787' },
@@ -467,6 +471,17 @@ const Sprites = (() => {
           g.fillStyle=c; g.beginPath(); g.moveTo(-20,18); g.lineTo(0,-18); g.lineTo(20,18); g.closePath(); g.fill();
           g.fillStyle='#0d1117'; g.beginPath(); g.moveTo(-7,18); g.lineTo(0,2); g.lineTo(7,18); g.closePath(); g.fill();
           g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.moveTo(-4,-16); g.lineTo(-10,-26); g.moveTo(4,-16); g.lineTo(10,-26); g.stroke();
+        } else if (v === 'spa') {     // 湯治場: 岩組みの湯壺+湯気+のれん
+          g.fillStyle='#57606a'; g.beginPath(); g.ellipse(0,12,22,10,0,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.ellipse(0,10,17,7,0,0,7); g.fill();
+          g.strokeStyle='rgba(230,237,243,.65)'; g.lineWidth=2;
+          g.beginPath(); g.moveTo(-7,4); g.quadraticCurveTo(-10,-6,-6,-14); g.stroke();
+          g.beginPath(); g.moveTo(6,4); g.quadraticCurveTo(9,-8,5,-16); g.stroke();
+          g.strokeStyle='#6e4c30'; g.lineWidth=2;
+          g.beginPath(); g.moveTo(-16,-14); g.lineTo(-16,-26); g.moveTo(16,-14); g.lineTo(16,-26);
+          g.moveTo(-16,-26); g.lineTo(16,-26); g.stroke();
+          g.fillStyle=c; g.fillRect(-13,-26,26,7);
+          g.fillStyle='#e6edf3'; g.font='7px sans-serif'; g.textAlign='center'; g.fillText('ゆ',0,-20);
         } else if (v === 'hut') {     // 隠れ里・庵: 丸屋根の庵
           g.fillStyle=a; g.beginPath(); g.arc(0,0,18,Math.PI,0); g.fill();
           g.fillStyle=c; rr(g,-16,0,32,20,3);
@@ -606,6 +621,22 @@ const Sprites = (() => {
         g.fillStyle=a; g.globalAlpha=.8;
         for (let i=0;i<4;i++) g.fillRect(-6,-16+i*8,12,2.5);
         g.globalAlpha=1; break;
+      case 'boardk':   // 依頼板: 2本柱+横板+貼り紙(家ではなく掲示板に見えるように)
+        g.fillStyle=c; g.fillRect(-16,-8,4,28); g.fillRect(12,-8,4,28);
+        g.fillStyle='#8b5a2b'; rr(g,-21,-18,42,18,2);
+        g.fillStyle=a; g.fillRect(-16,-15,13,11); g.fillRect(2,-16,13,12);
+        g.fillStyle='#57443a';
+        g.fillRect(-13,-12,7,1.6); g.fillRect(-13,-9,7,1.6);
+        g.fillRect(5,-13,8,1.6); g.fillRect(5,-10,8,1.6); break;
+      case 'drytree':
+        g.strokeStyle=a; g.lineWidth=5; g.lineCap='round';
+        g.beginPath(); g.moveTo(0,24); g.lineTo(0,-4); g.stroke();
+        g.lineWidth=3;
+        g.beginPath(); g.moveTo(0,-2); g.lineTo(-12,-16); g.moveTo(-12,-16); g.lineTo(-16,-24); g.moveTo(-12,-16); g.lineTo(-4,-22); g.stroke();
+        g.beginPath(); g.moveTo(0,2); g.lineTo(12,-10); g.moveTo(12,-10); g.lineTo(18,-18); g.moveTo(12,-10); g.lineTo(8,-20); g.stroke();
+        g.strokeStyle=c; g.lineWidth=2;
+        g.beginPath(); g.moveTo(0,10); g.lineTo(8,4); g.stroke();
+        g.lineCap='butt'; break;
       case 'gate':
         g.strokeStyle=c; g.lineWidth=5;
         g.beginPath(); g.ellipse(0,0,13,19,0,0,7); g.stroke();

@@ -47,6 +47,7 @@ canvas#game { position:absolute; inset:0; width:100%; height:100%; display:block
 #warn-banner { position:absolute; top:16%; left:50%; transform:translateX(-50%);
   width:fit-content; max-width:92vw; text-align:center; font-size:17px; font-weight:bold;
   color:#e6edf3; letter-spacing:1px; line-height:1.5; padding:9px 26px;
+  white-space:pre-line; word-break:keep-all; overflow-wrap:normal;
   background:linear-gradient(160deg, rgba(14,20,34,.88), rgba(8,12,22,.88));
   border:1px solid rgba(255,255,255,.16); border-radius:999px;
   box-shadow:0 8px 30px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.08);
@@ -103,7 +104,7 @@ body.pad-visible #touch-buttons { display:flex; }
 
 /* ---------- パネル共通 ---------- */
 .panel { position:absolute; inset:0; margin:auto; z-index:20; width:min(680px,94vw); height:min(600px,92vh);
-  background:linear-gradient(160deg, rgba(22,29,44,.97), rgba(13,17,23,.97));
+  background:linear-gradient(160deg, rgb(22,29,44), rgb(13,17,23));
   border:1px solid #3a4763; border-radius:16px; padding:14px;
   box-shadow:0 12px 48px rgba(0,0,0,.6), inset 0 1px 0 rgba(255,255,255,.06);
   display:flex; flex-direction:column; gap:8px; overflow:hidden; }
@@ -204,9 +205,11 @@ body.pad-visible #touch-buttons { display:flex; }
   border-bottom:2px solid #30363d; }
 .stab.on { background:linear-gradient(#1f2a3a,#182234); color:#e6edf3; border-bottom:2px solid #58a6ff; }
 .stab-n { font-size:11px; color:#8b949e; }
-.stab-badge { position:absolute; top:-6px; right:-2px; min-width:20px; height:20px; border-radius:10px;
+.stab-badge { position:absolute; top:-4px; right:4px; min-width:20px; height:20px; border-radius:10px;
   background:#3fb950; color:#fff; font-size:12px; line-height:20px; padding:0 4px;
   animation:skill-pulse 1.2s infinite; }
+#skill-tabs { padding-top:6px; }
+.stab { padding-right:16px; }
 #skill-cats { display:flex; gap:4px; flex-wrap:wrap; }
 .scat { position:relative; padding:6px 12px; font-size:13px; border:1px solid #30363d; border-radius:14px;
   background:#0d1117; color:#8b949e; cursor:pointer; }
@@ -214,7 +217,8 @@ body.pad-visible #touch-buttons { display:flex; }
 .scat-dot { position:absolute; top:-3px; right:-3px; width:10px; height:10px; border-radius:50%;
   background:#3fb950; box-shadow:0 0 6px #3fb950; }
 .fx-line { font-size:12px; color:#9aa5b1; line-height:1.6; }
-#skill-owned { max-height:64px; overflow-y:auto; }
+#skill-owned { max-height:58px; overflow-y:auto;
+  mask-image:linear-gradient(#000 78%, transparent); -webkit-mask-image:linear-gradient(#000 78%, transparent); }
 
 /* ---------- スマホ最適化 ---------- */
 @media (max-width: 700px) {
@@ -227,8 +231,12 @@ body.pad-visible #touch-buttons { display:flex; }
   #hp-text { font-size:10px; line-height:15px; }
   #warn-banner { font-size:14px; padding:7px 16px; }
   #warn-banner.danger { font-size:16px; }
-  #quest-obj { font-size:12.5px; top:42px; }
+  /* クエスト帯は左寄せで、右上のミニマップ帯(右140px)を常に空ける */
+  #quest-obj { left:8px; transform:none; text-align:left; top:76px;
+    max-width:calc(100vw - 158px); font-size:12px; }
   #interact-hint { font-size:13px; }
+  #hp-wrap { height:19px; }
+  #hp-text { font-size:11px; letter-spacing:0; line-height:17px; text-shadow:0 1px 3px rgba(0,0,0,1); }
   #ally-view { top:70px; }
   #loot-feed { top:100px; }
   .panel { width:100vw; height:100vh; border-radius:0; padding:10px; }

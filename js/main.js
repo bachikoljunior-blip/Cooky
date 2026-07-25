@@ -33,6 +33,7 @@ const Game = (() => {
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
     hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill'); hide('btn-sig');
+    hide('quest-obj'); hide('interact-hint');   // 周回の帯を持ち込まない
     Hub.enter();
     Sfx.setScene('hub');
   }
@@ -42,8 +43,7 @@ const Game = (() => {
       SaveSys.data.introSeen = true; SaveSys.save();
       setTimeout(() => dialog('', null, [
         '…気がつくと、見知らぬ草原に立っていた。',
-        'ポケットには古びた地図の切れ端。「北の砦」とだけ記され、印が打たれている。',
-        '(🗺 マップに「?」の印がある。まずはそこを目指そう)',
+        'ポケットには古びた地図の切れ端。「北の砦」とだけ記され、印が打たれている。(🗺 地図に「?」)',
         '(この世界では、死は終わりではない…らしい)',
       ], () => dialogChoice('', null, '…どうする?', [
         { label:'進むしかない', cb(){ dialog('', null, ['(足が、自然と北へ向いた)'], null); } },
@@ -62,6 +62,7 @@ const Game = (() => {
   function enterBaseFromRun(baseId){
     state = 'hub'; overlay = null;
     hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
+    hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun(baseId);
     Sfx.setScene('hub');
@@ -70,6 +71,7 @@ const Game = (() => {
   function enterPortFromRun(portId){
     state = 'hub'; overlay = null;
     hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
+    hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun('port:' + portId);
     Sfx.setScene('hub');
@@ -88,6 +90,7 @@ const Game = (() => {
   let runDlg = null;
   function openRunDialog(name, lines, onDone, face){
     overlay = 'dialog';
+    el('interact-hint').classList.add('hidden');   // 会話中は「E:〜」のピルを重ねない
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -120,6 +123,7 @@ const Game = (() => {
   }
   function dialogChoice(name, face, text, choices){
     overlay = 'dialog';
+    el('interact-hint').classList.add('hidden');
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -168,7 +172,7 @@ const Game = (() => {
     if (deaths >= 30) lines.push('(' + deaths + '回の死に戻り。それでも立ち上がる魂を、この土地の誰もが敬い始めている)');
     else if (deaths >= 15) lines.push('(何度でも帰ってくるお前を、この村はもう当たり前のように迎えてくれる)');
     else if (deaths >= 5) lines.push('(「本当に、戻ってくるのだな」― 死に戻りを見るその目から、驚きが消え始めている)');
-    lines.push(...(q.after ? q.after.slice() : ['おお、また会えたな。ここはもうお前の拠点だ。']));
+    lines.push(...(q.after ? q.after.slice() : ['(もうすっかり顔なじみだ。今日も変わらぬ様子で迎えてくれた)']));
     // 豆知識は話者の口調と混ざらないよう、地の文(見聞きした噂)として添える
     lines.push('(別れ際、こんな噂話も聞かせてくれた ―「' + tip + '」)');
     const q2 = DATA.QUESTS2[baseId];
@@ -203,7 +207,7 @@ const Game = (() => {
       const R = Run.state;
       el('pause-info').textContent =
         '経過 ' + fmtTime(R.time) + ' / 撃破 ' + R.kills + ' / 🪙 ' + fmtNum(R.coins) +
-        ' / 仲間 ' + R.allies.length + '。リタイアすると獲得コインと素材換金分を持ち帰る。';
+        ' / 仲間 ' + R.allies.length + '。リタイアすると獲得コインと余り素材の換金分を持ち帰る。';
       show('pause-panel'); overlay = 'pause';
     }
   }
@@ -221,7 +225,7 @@ const Game = (() => {
       <div class="r-line">獲得コイン: <b>${fmtNum(res.coins)}</b></div>
       <div class="r-line">余り素材の換金: <b>+${fmtNum(res.matBonus)}</b></div>
       <div class="r-line r-big">持ち帰り合計: 🪙 ${fmtNum(res.total)}</div>
-      <div class="r-line small">銀行残高: 🪙 ${fmtNum(SaveSys.data.coins)}</div>
+      <div class="r-line small">貯えたコイン: 🪙 ${fmtNum(SaveSys.data.coins)}</div>
       ${(res.newAchs || []).map(a => `<div class="r-line" style="color:#ffd766">🏆 実績解除「${a.name}」! ― ${a.reward}</div>`).join('')}`;
     show('result-panel');
   }
@@ -229,6 +233,7 @@ const Game = (() => {
   function endRun(retired){
     const res = Run.finishRun(retired);
     hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill'); hide('btn-sig');
+    hide('quest-obj'); hide('interact-hint');
     showResult(res);
   }
 
