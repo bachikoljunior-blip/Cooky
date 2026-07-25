@@ -49,15 +49,79 @@ const World = (() => {
     return (d - partEdge(c, p, i, Math.atan2(dy, dx))) * sMin;
   }
   function partsOf(c){ return c.parts || [c]; }
-  // 最寄りの海岸までの符号つき距離と、その陸地
-  function coastGap(x, y){
-    let best = 1e18, bc = null;
+
+  // ---- 最寄りの海岸までの符号つき距離と、その陸地 ----
+  // 素朴に全大陸の全「板」(52枚)を毎回試すと、地形判定(isLand/terrainAt/tileAt)が
+  // そのまま52枚ぶんのコストになる。これらは敵・仲間の移動判定や地形チャンクの焼き込みで
+  // 毎フレーム何万回も呼ばれるため、ここが世界描画と移動判定の実質的な律速だった。
+  //
+  // やっていること: 板の情報を起動時に平坦な配列へ焼き(オプション解決と cos/sin も先に済ませる)、
+  // さらに「半径ρの球の中では最寄りになりえない板」を落とした候補リストを作って使い回す。
+  // ρを超えて移動したら候補を作り直す。候補の絞り込みは各板の距離の上界・下界で行うので、
+  // 最寄りの板を落とすことはない ― 返る値は総当たりと完全に同じ。
+  const WOBMAX = 0.5 + 0.18 + 0.1 + 0.07 + 0.05;   // wob() の絶対値の上限
+  let PARTS = null;
+  function buildParts(){
+    PARTS = [];
     for (const c of DATA.CONTINENTS) {
       const ps = partsOf(c);
       for (let i = 0; i < ps.length; i++) {
-        const g = partGap(c, ps[i], i, x, y);
-        if (g < best) { best = g; bc = c; }
+        const p = ps[i];
+        const rot = (p.rot != null ? p.rot : (c.parts ? 0 : c.rot)) || 0;
+        const sx = (p.sx != null ? p.sx : (c.parts ? 1 : c.sx)) || 1;
+        const sy = (p.sy != null ? p.sy : (c.parts ? 1 : c.sy)) || 1;
+        const amp = (p.amp != null ? p.amp : (c.amp || 0.13));
+        let eMax = p.r * (1 + amp * WOBMAX), eMin = p.r * (1 - amp * WOBMAX);
+        const tp = p.taper || (c.parts ? null : c.taper);
+        if (tp) { eMax *= 1 + Math.abs(tp.d); eMin *= 1 - Math.abs(tp.d); }
+        const coast = p.coast || (c.parts ? null : c.coast);
+        if (coast) for (const f of coast) { eMax *= Math.max(1, 1 + f.d); eMin *= Math.min(1, 1 + f.d); }
+        PARTS.push({ c, p, i, cx: c.x, cy: c.y, pdx: (p.dx || 0), pdy: (p.dy || 0),
+          // ox/oy は候補の絞り込み(境界計算)専用。距離の本計算では使わないこと ―
+          // 2段の引き算を1段に畳むと最下位ビットがずれ、砂浜/浅瀬の境目でタイル種別が変わる
+          ox: c.x + (p.dx || 0), oy: c.y + (p.dy || 0),
+          rot, co: Math.cos(-rot), si: Math.sin(-rot), sx, sy,
+          sMin: Math.min(sx, sy), sMax: Math.max(sx, sy), r24: p.r * 2.4,
+          eMax: eMax * 1.000001 + 1, eMin: eMin * 0.999999 - 1 });
       }
+    }
+  }
+  // partGap と一字一句同じ順序の演算(結果はビット単位で同一)
+  function partGapQ(q, x, y){
+    let dx = x - q.cx - q.pdx, dy = y - q.cy - q.pdy;
+    if (q.rot) { const rx = dx * q.co - dy * q.si, ry = dx * q.si + dy * q.co; dx = rx; dy = ry; }
+    dx /= q.sx; dy /= q.sy;
+    const d = Math.hypot(dx, dy);
+    if (d > q.r24) return (d - q.p.r) * q.sMin;   // 遠距離は近似で十分(三角関数を省く)
+    return (d - partEdge(q.c, q.p, q.i, Math.atan2(dy, dx))) * q.sMin;
+  }
+  const CG_RHO = 2048;                      // この距離だけ動くまで候補を使い回す
+  let cgCand = null, cgN = 0, cgX = 0, cgY = 0, cgLB = null;
+  function cgRebuild(x, y){
+    if (!PARTS) buildParts();
+    const n = PARTS.length;
+    if (!cgLB || cgLB.length !== n) { cgLB = new Float64Array(n); cgCand = new Array(n); }
+    let bestUB = 1e18;
+    for (let k = 0; k < n; k++) {
+      const q = PARTS[k];
+      const dx = x - q.ox, dy = y - q.oy;
+      const D = Math.sqrt(dx * dx + dy * dy);
+      const ub = D - q.eMin * q.sMin;              // その板の partGap の上界
+      if (ub < bestUB) bestUB = ub;
+      cgLB[k] = (D / q.sMax - q.eMax) * q.sMin;    // その板の partGap の下界
+    }
+    const lim = bestUB + 2 * CG_RHO;   // ρの球の中で最寄りになりうる下界のしきい値
+    cgN = 0;
+    for (let k = 0; k < n; k++) if (!(cgLB[k] > lim)) cgCand[cgN++] = PARTS[k];   // 元の順序を保つ
+    cgX = x; cgY = y;
+  }
+  function coastGap(x, y){
+    const ddx = x - cgX, ddy = y - cgY;
+    if (!cgCand || ddx * ddx + ddy * ddy > CG_RHO * CG_RHO) cgRebuild(x, y);
+    let best = 1e18, bc = null;
+    for (let k = 0; k < cgN; k++) {
+      const g = partGapQ(cgCand[k], x, y);
+      if (g < best) { best = g; bc = cgCand[k].c; }
     }
     return { gap: best, cont: bc };
   }

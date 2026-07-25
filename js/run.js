@@ -866,7 +866,8 @@ const Run = (() => {
 
   // 倒した場所の格子(この中は1分間リスポーンしない)
   const CLR_CELL = 340;
-  function clrKey(x, y){ return Math.floor(x / CLR_CELL) + ',' + Math.floor(y / CLR_CELL); }
+  // キーは整数。directorの掃討済み判定は毎フレーム数百セルを引くため、文字列生成をなくす
+  function clrKey(x, y){ return gkey(Math.floor(x / CLR_CELL), Math.floor(y / CLR_CELL)); }
   function markCleared(x, y){ if (R.clearedCells) R.clearedCells.set(clrKey(x, y), R.time + 60); }
   function isClearedCell(x, y){
     if (!R.clearedCells) return false;
@@ -914,7 +915,7 @@ const Run = (() => {
       const c0y = Math.floor((p.y - nearR) / CLR_CELL), c1y = Math.floor((p.y + nearR) / CLR_CELL);
       for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
         tot++;
-        const t = R.clearedCells.get(cx + ',' + cy);
+        const t = R.clearedCells.get(gkey(cx, cy));
         if (t !== undefined && R.time < t) clr++;
       }
       if (tot > 0) nearTarget = Math.round(nearTarget * (1 - clr / tot));
@@ -1083,14 +1084,50 @@ const Run = (() => {
     }
     return v;
   }
+  // 岩場の平面グリッド。canStand は敵・仲間の移動と湧き判定から毎フレーム数万回呼ばれ、
+  // そのたびに近くの岩を全部試していた。突き合わせる岩をセル単位に絞る(判定式は不変)。
+  // World.nearbyCrags はプレイヤーが別チャンクへ移るまで同じ配列を返すので、
+  // 配列の参照が変わった時だけ組み直せばよい(中身は書き換えられない前提)。
+  const CRAG_CELL = 256;
+  // セルに登録する時の余白。「canStand に渡りうる def.r の最大値」より大きく取る ―
+  // データに巨大な敵を足しても取りこぼさないよう、実データから自動で決める
+  let CRAG_PAD = 0;
+  let cragSrc = null, cragMap = new Map();
+  function cragPad(){
+    if (CRAG_PAD) return CRAG_PAD;
+    let m = 32;
+    for (const k in DATA.ENEMIES) { const r = DATA.ENEMIES[k].r || 0; if (r > m) m = r; }
+    return (CRAG_PAD = m + 4);
+  }
+  function buildCragGrid(){
+    cragSrc = R.crags;
+    cragMap.clear();
+    const cs = cragSrc;
+    if (!cs) return;
+    const pad = cragPad();
+    for (const c of cs) {
+      const r = c.r + pad;
+      const i0 = Math.floor((c.x - r) / CRAG_CELL), i1 = Math.floor((c.x + r) / CRAG_CELL);
+      const j0 = Math.floor((c.y - r) / CRAG_CELL), j1 = Math.floor((c.y + r) / CRAG_CELL);
+      for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) {
+        const k = gkey(i, j);
+        const arr = cragMap.get(k);
+        if (arr) arr.push(c); else cragMap.set(k, [c]);
+      }
+    }
+  }
   function canStand(def, x, y){
     // 岩場(地形の障害)の中には立てない・湧かない(平方比較でsqrtを省く ― 判定結果は同一)
-    const crags = R.crags;
-    if (crags) for (let i = 0; i < crags.length; i++) {
-      const c = crags[i];
-      const rr = c.r + (def.r || 10);
-      const dx = x - c.x, dy = y - c.y;
-      if (dx < rr && dx > -rr && dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) return false;
+    if (R.crags !== cragSrc) buildCragGrid();
+    if (cragMap.size) {
+      // 座標は負にもなるので Math.floor を使う(|0 は0方向に丸めてセルがずれる)
+      const arr = cragMap.get(gkey(Math.floor(x / CRAG_CELL), Math.floor(y / CRAG_CELL)));
+      if (arr) for (let i = 0; i < arr.length; i++) {
+        const c = arr[i];
+        const rr = c.r + (def.r || 10);
+        const dx = x - c.x, dy = y - c.y;
+        if (dx < rr && dx > -rr && dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) return false;
+      }
     }
     if (def.env === 'both') return true;
     const land = isLandCached(x, y);
@@ -3098,23 +3135,24 @@ const Run = (() => {
     const tx0 = cx * tiles, ty0 = cy * tiles;
     let hasSea = false;
     const deco = [];
+    let lastCol = null;   // 同じ色が続く間は fillStyle を置き直さない(色の解析コストを省く)
     for (let iy = 0; iy < tiles; iy++) {
       for (let ix = 0; ix < tiles; ix++) {
         const gx = tx0 + ix, gy = ty0 + iy;
         const wx = gx * TILE, wy = gy * TILE;
         const ti = World.tileAt(wx + TILE/2, wy + TILE/2);
-        const bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass;
         let col;
         // 市松ではなく決定論ノイズのまだら(本流のデザイン刷新に合わせる)
         const chk = tileHash(gx, gy) < 0.5;
-        if (ti.t === 'grass') col = chk ? bio.g1 : bio.g2;
-        else if (ti.t === 'sand') col = chk ? bio.s1 : bio.s2;
+        let bio = null;
+        if (ti.t === 'grass') { bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass; col = chk ? bio.g1 : bio.g2; }
+        else if (ti.t === 'sand') { bio = DATA.BIOMES[ti.biome] || DATA.BIOMES.grass; col = chk ? bio.s1 : bio.s2; }
         else if (ti.t === 'sea') { hasSea = true; const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
           col = (chk !== (waveT === 1)) ? sb.c1 : sb.c2;
           if (chk && World.currentAt(wx, wy) > 0.45) deco.push({ x: ix*TILE + 6, y: iy*TILE + 10, wy: wy + 10, cur: true }); }
         else { hasSea = true; const sb = DATA.SEA_BIOMES[ti.sea] || DATA.SEA_BIOMES.open;
           col = (chk !== (waveT === 1)) ? sb.d1 : sb.d2; }
-        c.fillStyle = col;
+        if (col !== lastCol) { c.fillStyle = col; lastCol = col; }
         c.fillRect(ix * TILE, iy * TILE, TILE + 1, TILE + 1);
         // 地面の装飾(草・花・岩粒など、バイオーム色)
         if (ti.t === 'grass') {
