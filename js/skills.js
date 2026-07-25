@@ -148,7 +148,7 @@ const Skills = (() => {
     for (const id in DATA.SKILLS) {
       if (revealed[id]) continue;
       if (lv(id) > 0) { revealed[id] = true; changed = true; continue; }
-      if (!skillUnlocked(id) || !reqMet(id)) continue;
+      if (!skillUnlocked(id)) continue;   // 前提スキル未達でも、素材が揃えば一覧に現れる
       const cost = nextCost(id);
       if (cost && costMet(cost)) { revealed[id] = true; changed = true; }
     }
@@ -173,8 +173,18 @@ const Skills = (() => {
   const listEl = document.getElementById('skill-list');
   const ownedEl = document.getElementById('skill-owned');
 
-  function costHtml(cost){
+  // 必要なもの: 素材と「前提スキル」を同じ並びで見せる。
+  // 前提スキルは素材と同じく「持っている量/必要な量」で表示し、
+  // 前提の要らないスキルと同じ場所・同じ形で並ぶ(隠さない)
+  function costHtml(cost, id){
     let h = '<div class="cost-line">';
+    const rq = id && DATA.SKILLS[id] && DATA.SKILLS[id].requires;
+    if (rq) {
+      const rdef = DATA.SKILLS[rq.skill];
+      const have = lv(rq.skill);
+      h += `<span class="cost-item ${have >= rq.lv ? 'ok' : 'ng'}">
+        <img class="cost-icon" src="${Sprites.get(rdef.icon).toDataURL()}" alt="">${rdef.name} Lv${have}/${rq.lv}</span>`;
+    }
     for (const m in cost) {
       const have = matCount(m), need = cost[m];
       const md = DATA.MATERIALS[m];
@@ -191,7 +201,8 @@ const Skills = (() => {
     const def = DATA.SKILLS[id];
     const l = lv(id);
     const cost = nextCost(id);
-    const can = cost && costMet(cost);
+    // 前提スキルは素材と同じ「必要なもの」― 揃うまで取得できないのも素材と同じ扱い
+    const can = cost && costMet(cost) && reqMet(id);
     const nextTxt = l === 0 ? def.desc : (cost ? 'Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化') : '最大レベル');
     const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
     return `<div class="skill-card ${can ? 'ready' : ''}">
@@ -199,7 +210,7 @@ const Skills = (() => {
       <div class="info">
         <div class="name">${def.name} ${l > 0 ? 'Lv' + l + (cost ? ' → Lv' + (l+1) : ' (MAX)') : '<span class="small">(新規)</span>'}</div>
         <div class="desc">${nextTxt}</div>
-        ${cost ? costHtml(cost) : ''}
+        ${cost ? costHtml(cost, id) : ''}
       </div>
       <div class="card-btns">
         <button class="pin-btn" data-pin="${id}" title="一番上に表示">📌</button>
@@ -278,7 +289,7 @@ const Skills = (() => {
     const upIds = [], newIds = [];
     for (const id in DATA.SKILLS) {
       if (lv(id) > 0) { upIds.push(id); continue; }
-      if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) continue;
+      if (!skillUnlocked(id) || hiddenByUser(id)) continue;   // 前提スキル未達でも並べる
       if (revealed[id]) newIds.push(id);
     }
     // 取得可能を先頭に
