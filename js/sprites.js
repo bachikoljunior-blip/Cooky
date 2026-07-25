@@ -754,5 +754,123 @@ const Sprites = (() => {
     g.restore();
   }
 
-  return { get, draw, tinted, drawTinted, loadOverrides, DEFS };
+  // ---- 色違い(段階)・大きさ(段階)ごとの固有の姿 ----
+  // 色を塗る/拡大するだけでは「同じ魔物」に見えてしまう。段階ごとに造形そのものを
+  // 変え、姿かたちで「格が違う」と分かるようにする(生成は一度だけでキャッシュ)。
+  //   色違い: 1金=双角 / 2紅=背の棘 / 3紫=王冠と宝珠 / 4青白=霜の結晶
+  //   大きさ: 1大=肩当てと古傷 / 2巨=背甲と牙
+  const RANK_ORN = [
+    null,
+    { c:'#ffd766', e:'#8a6a1e' },
+    { c:'#f85149', e:'#7a1f1a' },
+    { c:'#c084fc', e:'#4a2a7a' },
+    { c:'#a5f3fc', e:'#2a6a80' },
+  ];
+  function drawRankOrn(g, rank){
+    const o = RANK_ORN[rank]; if (!o) return;
+    g.save(); g.translate(S / 2, S / 2);
+    g.lineJoin = 'round';
+    if (rank === 1) {          // 双角: 頭の両脇から反り上がる金の角
+      g.strokeStyle = o.e; g.lineWidth = 6; g.lineCap = 'round';
+      for (const sx of [-1, 1]) {
+        g.beginPath(); g.moveTo(sx * 7, -17);
+        g.quadraticCurveTo(sx * 15, -23, sx * 13, -30); g.stroke();
+      }
+      g.strokeStyle = o.c; g.lineWidth = 3;
+      for (const sx of [-1, 1]) {
+        g.beginPath(); g.moveTo(sx * 7, -17);
+        g.quadraticCurveTo(sx * 15, -23, sx * 13, -30); g.stroke();
+      }
+    } else if (rank === 2) {   // 背の棘: 頭上から背へ連なる紅の棘
+      const sp = [[-11, -14, 5], [0, -20, 7], [11, -14, 5]];
+      for (const [x, y, h] of sp) {
+        g.fillStyle = o.e;
+        g.beginPath(); g.moveTo(x - 5, y); g.lineTo(x, y - h - 5); g.lineTo(x + 5, y); g.closePath(); g.fill();
+        g.fillStyle = o.c;
+        g.beginPath(); g.moveTo(x - 2.6, y - 1); g.lineTo(x, y - h - 3); g.lineTo(x + 2.6, y - 1); g.closePath(); g.fill();
+      }
+    } else if (rank === 3) {   // 王冠と宝珠: 頭上の紫の冠、両脇に浮かぶ珠
+      g.fillStyle = o.e;
+      g.beginPath();
+      g.moveTo(-11, -17); g.lineTo(-11, -25); g.lineTo(-5.5, -20); g.lineTo(0, -28);
+      g.lineTo(5.5, -20); g.lineTo(11, -25); g.lineTo(11, -17);
+      g.closePath(); g.fill();
+      g.fillStyle = o.c; g.fillRect(-11, -19.5, 22, 3.2);
+      for (const [x, y] of [[-16, -22], [16, -22], [0, -30]]) {
+        g.fillStyle = o.c; g.beginPath(); g.arc(x, y, 2.8, 0, 7); g.fill();
+        g.fillStyle = '#fff'; g.globalAlpha = 0.7;
+        g.beginPath(); g.arc(x - 0.9, y - 0.9, 1, 0, 7); g.fill(); g.globalAlpha = 1;
+      }
+    } else if (rank === 4) {   // 霜の結晶: 体の周りに突き出す青白い氷片
+      const sh = [[0, -26, 9, 0], [-16, -16, 7, -0.7], [16, -16, 7, 0.7],
+                  [-20, 2, 6, -1.5], [20, 2, 6, 1.5]];
+      for (const [x, y, h, a2] of sh) {
+        g.save(); g.translate(x, y); g.rotate(a2);
+        g.fillStyle = o.e;
+        g.beginPath(); g.moveTo(-4, 4); g.lineTo(0, -h); g.lineTo(4, 4); g.closePath(); g.fill();
+        g.fillStyle = o.c;
+        g.beginPath(); g.moveTo(-1.8, 3); g.lineTo(0, -h + 2); g.lineTo(1.8, 3); g.closePath(); g.fill();
+        g.restore();
+      }
+    }
+    g.restore();
+  }
+  function drawSizeOrn(g, tier){
+    if (!tier) return;
+    g.save(); g.translate(S / 2, S / 2);
+    // 顔(目・口)は隠さない ― 装甲は体の外側の輪郭にだけ足す
+    if (tier === 1) {          // 大: 肩当てと古傷
+      for (const sx of [-1, 1]) {
+        g.fillStyle = '#454e5c';
+        g.beginPath(); g.ellipse(sx * 14, 3, 6, 4.4, sx * 0.3, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.20)';
+        g.beginPath(); g.ellipse(sx * 14, 1.6, 3.6, 2, sx * 0.3, 0, 7); g.fill();
+      }
+      g.strokeStyle = 'rgba(255,235,235,.55)'; g.lineWidth = 1.6; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(-9, 6); g.lineTo(-3, 13); g.stroke();
+    } else {                   // 巨: 左右へ張り出す岩塊・棘・下あごの牙・足元の瓦礫
+      for (const sx of [-1, 1]) {
+        g.fillStyle = '#2a313b';   // 肩の岩塊(輪郭の外へ張り出す量感)
+        g.beginPath(); g.ellipse(sx * 16, 1, 7.6, 6.4, sx * 0.25, 0, 7); g.fill();
+        g.fillStyle = 'rgba(255,255,255,.16)';
+        g.beginPath(); g.ellipse(sx * 16, -1.4, 4.4, 2.6, sx * 0.25, 0, 7); g.fill();
+        g.fillStyle = '#39414d';   // 岩塊から突き出す棘(横向き)
+        g.beginPath();
+        g.moveTo(sx * 18, -3); g.lineTo(sx * 26, -7); g.lineTo(sx * 20, 2); g.closePath(); g.fill();
+      }
+      g.fillStyle = '#e8eef5';     // 下あごから覗く牙(顔より下)
+      for (const sx of [-1, 1]) {
+        g.beginPath(); g.moveTo(sx * 5, 11); g.lineTo(sx * 7, 17.5); g.lineTo(sx * 9, 11); g.closePath(); g.fill();
+      }
+      g.fillStyle = '#2a313b';     // 足元の瓦礫(踏み締める重さ)
+      for (const [x, y, r2] of [[-13, 19, 3], [-4, 21, 2.2], [12, 19, 3.4]]) {
+        g.beginPath(); g.arc(x, y, r2, 0, 7); g.fill();
+      }
+    }
+    g.restore();
+  }
+  // 段階つきの姿(キャッシュ付き)。tintを渡すと体の色も変える(仲間の緑など)
+  const varCache = {};
+  function variant(id, rank, sizeTier, tint, strength){
+    const key = id + '|' + (rank || 0) + '|' + (sizeTier || 0) + '|' + (tint || '') + '|' + (strength || '');
+    if (varCache[key]) return varCache[key];
+    const base = tint ? tinted(id, tint, strength) : get(id);
+    if (!rank && !sizeTier) return (varCache[key] = base);
+    const cv = document.createElement('canvas');
+    cv.width = S; cv.height = S;
+    const g = cv.getContext('2d');
+    g.drawImage(base, 0, 0, S, S);
+    drawSizeOrn(g, sizeTier || 0);   // 体の装甲が先(角や棘はその上に出る)
+    drawRankOrn(g, rank || 0);
+    return (varCache[key] = cv);
+  }
+  function drawVariant(g, id, x, y, size, flip, rank, sizeTier, tint, strength){
+    const im = variant(id, rank, sizeTier, tint, strength);
+    g.save(); g.translate(x, y);
+    if (flip) g.scale(-1, 1);
+    g.drawImage(im, -size / 2, -size / 2, size, size);
+    g.restore();
+  }
+
+  return { get, draw, tinted, drawTinted, variant, drawVariant, loadOverrides, DEFS };
 })();

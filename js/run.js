@@ -367,7 +367,7 @@ const Run = (() => {
     const hpMul = st.allyHp * (wb ? wb.hp : 1);
     R.allies.push({
       def: e.def, key: e.defKey, bossName: e.bossName,
-      rank: e.rank || 0, sizeMul: e.sizeMul || 1,   // 色違いと大きさは仲間になっても保つ(ボスはボスの姿のまま)
+      rank: e.rank || 0, sizeMul: e.sizeMul || 1, sizeTier: e.sizeTier || 0,   // 色違いと大きさは仲間になっても保つ(ボスはボスの姿のまま)
       x: e.x, y: e.y,
       // 初期値は敵だった時と同じHP・攻撃。ただし速さは主人公と同じくらいにして
       // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
@@ -2707,9 +2707,12 @@ const Run = (() => {
       ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
     }
     // 仲間は全員統一の緑がかった色で描く ― 敵の色違い(金/紅/紫/青白)と被らず、
-    // 混戦でも敵味方がひと目で分かる。大きさ(sizeMul)は敵だった時のまま
+    // 混戦でも敵味方がひと目で分かる。大きさ(sizeMul)は敵だった時のまま。
+    // 段階の造形(角・棘・王冠・霜/肩当て・背甲)は引き継ぐので、
+    // 「どの格の魔物を仲間にしたか」が姿で分かる(体の色は緑のまま)
     const asz = a.def.r * 2.6 * (a.sizeMul || 1);
-    Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, '#2ea043', 0.42);
+    Sprites.drawVariant(g, a.def.sprite, ax, ay, asz, false,
+      a.rank || 0, a.sizeTier || 0, '#2ea043', 0.42);
     const atop = a.def.r * (a.sizeMul || 1);
     if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
     if (a.waitAt) labelChip(g, a.x, a.y - atop - 16, '待機中', '#7ee787');
@@ -2740,8 +2743,11 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     if (e.flash > 0) { g.globalAlpha = 0.6; }
-    if (e.rank > 0) Sprites.drawTinted(g, e.def.sprite, e.x, e.y, sz, e.x > p.x, RANK_COLORS[e.rank], 0.4);
-    else Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
+    // 色違い・大きさは段階ごとに固有の姿(角・棘・王冠・霜/肩当て・背甲)。
+    // 色と大きさだけでなく造形そのものが変わるので、遠目でも格が分かる
+    Sprites.drawVariant(g, e.def.sprite, e.x, e.y, sz, e.x > p.x,
+      e.rank || 0, e.sizeTier || 0,
+      e.rank > 0 ? RANK_COLORS[e.rank] : null, 0.4);
     g.globalAlpha = 1;
     if (R.time < e.frozenUntil) {
       g.fillStyle = 'rgba(118,227,234,.4)';
