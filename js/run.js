@@ -2333,10 +2333,13 @@ const Run = (() => {
       const n = SaveSys.data.memoirs || 0;
       if (DATA.MEMOIRS && n < DATA.MEMOIRS.length) {
         SaveSys.data.memoirs = n + 1;
-        Game.dialog('', null, [
-          '(見晴らしの岩の割れ目に、風雨に耐えた手記の頁が挟まっている)',
-          DATA.MEMOIRS[n],
-          '(先人の手記 ' + (n + 1) + '/' + DATA.MEMOIRS.length + ' ― あたりの地形も地図に刻まれた)'], null);
+        // 一頁目は、地図の切れ端の裏書きと同じ字 ― 追う理由がここで繋がる
+        const lines = ['(見晴らしの岩の割れ目に、風雨に耐えた手記の頁が挟まっている)'];
+        if (n === 0) lines.push('(この字だ。地図の切れ端の裏に書かれていた、あの字)');
+        lines.push(DATA.MEMOIRS[n]);
+        if (n + 1 === DATA.MEMOIRS.length) lines.push('(十頁、全部そろった。……この人は、まだ城で待っているのだろうか)');
+        lines.push('(先人の手記 ' + (n + 1) + '/' + DATA.MEMOIRS.length + ' ― あたりの地形も地図に刻まれた)');
+        Game.dialog('', null, lines, null);
       } else {
         R.warnMsg = '⛰ 見晴らし台に登った ― あたりの地形が地図に刻まれた';
         R.warnColor = '#76e3ea'; R.warnT = 4;

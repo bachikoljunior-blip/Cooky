@@ -18,66 +18,58 @@ const Hub = (() => {
   }
 
   function stations(){
+    const plan = Town.plan(H.area, bounds());
+    const sl = plan.slots;
     if (H.area === 'main') {
-      // 祭壇(先人が築いた広場の中心)を奥の正面に、施設は環状に。ゲートは手前
-      return [
-        { kind:'meta', st:'altar',  x:0,    y:-238 },
-        { kind:'meta', st:'lab',    x:-370, y:-165 },
-        { kind:'meta', st:'camp',   x:370,  y:-165 },
-        { kind:'meta', st:'lib',    x:-645, y:-25 },
-        { kind:'armory', x:645, y:-25 },
-        { kind:'gate',   x:0,   y:260 },
-        { kind:'stats',  x:-280, y:235 },
-        // ストーリーで移り住んでくる住民たち(泉の向かい・広場の東側で暮らす)
-        ...((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
-          .map((sq, i) => ({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:150 + i * 160, y:135 })),
-      ];
+      const fac = ['altar', 'lab', 'camp', 'lib'];
+      const list = plan.buildings.filter(b => b.fac !== undefined).sort((a, b) => a.fac - b.fac)
+        .map((b, i) => i < 4 ? { kind:'meta', st:fac[i], x:b.slot.x, y:b.slot.y, bld:b }
+                             : { kind:'armory', x:b.slot.x, y:b.slot.y, bld:b });
+      list.push({ kind:'gate', x:sl.gate.x, y:sl.gate.y });
+      list.push({ kind:'stats', x:sl.stats.x, y:sl.stats.y });
+      ((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
+        .forEach((sq, i) => { const q = sl.side[i % sl.side.length];
+          list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:q.x + Math.floor(i / sl.side.length) * 90, y:q.y }); });
+      return list;
     }
-    // 港町エリア: 船大工・(修理後)貿易商・住民・ゲート。船は実寸大で桟橋に停泊
+    // 港町: 船大工は岸の倉庫、貿易商はその手前。住民は桟橋の上
     if (H.area.startsWith('port:')) {
       const pid = H.area.slice(5);
+      const ware = plan.buildings.find(b => b.fac === 0);
       const plist = [
-        { kind:'portnpc', port: pid, x:-300, y:-60 },
-        { kind:'gate', x:-420, y:250 },
-        // 住民は港ごとに顔ぶれが変わり、桟橋の上に立つ(海面に浮かばない)
+        { kind:'portnpc', port:pid, x:ware ? ware.slot.x : sl.portnpc.x, y:ware ? ware.slot.y : sl.portnpc.y, bld:ware },
+        { kind:'gate', x:sl.gate.x, y:sl.gate.y },
         { kind:'villager', v: DATA.VILLAGERS[(() => {
             let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
             return Math.abs(h) % DATA.VILLAGERS.length;
-          })()], x:250, y:155 },
+          })()], x:sl.villager[0].x, y:sl.villager[0].y },
       ];
-      if (SaveSys.data.ports[pid]) plist.push({ kind:'trader', port: pid, x:-120, y:-140 });
+      if (SaveSys.data.ports[pid]) plist.push({ kind:'trader', port:pid, x:sl.trader.x, y:sl.trader.y });
       return plist;
     }
-    // 基地エリア: 特別強化施設 + NPC + ゲート(周回中に転移してきた時も同じマップ)
+    // 基地: 特別強化の主は、それぞれの建物の中にいる
     const list = [];
     const facs = Object.keys(DATA.BASE_FACS);
     const present = facs.filter(f => Object.values(DATA.META).some(d => d.st === H.area && d.fac === f));
+    const houses = plan.buildings.filter(b => b.fac !== undefined).sort((a, b) => a.fac - b.fac);
     present.forEach((f, i) => {
-      const x = (i - (present.length - 1) / 2) * 260;
-      list.push({ kind:'meta', st:H.area, fac:f, x, y:-90 });
+      const b = houses[i % houses.length];
+      list.push({ kind:'meta', st:H.area, fac:f, x:b.slot.x, y:b.slot.y, bld:b });
     });
-    if (DATA.QUESTS[H.area]) {
-      // 本殿の正面脇に立つ(屋根に重ねない)。テーマの障害と重なる場合は逆側・外側へ
-      const th2 = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
-      const npcX = [-160, 160, -230, 230].find(x2 =>
-        !(th2 && th2.obst || []).some(o => Math.hypot(x2 - o.x, -330 - o.y) < o.r + 55)) ?? -160;
-      list.push({ kind:'npc', base:H.area, x:npcX, y:-330 });
-    }
-    // 住民(サイドクエスト): しに戻り後もここで依頼を受けられる
-    // 住民は依頼NPC(x:0)と重ならないよう左右交互に並べる
+    if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:sl.npc.x, y:sl.npc.y });
     (DATA.SIDEQUESTS && DATA.SIDEQUESTS[H.area] || []).filter(sq => Quest.sideVisible(sq)).forEach((sq, i) => {
-      const sx = (i % 2 === 0 ? 1 : -1) * (Math.floor(i / 2) + 1) * 260;
-      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc, x:sx, y:-330 });
+      const q = sl.side[i % sl.side.length];
+      list.push({ kind:'sidenpc', sq:sq.id, name:sq.npcName, spr:sq.npc,
+                  x:q.x + Math.floor(i / sl.side.length) * 90, y:q.y });
     });
-    list.push({ kind:'board', x:-320, y:260 });   // 依頼板(周回ごとに変わる小口の依頼)
-    list.push({ kind:'gate', x:0, y:260 });
-    // 依頼を持たないふつうの住民(基地ごとに2人、顔ぶれは固定)
+    list.push({ kind:'board', x:sl.board.x, y:sl.board.y });
+    list.push({ kind:'gate', x:sl.gate.x, y:sl.gate.y });
     {
       let h = 0; for (let i = 0; i < H.area.length; i++) h = (h * 31 + H.area.charCodeAt(i)) | 0;
       const n = DATA.VILLAGERS.length;
       const i1 = Math.abs(h) % n, i2 = (Math.abs(h >> 3) % (n - 1) + i1 + 1) % n;
-      list.push({ kind:'villager', v: DATA.VILLAGERS[i1], x:-140, y:80 });
-      list.push({ kind:'villager', v: DATA.VILLAGERS[i2], x:180, y:100 });
+      list.push({ kind:'villager', v: DATA.VILLAGERS[i1], x:sl.villager[0].x, y:sl.villager[0].y });
+      list.push({ kind:'villager', v: DATA.VILLAGERS[i2], x:sl.villager[1].x, y:sl.villager[1].y });
     }
     return list;
   }
@@ -109,19 +101,17 @@ const Hub = (() => {
     settleArrival();
     Sfx.skill();
   }
-  // 到着位置が地形の障害(焚き火・泉など)と重なっていたら縁まで押し出す
-  // (中心と完全一致の場合はゲート側=下へ出す)
+  // 到着位置が壁や水と重なっていたら、外へ押し出す
   function settleArrival(){
-    const th = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
-    const obst = ((th && th.obst) || [])
-      .concat(H.area.startsWith('port:') ? portScenery(H.area.slice(5)).obst : []);
-    for (const o of obst) {
-      const dx = H.player.x - o.x, dy = H.player.y - o.y;
+    const plan = Town.plan(H.area, bounds());
+    for (const r of Town.solidsOf(plan)) {
+      const cx = Math.max(r.x0, Math.min(r.x1, H.player.x));
+      const cy = Math.max(r.y0, Math.min(r.y1, H.player.y));
+      const dx = H.player.x - cx, dy = H.player.y - cy;
       const d = Math.hypot(dx, dy);
-      if (d >= o.r + 16) continue;
-      if (d < 0.001) { H.player.y = o.y + o.r + 20; continue; }
-      H.player.x = o.x + dx / d * (o.r + 20);
-      H.player.y = o.y + dy / d * (o.r + 20);
+      if (d >= 20) continue;
+      if (d < 0.001) { H.player.y = r.y1 + 24; continue; }
+      H.player.x = cx + dx / d * 20; H.player.y = cy + dy / d * 20;
     }
   }
 
@@ -143,27 +133,16 @@ const Hub = (() => {
     if (H.listT > 1) { H.listT = 0; H.list = stations(); }
     const ax = Input.axis();
     const b = bounds();
-    p.x += ax.x * 240 * dt;
-    p.y += ax.y * 240 * dt;
+    const plan = Town.plan(H.area, b);
+    // 壁は通れず、戸口からは入れる。段差は石段の上でしか上り下りできない
+    Town.move(plan, p, p.x + ax.x * 240 * dt, p.y + ax.y * 240 * dt, 16);
     p.x = Math.max(b.x0 + 40, Math.min(b.x1 - 40, p.x));
     p.y = Math.max(b.y0 + 40, Math.min(b.y1 - 40, p.y));
-    // 地形の障害(泉・大炉・岩・家・樽など): 円で押し出す(縁に沿って滑る)
-    const th = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
-    let obstList = (th && th.obst) || [];
-    if (H.area.startsWith('port:')) obstList = obstList.concat(portScenery(H.area.slice(5)).obst);
-    for (const o of obstList) {
-      const dx = p.x - o.x, dy = p.y - o.y;
-      const d = Math.hypot(dx, dy);
-      if (d < o.r + 16 && d > 0.001) { p.x = o.x + dx / d * (o.r + 16); p.y = o.y + dy / d * (o.r + 16); }
-    }
-    // 段差(崖の縁): 石段の口以外は上り下りできない
-    const tr = terraceOf();
-    for (const sg of tr.segs) segPush(p, sg.x1, tr.edgeY + 10, sg.x2, tr.edgeY + 10, 14);
-    // 港町: 海は歩けない。渚で止まり、桟橋(y104..226)だけ先端まで歩ける
+    // 港町: 海は歩けない。桟橋の上だけ沖へ歩ける
     if (H.area.startsWith('port:')) {
-      const onPier = p.y > 104 && p.y < 226;
-      if (onPier) p.x = Math.min(p.x, 316);
-      else p.x = Math.min(p.x, 58);
+      const q = plan.pier;
+      const onPier = q && p.y > q.y0 - 6 && p.y < q.y1 + 6;
+      p.x = Math.min(p.x, onPier ? q.x1 - 20 : 54);
     }
     if (ax.x) p.dir = ax.x < 0 ? -1 : 1;
 
@@ -189,123 +168,6 @@ const Hub = (() => {
       hint.classList.remove('hidden');
       actBtn.classList.remove('hidden');
     } else { hint.classList.add('hidden'); if (dlgOpen || !H.interact) actBtn.classList.add('hidden'); }
-  }
-
-  // 段丘: 街の奥は一段高い台地になっていて、崖肌と石段で繋がる(街の「地形」)。
-  // 階段の口は「上段にある施設の正面」に必ず開く ― どの配置でも詰まない
-  function terraceOf(){
-    const isPort = H.area.startsWith('port:');
-    const edgeY = H.area === 'main' ? -120 : isPort ? -230 : -50;
-    const b = Object.assign({}, bounds());
-    if (isPort) b.x1 = 40;   // 港の段丘は陸側だけ(海へは渚がある)
-    const gaps = [];
-    for (const s of H.list || []) {
-      if (s.kind === 'villager') continue;
-      if (s.y < edgeY) gaps.push({ x: Math.max(b.x0 + 90, Math.min(b.x1 - 90, s.x)), w: 130 });
-    }
-    if (!gaps.length) {
-      // 港: 高台の家(1軒目)の正面に石段が付く
-      const gx = isPort ? portScenery(H.area.slice(5)).houses[0].x : 0;
-      gaps.push({ x: Math.max(b.x0 + 90, Math.min(b.x1 - 90, gx)), w: 130 });
-    }
-    gaps.sort((a, b2) => a.x - b2.x);
-    const merged = [];
-    for (const gp of gaps) {
-      const last = merged[merged.length - 1];
-      if (last && gp.x - gp.w / 2 < last.x + last.w / 2) {
-        const lo = Math.min(last.x - last.w / 2, gp.x - gp.w / 2);
-        const hi = Math.max(last.x + last.w / 2, gp.x + gp.w / 2);
-        last.x = (lo + hi) / 2; last.w = hi - lo;
-      } else merged.push({ x: gp.x, w: gp.w });
-    }
-    const segs = [];
-    let cur = b.x0;
-    for (const gp of merged) {
-      const lo = gp.x - gp.w / 2, hi = gp.x + gp.w / 2;
-      if (lo > cur) segs.push({ x1: cur, x2: lo });
-      cur = Math.max(cur, hi);
-    }
-    if (cur < b.x1) segs.push({ x1: cur, x2: b.x1 });
-    return { edgeY, segs, gaps: merged };
-  }
-  // 線分(崖の縁)からの押し出し
-  function segPush(p, x1, y1, x2, y2, rad){
-    const dx = x2 - x1, dy = y2 - y1;
-    const L2 = dx * dx + dy * dy || 1;
-    let t = ((p.x - x1) * dx + (p.y - y1) * dy) / L2;
-    t = Math.max(0, Math.min(1, t));
-    const cx = x1 + t * dx, cy = y1 + t * dy;
-    const ddx = p.x - cx, ddy = p.y - cy;
-    const d = Math.hypot(ddx, ddy);
-    if (d < rad && d > 0.001) { p.x = cx + ddx / d * rad; p.y = cy + ddy / d * rad; }
-  }
-
-  // 港町の実景: 港ごとに家並み・網干し場・樽・灯柱の配置が違う(決定論)。
-  // どの港も同じ、をやめて「その港の暮らし」が見えるように
-  const portSceneryCache = {};
-  function portScenery(pid){
-    if (portSceneryCache[pid]) return portSceneryCache[pid];
-    let h = 0; for (let i = 0; i < pid.length; i++) h = (h * 31 + pid.charCodeAt(i)) | 0;
-    h = Math.abs(h) || 1;
-    const rnd2 = (n) => { h = (h * 1103515245 + 12345) & 0x7fffffff; return h % n; };
-    const houses = [];
-    const nH = 2 + rnd2(2);   // 2〜3軒。1軒目は高台(崖の上)に建ち、石段で下と繋がる
-    for (let i = 0; i < nH; i++) {
-      const hs = { spr: rnd2(2) ? 'ob_house' : 'ob_house2',
-        x: -560 + i * (150 + rnd2(90)) + rnd2(70),
-        y: i === 0 ? -305 + rnd2(30) : -150 + rnd2(80) + (i % 2) * 40,   // 下段の家は崖面に食い込まない高さ
-        s: 74 + rnd2(34) };
-      // 船大工(-300,-60)の立ち位置に家を被せない(決定論のままずらす)
-      if (Math.hypot(hs.x + 300, hs.y + hs.s * 0.15 + 60) < hs.s * 0.42 + 56) hs.x += hs.x < -300 ? -90 : 90;
-      houses.push(hs);
-    }
-    const barrels = [];
-    const bx = -480 + rnd2(360), by = 20 + rnd2(90);
-    for (let i = 0; i < 2 + rnd2(2); i++) barrels.push({ x: bx + i * 26 + rnd2(10), y: by + (i % 2) * 18, s: 22 + rnd2(8) });
-    const net = { x: -600 + rnd2(260), y: 90 + rnd2(120), w: 84 + rnd2(60) };
-    const lantern = { x: 140 + rnd2(160), y: 140 + rnd2(50) };   // 桟橋(y120..210)の上に立つ
-    const obst = houses.map(hs => ({ x: hs.x, y: hs.y + hs.s * 0.15, r: hs.s * 0.42 }))
-      .concat([{ x: bx + 24, y: by + 8, r: 30 }]);
-    return (portSceneryCache[pid] = { houses, barrels, net, lantern, obst });
-  }
-  function drawPortScenery(g, pid, t){
-    const sc = portScenery(pid);
-    for (const hs of sc.houses) Sprites.draw(g, hs.spr, hs.x, hs.y, hs.s);
-    for (const bl of sc.barrels) {
-      g.fillStyle = 'rgba(0,0,0,.2)';
-      g.beginPath(); g.ellipse(bl.x, bl.y + bl.s * 0.4, bl.s * 0.55, bl.s * 0.2, 0, 0, 7); g.fill();
-      g.fillStyle = '#8b5a2b'; g.fillRect(bl.x - bl.s / 2, bl.y - bl.s / 2, bl.s, bl.s);
-      g.strokeStyle = '#57443a'; g.lineWidth = 2;
-      g.strokeRect(bl.x - bl.s / 2, bl.y - bl.s / 2, bl.s, bl.s);
-      g.beginPath(); g.moveTo(bl.x - bl.s / 2, bl.y); g.lineTo(bl.x + bl.s / 2, bl.y); g.stroke();
-    }
-    // 網干し場: 2本の柱に漁網
-    const nt = sc.net;
-    g.strokeStyle = '#6e5c48'; g.lineWidth = 3;
-    g.beginPath(); g.moveTo(nt.x, nt.y); g.lineTo(nt.x, nt.y - 34); g.stroke();
-    g.beginPath(); g.moveTo(nt.x + nt.w, nt.y); g.lineTo(nt.x + nt.w, nt.y - 34); g.stroke();
-    g.strokeStyle = 'rgba(160,175,190,.55)'; g.lineWidth = 1;
-    for (let i = 0; i < 4; i++) {
-      const sag = 4 + i * 3;
-      g.beginPath(); g.moveTo(nt.x, nt.y - 30 + i * 7);
-      g.quadraticCurveTo(nt.x + nt.w / 2, nt.y - 30 + i * 7 + sag, nt.x + nt.w, nt.y - 30 + i * 7);
-      g.stroke();
-    }
-    for (let i = 1; i < 6; i++) {
-      g.beginPath(); g.moveTo(nt.x + nt.w / 6 * i, nt.y - 30); g.lineTo(nt.x + nt.w / 6 * i, nt.y - 9); g.stroke();
-    }
-    // 桟橋の灯柱: 夜の海を照らす暖色の灯り
-    const lt = sc.lantern;
-    g.strokeStyle = '#57443a'; g.lineWidth = 4;
-    g.beginPath(); g.moveTo(lt.x, lt.y); g.lineTo(lt.x, lt.y - 46); g.stroke();
-    const gl = 0.75 + Math.sin(t * 2.4) * 0.2;
-    const lg = g.createRadialGradient(lt.x, lt.y - 50, 2, lt.x, lt.y - 50, 46);
-    lg.addColorStop(0, 'rgba(255,200,110,' + (0.5 * gl).toFixed(2) + ')');
-    lg.addColorStop(1, 'rgba(255,200,110,0)');
-    g.fillStyle = lg;
-    g.beginPath(); g.arc(lt.x, lt.y - 50, 46, 0, 7); g.fill();
-    g.fillStyle = '#ffd766';
-    g.fillRect(lt.x - 4, lt.y - 56, 8, 10);
   }
 
   function interactLabel(s){
@@ -955,184 +817,74 @@ const Hub = (() => {
 
   function draw(g, W, H2){
     const p = H.player;
-    const camX = p.x - W/2, camY = p.y - H2/2;
     const bnd = bounds();
-    const theme = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
-    // 床
-    g.fillStyle = (theme && theme.floor) || (H.area === 'main' ? '#131a2b' : '#16202b');
-    g.fillRect(0, 0, W, H2);
-    // 床の質感: 市松ではなく決定論ノイズの石畳風のまだら
-    const T = 48;
-    const x0 = Math.floor(camX/T), y0 = Math.floor(camY/T);
-    g.fillStyle = 'rgba(255,255,255,.025)';
-    for (let iy = 0; iy <= Math.ceil(H2/T)+1; iy++) {
-      for (let ix = 0; ix <= Math.ceil(W/T)+1; ix++) {
-        const hh = Math.abs(Math.sin((x0+ix) * 127.1 + (y0+iy) * 311.7) * 43758.5) % 1;
-        if (hh < 0.5) continue;
-        g.fillRect((x0+ix)*T - camX, (y0+iy)*T - camY, T, T);
-      }
-    }
+    const t = performance.now() / 1000;
+    const plan = Town.plan(H.area, bnd);
+    // 街は少し引いて見る ― 建物ひと棟と、その前の道が同時に目に入る画角
+    const Z = Math.min(1, Math.max(0.58, W / 1420));
+    const VW = W / Z, VH = H2 / Z;
+    const camX = p.x - VW/2, camY = p.y - VH/2;
+    g.save();
+    g.scale(Z, Z);
+
+    // 地面・水・道・段・石段・建物の床(人より下にあるもの)
+    Town.drawGround(g, plan, camX, camY, VW, VH, t);
+
     g.save();
     g.translate(-camX, -camY);
 
-    // 街の地形: 奥の一段高い台地(段差)+踏み固められた土の道+中央広場。
-    // 道は上段の施設へは石段の口を通ってまっすぐ上がる
-    const TR = terraceOf();
-    {
-      // 上段の台地はわずかに明るい(高さの表現)
-      g.fillStyle = 'rgba(255,255,255,.035)';
-      g.fillRect(bnd.x0, bnd.y0, bnd.x1 - bnd.x0, TR.edgeY - bnd.y0);
-      const stns = H.list || [];
-      const gate = stns.find(s2 => s2.kind === 'gate');
-      const cx0 = 0, cy0 = 20;
-      g.lineCap = 'round';
-      g.strokeStyle = 'rgba(214,192,148,.085)';
-      g.lineWidth = 46;
-      if (gate) {
-        g.beginPath(); g.moveTo(gate.x, gate.y + 10);
-        g.quadraticCurveTo(gate.x * 0.4, (gate.y + cy0) / 2, cx0, cy0); g.stroke();
-      }
-      for (const s2 of stns) {
-        if (s2 === gate || s2.kind === 'villager') continue;
-        if (H.area.startsWith('port:') && s2.x > 40) continue;   // 海側には道を引かない
-        g.beginPath(); g.moveTo(cx0, cy0);
-        if (s2.y < TR.edgeY) {
-          // 上段の施設へ: 石段の正面まで行き、まっすぐ上がる
-          g.quadraticCurveTo(s2.x * 0.4, (cy0 + TR.edgeY) / 2, s2.x, TR.edgeY + 42);
-          g.lineTo(s2.x, s2.y + 16);
-        } else {
-          g.quadraticCurveTo(s2.x * 0.35, (cy0 + s2.y) / 2, s2.x, s2.y + 16);
-        }
-        g.stroke();
-      }
-      g.lineCap = 'butt';
-      g.fillStyle = 'rgba(214,192,148,.06)';
-      g.beginPath(); g.ellipse(cx0, cy0, 155, 82, 0, 0, 7); g.fill();
-      // 崖肌(段差の正面)と石段
-      for (const sg of TR.segs) {
-        g.fillStyle = 'rgba(9,13,22,.55)';
-        g.fillRect(sg.x1, TR.edgeY, sg.x2 - sg.x1, 26);
-        g.fillStyle = 'rgba(255,255,255,.12)';
-        g.fillRect(sg.x1, TR.edgeY - 2.5, sg.x2 - sg.x1, 3);
-        g.strokeStyle = 'rgba(0,0,0,.35)'; g.lineWidth = 2;
-        for (let gx = sg.x1 + 20; gx < sg.x2 - 8; gx += 36) {
-          g.beginPath(); g.moveTo(gx, TR.edgeY + 4); g.lineTo(gx + 4, TR.edgeY + 23); g.stroke();
-        }
-      }
-      for (const gp of TR.gaps) {
-        const w2 = gp.w / 2 - 12;
-        for (let st2 = 0; st2 < 5; st2++) {
-          g.fillStyle = st2 % 2 ? 'rgba(214,192,148,.17)' : 'rgba(214,192,148,.10)';
-          g.fillRect(gp.x - w2 + st2 * 3, TR.edgeY + st2 * 5.2, (w2 - st2 * 3) * 2, 5.2);
-        }
-        g.fillStyle = 'rgba(9,13,22,.45)';
-        g.fillRect(gp.x - w2 - 7, TR.edgeY, 7, 26);
-        g.fillRect(gp.x + w2, TR.edgeY, 7, 26);
-      }
-    }
-
-    // 基地マップ: 集落の実景(中央に本殿=シンボルの元、周りに家々)。
-    // 周回マップのシンボルはこの実景を縮小デフォルメしたもの。
-    if (H.area.startsWith('port:')) {
+    // 港町: 桟橋の先に船が停まっている(修理前は残骸)
+    if (H.area.startsWith('port:') && plan.pier) {
       const pid = H.area.slice(5);
-      const pp = DATA.PORTS.find(q => q.id === pid);
-      // 右半分は海。桟橋が突き出し、船が実寸大で停泊している
-      g.fillStyle = '#0d2b3d';
-      g.fillRect(60, bnd.y0, bnd.x1 - 60, bnd.y1 - bnd.y0);
-      // 渚: 砂の帯と寄せる波の白線(街が海に「面している」地形)
-      g.fillStyle = '#59503c';
-      g.fillRect(34, bnd.y0, 26, bnd.y1 - bnd.y0);
-      const swT = performance.now() / 1000;
-      g.strokeStyle = 'rgba(230,237,243,.30)'; g.lineWidth = 2;
-      g.beginPath();
-      for (let sy2 = bnd.y0; sy2 <= bnd.y1; sy2 += 14) {
-        const wx2 = 62 + Math.sin(sy2 * 0.05 + swT * 1.6) * 4;
-        if (sy2 === bnd.y0) g.moveTo(wx2, sy2); else g.lineTo(wx2, sy2);
-      }
-      g.stroke();
-      g.strokeStyle = 'rgba(230,237,243,0.15)'; g.lineWidth = 2;
-      const wt = performance.now() / 1000;
-      for (let i = 0; i < 7; i++) {
-        const wy = bnd.y0 + 60 + i * 100 + Math.sin(wt + i) * 6;
-        g.beginPath(); g.moveTo(120 + (i % 3) * 60, wy); g.lineTo(200 + (i % 3) * 60, wy + 4); g.stroke();
-      }
-      // 桟橋(陸から海へ)
-      g.fillStyle = '#6b4f2e'; g.fillRect(-80, 120, 400, 90);
-      g.strokeStyle = 'rgba(0,0,0,.25)'; g.lineWidth = 2;
-      for (let px2 = -60; px2 < 320; px2 += 40) { g.beginPath(); g.moveTo(px2, 122); g.lineTo(px2, 208); g.stroke(); }
-      // 船: 実寸大。修理済みなら帆船、未修理なら壊れた残骸
-      Sprites.draw(g, SaveSys.data.ports[pid] ? 'boat' : 'ob_wreck', 400, 90, 300);
-      // 陸側: 港ごとに配置の違う家並み・網干し場・樽・灯柱(決定論)
-      drawPortScenery(g, pid, wt);
-      if (pp) labelChip(g, -200, bnd.y0 + 150,
-        '― ' + (pp.name.includes('港') ? pp.name : '港町「' + pp.name + '」') + ' ―', '#8b949e', 12);
-    }
-    else if (H.area !== 'main') {
-      const bd = DATA.BASES.find(b => b.id === H.area);
-      if (bd) {
-        Sprites.draw(g, bd.spr || 'st_warp', 0, bounds().y0 + 90, 190);
-        // 家並み: 基地ごとに軒数・位置・大きさが違う(決定論)。左右対称の張りぼて感をなくす
-        let hh2 = 0; for (let i = 0; i < H.area.length; i++) hh2 = (hh2 * 31 + H.area.charCodeAt(i)) | 0;
-        hh2 = Math.abs(hh2) || 1;
-        const hr = (n) => { hh2 = (hh2 * 1103515245 + 12345) & 0x7fffffff; return hh2 % n; };
-        const slots = [
-          { x:-370, y:bounds().y0 + 110 }, { x:370, y:bounds().y0 + 104 },
-          { x:-395, y:170 }, { x:395, y:180 }, { x:-540, y:20 }, { x:545, y:30 },
-        ];
-        const nHouse = 3 + hr(3);   // 3〜5軒(同じ場所に重ねない)
-        const start = hr(6);
-        for (let i = 0; i < nHouse; i++) {
-          const sl = slots[(start + i) % slots.length];
-          Sprites.draw(g, hr(2) ? 'ob_house' : 'ob_house2',
-            sl.x + hr(50) - 25, sl.y + hr(30) - 15, 68 + hr(30));
-        }
-        g.fillStyle = '#8b949e'; g.font = '13px sans-serif'; g.textAlign = 'center';
-        g.fillText('― ' + bd.name + '〈' + (bd.kind || '拠点') + '〉 ―', 0, bounds().y0 + 190);
-      }
-    }
-    // 実景(HUB_THEME): 泉・御神木・大炉・湯壺・歌碑・灯台など、物語に出てくるもの
-    if (theme) {
-      const tt = performance.now() / 1000;
-      // 奥のもの(y小)から手前へ
-      const props = (theme.props || []).slice().sort((a, b2) => a.y - b2.y);
-      for (const pr of props) drawProp(g, pr, tt);
-      drawThemeAir(g, theme, bnd, tt);
-    }
-    // 広場の縁(装飾つき)
-    g.strokeStyle = '#2b3654'; g.lineWidth = 6;
-    g.strokeRect(bnd.x0, bnd.y0, bnd.x1 - bnd.x0, bnd.y1 - bnd.y0);
-    g.strokeStyle = 'rgba(118,227,234,.14)'; g.lineWidth = 2;
-    g.strokeRect(bnd.x0 + 14, bnd.y0 + 14, bnd.x1 - bnd.x0 - 28, bnd.y1 - bnd.y0 - 28);
-
-    // 浮遊する魂の粒
-    const hbT = performance.now() / 1000;
-    const bw = bnd.x1 - bnd.x0, bh = bnd.y1 - bnd.y0;
-    for (let i = 0; i < 26; i++) {
-      const sx = bnd.x0 + 40 + ((i * 331) % (bw - 80));
-      const sy = bnd.y0 + (((hbT * (8 + i % 5 * 4) + i * 197)) % bh);
-      g.fillStyle = `hsla(${185 + (i % 3) * 30}, 80%, 70%, ${0.10 + (i % 3) * 0.06})`;
-      g.beginPath(); g.arc(sx + Math.sin(hbT + i) * 14, bnd.y0 + bh - (sy - bnd.y0), 2 + (i % 3), 0, 7); g.fill();
+      Sprites.draw(g, SaveSys.data.ports[pid] ? 'boat' : 'ob_wreck', plan.pier.x1 + 90, plan.pier.y0 - 20, 300);
     }
 
-    // 施設
+    // 壁・柱・木・灯籠と、人。同じ列に並べて手前のものを後に描く
+    const draws = Town.items(plan, t).slice();
+    // 物語に出てくるもの(御神木・歌碑・湯壺・竜骨のアーチ・日輪の鏡など)を街に置く。
+    // 建物や壁と重なる位置のものは、その街では骨組みが同じ役目を果たすので出さない
+    const theme = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
+    if (theme) for (const pr of (theme.props || [])) {
+      if (Town.solidsOf(plan).some(r => pr.x > r.x0 - 60 && pr.x < r.x1 + 60 && pr.y > r.y0 - 60 && pr.y < r.y1 + 60)) continue;
+      draws.push({ sy: pr.y, draw:(g2) => drawProp(g2, pr, t) });
+    }
     for (const s of H.list) {
-      const v = stationVisual(s);
-      const glow = H.interact === s;
-      const sx = s.x + (s.ox || 0), sy = s.y + (s.oy || 0);
-      const gg = g.createRadialGradient(sx, sy + 20, 4, sx, sy + 20, 66);
-      gg.addColorStop(0, glow ? 'rgba(255,215,102,.30)' : 'rgba(118,227,234,.12)');
-      gg.addColorStop(1, 'rgba(0,0,0,0)');
-      g.fillStyle = gg;
-      g.beginPath(); g.arc(sx, sy + 20, 66, 0, 7); g.fill();
-      Sprites.draw(g, v.spr, sx, sy, 84);
-      labelChip(g, sx, sy + 62, v.label, glow ? '#ffd766' : '#c9d1d9', 12);
+      draws.push({ sy: s.y + (s.oy || 0), draw:(g2) => {
+        const v = stationVisual(s);
+        const glow = H.interact === s;
+        const sx = s.x + (s.ox || 0), sy = s.y + (s.oy || 0) - Town.elevAt(plan, s.x, s.y);
+        const gg = g2.createRadialGradient(sx, sy + 20, 4, sx, sy + 20, 66);
+        gg.addColorStop(0, glow ? 'rgba(255,215,102,.30)' : 'rgba(118,227,234,.12)');
+        gg.addColorStop(1, 'rgba(0,0,0,0)');
+        g2.fillStyle = gg;
+        g2.beginPath(); g2.arc(sx, sy + 20, 66, 0, 7); g2.fill();
+        Sprites.draw(g2, v.spr, sx, sy, 84);
+        labelChip(g2, sx, sy + 62, v.label, glow ? '#ffd766' : '#c9d1d9', 12);
+      } });
     }
+    draws.push({ sy: p.y, draw:(g2) => {
+      const py = p.y - Town.elevAt(plan, p.x, p.y);
+      g2.fillStyle = 'rgba(0,0,0,.35)';
+      g2.beginPath(); g2.ellipse(p.x, p.y + 14, 15, 6, 0, 0, 7); g2.fill();   // 影は地面に残る
+      g2.globalAlpha = 0.92;
+      Sprites.draw(g2, 'player', p.x, py, 36, p.dir < 0);
+      g2.globalAlpha = 1;
+    } });
+    draws.sort((a2, b2) => a2.sy - b2.sy);
+    for (const d of draws) d.draw(g);
 
-    // プレイヤー(魂verは少し透ける)
-    g.globalAlpha = 0.92;
-    Sprites.draw(g, 'player', p.x, p.y, 36, p.dir < 0);
-    g.globalAlpha = 1;
+    Town.drawAir(g, plan, t);
+    if (theme) drawThemeAir(g, theme, bnd, t);
 
+    // 街の名まえ(奥の空きに小さく)
+    const nm = H.area === 'main' ? '― 魂の広場 ―'
+      : H.area.startsWith('port:') ? (() => { const pp = DATA.PORTS.find(q => q.id === H.area.slice(5));
+          return pp ? '― ' + (pp.name.includes('港') ? pp.name : '港町「' + pp.name + '」') + ' ―' : ''; })()
+      : (() => { const bd = DATA.BASES.find(q => q.id === H.area);
+          return bd ? '― ' + bd.name + '〈' + (bd.kind || '拠点') + '〉 ―' : ''; })();
+    if (nm) labelChip(g, H.area.startsWith('port:') ? -320 : 0, bnd.y0 + 34, nm, '#8b949e', 12);
+
+    g.restore();
     g.restore();
 
     drawVignette(g, W, H2);

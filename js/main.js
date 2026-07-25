@@ -43,11 +43,13 @@ const Game = (() => {
     if (!SaveSys.data.introSeen && Object.keys(SaveSys.data.bases).length === 0) {
       SaveSys.data.introSeen = true; SaveSys.save();
       setTimeout(() => dialog('', null, [
-        '…気がつくと、見知らぬ草原に立っていた。',
+        '…気がつくと、見知らぬ草原に立っていた。名前も、来た道も思い出せない。',
         'ポケットには古びた地図の切れ端。「北の砦」とだけ記され、印が打たれている。(🗺 地図に「?」)',
-        '(この世界では、死は終わりではない…らしい)',
+        '切れ端の裏に、自分のものではない字。――「君も還る側なら、果ての城で待っている」',
+        '(還る、とは。誰が、誰を待っている?)',
       ], () => dialogChoice('', null, '…どうする?', [
-        { label:'進むしかない', cb(){ dialog('', null, ['(足が、自然と北へ向いた)'], null); } },
+        { label:'書いた者を探す', cb(){ dialog('', null, ['(この字の主に会う。それだけが、いまの手がかりだ)'], null); } },
+        { label:'まず北の砦へ', cb(){ dialog('', null, ['(印の打たれた場所へ。答えは、人のいるところにある)'], null); } },
         { label:'帰り道を探す', cb(){ dialog('', null, ['(振り返っても、来た道の記憶がない。……進むしかない)'], null); } },
       ])), 400);
     }

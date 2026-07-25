@@ -42,6 +42,20 @@ const Quest = (() => {
     return sideIdx[id] || null;
   }
   // 住民NPCの在/不在: ストーリーで現れたり(appearStory)、旅立ったり(leaveStory)する
+  // いま世界のどこかに立っている住民(サイドクエストの主)の一覧
+  function visibleSideIds(){
+    const out = {};
+    for (const area in DATA.SIDEQUESTS || {})
+      for (const sq of DATA.SIDEQUESTS[area]) if (sideVisible(sq)) out[sq.id] = sq.npcName;
+    return out;
+  }
+  // さっきまで居なかったのに、いま居る人
+  function newcomers(before){
+    const now = visibleSideIds();
+    const out = [];
+    for (const id in now) if (!before[id]) out.push(now[id]);
+    return out;
+  }
   function sideVisible(def){
     const st = SaveSys.data.story || {};
     if (def.appearStory && !st[def.appearStory]) return false;
@@ -271,6 +285,7 @@ const Quest = (() => {
       R.warnMsg = '⚓「' + (p ? p.name : '') + '」の船が直った!出航できるぞ' +
         (told ? '。隣の港も見当が付いた' : '');
     } else if (kind === 'side') {
+      const before = visibleSideIds();
       SaveSys.data.sideDone = SaveSys.data.sideDone || {};
       SaveSys.data.sideDone[id] = true;
       const rw = def.reward || {};
@@ -299,7 +314,15 @@ const Quest = (() => {
         const cur = SaveSys.data.meta[mid] || 0;
         if (cur < md.max) { SaveSys.data.meta[mid] = cur + rw.metaLv[mid]; txt.push('✨「' + md.name + '」+' + rw.metaLv[mid]); }
       }
+      // その依頼のおかげで誰かが動く ― 「次も受ける理由」を、世界の変化として見せる
+      const moved = newcomers(before);
+      if (moved.length) txt.push('👤 ' + moved.join('・') + 'が動いた');
       R.warnMsg = '🎁 依頼達成! ' + (txt.length ? '報酬: ' + txt.join('・') : '');
+      if (moved.length) {
+        R.pendingStoryLine = moved.length === 1
+          ? '(' + moved[0] + 'が、あなたを訪ねてくるようになったらしい)'
+          : '(あなたの働きを聞いて、' + moved.join('と') + 'が動き出したらしい)';
+      }
     } else if (kind === 'board') {
       giveCoins((def.reward || {}).coins || 0);
       R.boardDone = R.boardDone || {};
@@ -321,6 +344,9 @@ const Quest = (() => {
       SaveSys.data.bases[id] = true;
       const b = DATA.BASES.find(b => b.id === id);
       R.warnMsg = '✦ 基地「' + (b ? b.name : '') + '」を解放した!魂の広場にゲートが開いた';
+      // ゲートを灯す意味を、そのつど言葉にする(人里はゲートの光の下にしか残っていない)
+      const lit = Object.keys(SaveSys.data.bases).length;
+      R.pendingStoryLine = '(灯ったゲートは' + lit + 'つめ。人が眠れる場所が、この世にまた一つ増えた)';
       onBaseUnlocked(id, def);
     }
     R.warnColor = '#ffd766'; R.warnT = 5;
@@ -328,6 +354,15 @@ const Quest = (() => {
     SaveSys.save();
     SaveSys.checkAchievements();
     Sfx.unlock();
+    // 世界が動いた一言は、報酬の表示が消えたあとに地の文の帯で続ける
+    // (会話窓は開かない ― 操作を止めずに読ませる)
+    if (R.pendingStoryLine) {
+      const line = R.pendingStoryLine; R.pendingStoryLine = null;
+      setTimeout(() => {
+        if (Run.state.over) return;
+        Run.state.warnMsg = line; Run.state.warnColor = '#76e3ea'; Run.state.warnT = 5;
+      }, 5200);
+    }
   }
 
   // 拠点の場所は自動では明かさない。知る手段は
