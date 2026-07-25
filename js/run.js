@@ -2258,13 +2258,22 @@ const Run = (() => {
     // 修理済みの船には桟橋の先(海側)から乗る
     if (!p.onBoat) {
       for (const port of World.ports) {
-        if (Math.hypot(p.x - port.x, p.y - port.y) < 110) {
-          R.interact = { type:'enterport', port,
-            label: port.name.includes('港') ? 'E: 「' + port.name + '」に入る' : 'E: 港町「' + port.name + '」に入る' };
+        const dDock = Math.hypot(p.x - port.x, p.y - port.y);
+        // 乗船は「陸側の乗船地点(渚)」で判定する ― 出航点は海の上にあり、
+        // 歩いて近づける限界は港ごとに違う(106〜256px)
+        const bx = port.boardX !== undefined ? port.boardX : port.seaX;
+        const by = port.boardY !== undefined ? port.boardY : port.seaY;
+        const dShore = Math.hypot(p.x - bx, p.y - by);
+        // 町の入口(桟橋)と渚は近いので、近い方を選ぶ ―
+        // 桟橋に立てば町へ、海side(渚)へ寄れば出航
+        const dSea = Math.hypot(p.x - port.seaX, p.y - port.seaY);
+        if (SaveSys.data.ports[port.id] && ((dShore < 95 && dShore < dDock) || dSea < 110)) {
+          R.interact = { type:'board', port, label:'E: 「' + port.name + '」から出航する' };
           break;
         }
-        if (SaveSys.data.ports[port.id] && Math.hypot(p.x - port.seaX, p.y - port.seaY) < 100) {
-          R.interact = { type:'board', port, label:'E: 「' + port.name + '」から出航する' };
+        if (dDock < 110) {
+          R.interact = { type:'enterport', port,
+            label: port.name.includes('港') ? 'E: 「' + port.name + '」に入る' : 'E: 港町「' + port.name + '」に入る' };
           break;
         }
       }

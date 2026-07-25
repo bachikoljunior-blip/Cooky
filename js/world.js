@@ -165,23 +165,44 @@ const World = (() => {
   // 本土の港: 始まりの大陸の海岸、angle方向。
   // 遠隔の港(at持ち): 他大陸の岸辺の明示座標から、seaAngle方向へ歩いて出航点を求める
   const main = DATA.CONTINENTS[0];
+  // 乗船地点: 出航点は海の上にあり、歩いて近づける限界は港ごとに違う。
+  // 桟橋から海へ向かって歩き、陸で居られる最後の地点を「船に乗る場所」として持つ
+  function shoreSpot(fx, fy, tx, ty){
+    const dx = tx - fx, dy = ty - fy;
+    const L = Math.hypot(dx, dy) || 1;
+    let last = { x: fx, y: fy };
+    for (let t = 0; t <= L; t += 6) {
+      const x = fx + dx / L * t, y = fy + dy / L * t;
+      if (!isLand(x, y)) break;
+      last = { x, y };
+    }
+    return last;
+  }
   const ports = DATA.PORTS.map(p => {
+    let o;
     if (p.at) {
+      // 遠隔の港: atは「その辺り」を指す目安なので、そこから海へ歩いて渚を求め、
+      // 港町は本土の港と同じく渚の60px内陸に置く(内陸2kmの“港町”にしない)
       const ca = Math.cos(p.seaAngle), sa = Math.sin(p.seaAngle);
       let d = 0;
-      while (d < 20000 && isLand(p.at.x + ca * d, p.at.y + sa * d)) d += 120;
-      return { ...p, x: p.at.x, y: p.at.y,
-               seaX: p.at.x + ca * (d + 140), seaY: p.at.y + sa * (d + 140) };
+      while (d < 20000 && isLand(p.at.x + ca * d, p.at.y + sa * d)) d += 6;
+      const shx = p.at.x + ca * (d - 6), shy = p.at.y + sa * (d - 6);
+      o = { ...p, x: shx - ca * 60, y: shy - sa * 60,
+            seaX: shx + ca * 110, seaY: shy + sa * 110 };
+    } else {
+      const e = edgeR(main, p.angle);
+      const sx = main.sx || 1, sy = main.sy || 1;
+      o = {
+        ...p,
+        x: main.x + Math.cos(p.angle) * (e - 60) * sx,   // 陸側ドック
+        y: main.y + Math.sin(p.angle) * (e - 60) * sy,
+        seaX: main.x + Math.cos(p.angle) * (e + 110) * sx, // 出航ポイント(海側)
+        seaY: main.y + Math.sin(p.angle) * (e + 110) * sy,
+      };
     }
-    const e = edgeR(main, p.angle);
-    const sx = main.sx || 1, sy = main.sy || 1;
-    return {
-      ...p,
-      x: main.x + Math.cos(p.angle) * (e - 60) * sx,   // 陸側ドック
-      y: main.y + Math.sin(p.angle) * (e - 60) * sy,
-      seaX: main.x + Math.cos(p.angle) * (e + 110) * sx, // 出航ポイント(海側)
-      seaY: main.y + Math.sin(p.angle) * (e + 110) * sy,
-    };
+    const sp = shoreSpot(o.x, o.y, o.seaX, o.seaY);
+    o.boardX = sp.x; o.boardY = sp.y;
+    return o;
   });
 
   const bases = DATA.BASES.slice(); // {id,name,x,y,cont}

@@ -32,7 +32,8 @@ const Game = (() => {
   function toHub(){
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
+    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-sig'); hide('btn-pause');
+    show('btn-skill');   // 街でもスキル画面は開ける
     hide('quest-obj'); hide('interact-hint'); hide('help-panel');   // 周回の帯・開きっぱなしのヘルプを持ち込まない
     Hub.enter();
     Sfx.setScene('hub');
@@ -61,7 +62,8 @@ const Game = (() => {
   // 周回中に基地へ着いた: 拠点マップへ転移(周回は裏で保持)
   function enterBaseFromRun(baseId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-sig'); hide('btn-pause');
+    show('btn-skill');   // 立ち寄った街でもスキル画面は開ける
     hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun(baseId);
@@ -70,7 +72,8 @@ const Game = (() => {
   // 周回中に港へ着いた: 港町マップへ転移(周回は裏で保持)
   function enterPortFromRun(portId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-sig'); hide('btn-pause');
+    show('btn-skill');   // 立ち寄った街でもスキル画面は開ける
     hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun('port:' + portId);
@@ -197,8 +200,10 @@ const Game = (() => {
     overlay = null;
   }
 
+  // スキル画面は周回中だけでなく街(基地・港・魂の広場)でも開ける ―
+  // 周回中に立ち寄った街でも、素材の確認やその場での取得ができる
   function toggleSkillPanel(){
-    if (state !== 'run') return;
+    if (state !== 'run' && state !== 'hub') return;
     if (overlay === 'skill') { Skills.close(); overlay = null; }
     else if (!overlay) { Skills.open(); overlay = 'skill'; }
   }

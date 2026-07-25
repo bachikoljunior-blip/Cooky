@@ -373,6 +373,9 @@ const Skills = (() => {
 
   function open(){
     render();
+    // 見出しの但し書きは状況に合わせる(街では時間は動いていない)
+    const note = panel.querySelector('h2 .small');
+    if (note) note.textContent = Game.state === 'run' ? '(一時停止中)' : '(街で確認中)';
     panel.classList.remove('hidden');
     // 開いた時点の取得可能スキルを既読にする(バッジが消える)
     for (const id of readyIds()) seenReady[id] = true;
