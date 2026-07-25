@@ -71,6 +71,69 @@ const Town = (() => {
     return out.filter(r => r.x1 - r.x0 > 1 && r.y1 - r.y0 > 1);
   }
 
+  // ---------------- 建物の中身(用途ごとの造作) ----------------
+  // 置き場所は画面の向き基準の定位置(奥の壁ぎわ・左右の壁ぎわ・手前の隅)。
+  // 主の立ち位置と帳場にかかる場所は空けるので、どの向きの戸口でも主が隠れない
+  const ANCHOR = [[-0.62, 0.17], [0.62, 0.17], [0, 0.15], [-0.68, 0.52], [0.68, 0.52],
+                  [-0.6, 0.85], [0.6, 0.85], [0, 0.85]];
+  function anchorPos(bd, u, v){
+    const iw = bd.w - WT * 2, ih = bd.h - WT * 2;
+    return { x: bd.x + u * iw / 2, y: bd.y - ih / 2 + v * ih };
+  }
+  // その建物に実際に置ける造作の一覧(位置つき)。主・帳場を避けて前から詰める
+  function fitsOf(bd){
+    if (bd._fits) return bd._fits;
+    const list = FIT[bd.use || bd.kind] || [];
+    const front = { s:[0, 1], n:[0, -1], w:[-1, 0], e:[1, 0] }[bd.door] || [0, 1];
+    const cnt = { x: bd.slot.x + front[0] * 38, y: bd.slot.y + front[1] * 38 };
+    const free = [];
+    for (const [u, v] of ANCHOR) {
+      const q = anchorPos(bd, u, v);
+      if (Math.hypot(q.x - bd.slot.x, q.y - bd.slot.y) < 52) continue;   // 主を埋めない
+      if (Math.hypot(q.x - cnt.x, q.y - cnt.y) < 46) continue;           // 帳場に重ねない
+      free.push(q);
+    }
+    const out = [];
+    for (let i = 0; i < list.length && i < free.length; i++) out.push({ k: list[i], x: free[i].x, y: free[i].y });
+    return (bd._fits = out);
+  }
+  // 用途ごとの造作。並びの先頭ほど「その施設らしさ」が強いものを置く
+  const FIT = {
+    altar:  ['dais', 'brazier', 'brazier'],
+    lab:    ['still', 'shelf', 'crate'],
+    camp:   ['banner', 'bedroll', 'bedroll'],
+    lib:    ['shelf', 'shelf', 'desk'],
+    armory: ['rack', 'anvil', 'crate'],
+    war:    ['rack', 'dummy', 'target'],
+    life:   ['shrine', 'basin', 'herbs'],
+    lore:   ['chest', 'crate', 'crate', 'barrel'],
+    ship:   ['timber', 'rope', 'bench'],
+    house:  ['bed', 'table'],
+    hut:    ['bedroll', 'pot'],
+    tent:   ['bedroll', 'bedroll'],
+    ware:   ['crate', 'crate', 'barrel', 'crate'],
+    keep:   ['banner', 'banner', 'table'],
+    tower:  ['shelf', 'desk'],
+    inn:    ['hearth', 'table', 'table'],
+    dug:    ['hearth', 'bedroll'],
+    ruin:   ['rubble', 'rubble'],
+    shed:   ['anvil', 'bench', 'barrel'],
+    temple: ['dais', 'brazier', 'brazier'],
+    shrine: ['shrine', 'brazier', 'brazier'],
+  };
+  // 床に敷くもの(人の下)と、立ち上がるもの(人と前後する)の区別
+  const FLAT = { dais:1, hearth:1, bedroll:1, bed:1, rubble:1, herbs:1, target:1, rope:1 };
+  // 屋根の色。外から見て「何の建物か」が分かる
+  const ROOF = {
+    altar:'#57487f', lab:'#3f6b7a', camp:'#7a5f3a', lib:'#54406b', armory:'#7a4436',
+    war:'#7a3f33', life:'#3f6b4e', lore:'#7a6234', ship:'#6b5236', tent:'#6b5a3a',
+    ware:'#5b5040', keep:'#57506b', tower:'#4a5a72', inn:'#8a5a34', dug:'#68798a',
+    ruin:'#474747', shed:'#6b4030', temple:'#a8853f', shrine:'#42675d',
+  };
+  // 戸口の上に下がる看板の紋
+  const SIGN = { altar:'✦', lab:'⚗', camp:'⌂', lib:'▤', armory:'⚔', war:'◎', life:'❖',
+                 lore:'▣', ship:'⚓', inn:'♨', ware:'▦', shed:'⚒', temple:'☀', shrine:'⛩' };
+
   // ---------------- 骨組み(街の形) ----------------
   // どの骨組みも { levels, stairs, buildings, walls, water, roads, slots } を返す。
   // slots.fac は施設(最大3)、slots.npc/side/villager は人の立ち位置。
@@ -540,6 +603,95 @@ const Town = (() => {
     pt.x = t.x; pt.y = t.y;
   }
 
+  // ---------------- 造作ひとつひとつの絵 ----------------
+  // どれも「その施設らしさ」が一目で分かる形。色は街の素材に馴染ませる
+  const PROP = {
+    dais(g, x, y, m){ g.fillStyle = m.wall; roundRect(g, x - 52, y - 22, 104, 44, 8); g.fill();
+      g.fillStyle = m.top; roundRect(g, x - 44, y - 16, 88, 10, 5); g.fill(); },
+    hearth(g, x, y, m){ g.fillStyle = '#2b2018'; roundRect(g, x - 34, y - 20, 68, 40, 14); g.fill();
+      g.strokeStyle = m.wall; g.lineWidth = 7; roundRect(g, x - 34, y - 20, 68, 40, 14); g.stroke();
+      g.fillStyle = '#e0803a'; g.beginPath(); g.ellipse(x, y, 17, 10, 0, 0, 7); g.fill(); },
+    bedroll(g, x, y, m){ g.fillStyle = '#6b5a48'; roundRect(g, x - 20, y - 30, 40, 60, 10); g.fill();
+      g.fillStyle = '#8e7a62'; roundRect(g, x - 15, y - 25, 30, 24, 8); g.fill(); },
+    bed(g, x, y, m){ g.fillStyle = '#4a3826'; roundRect(g, x - 24, y - 34, 48, 68, 6); g.fill();
+      g.fillStyle = '#6b5236'; g.fillRect(x - 24, y - 34, 48, 5); g.fillRect(x - 24, y + 29, 48, 5);
+      g.fillStyle = '#8a5344'; roundRect(g, x - 19, y - 12, 38, 40, 5); g.fill();
+      g.fillStyle = '#a36653'; for (let i = 0; i < 3; i++) g.fillRect(x - 19, y - 8 + i * 12, 38, 4);
+      g.fillStyle = '#e6edf3'; roundRect(g, x - 16, y - 28, 32, 15, 5); g.fill(); },
+    rubble(g, x, y, m){ g.fillStyle = m.wall;
+      for (const [dx, dy, r] of [[-12, 4, 11], [8, -6, 14], [16, 10, 8]]) { g.beginPath(); g.arc(x + dx, y + dy, r, 0, 7); g.fill(); } },
+    herbs(g, x, y, m){ g.fillStyle = '#2f4a2c'; roundRect(g, x - 26, y - 18, 52, 36, 6); g.fill();
+      g.fillStyle = '#6d9a52';
+      for (let i = 0; i < 5; i++) { g.beginPath(); g.ellipse(x - 18 + i * 9, y - 4 + (i % 2) * 8, 4, 8, 0, 0, 7); g.fill(); } },
+    target(g, x, y, m){ for (const [r, c] of [[22, '#d8dee6'], [15, '#c04a3a'], [7, '#d8dee6']]) {
+        g.fillStyle = c; g.beginPath(); g.arc(x, y, r, 0, 7); g.fill(); } },
+    rope(g, x, y, m){ g.strokeStyle = '#a8905e'; g.lineWidth = 5;
+      for (const r of [20, 13, 7]) { g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); } },
+    // ---- 立ち上がるもの(高さ26〜46) ----
+    shelf(g, x, y, m){ const h = 44; g.fillStyle = '#3b2f22'; g.fillRect(x - 26, y - h, 52, h + 8);
+      g.fillStyle = m.top; g.fillRect(x - 26, y - h, 52, 5);
+      for (let i = 0; i < 3; i++) { g.fillStyle = '#5b4a33'; g.fillRect(x - 22, y - h + 10 + i * 12, 44, 3);
+        for (let k = 0; k < 5; k++) { g.fillStyle = ['#c2704a', '#4a6f9a', '#8a6fae', '#6f9a5a', '#c2a44a'][(i * 5 + k) % 5];
+          g.fillRect(x - 21 + k * 8, y - h + 3 + i * 12, 6, 7); } } },
+    rack(g, x, y, m){ g.fillStyle = '#3b2f22'; g.fillRect(x - 28, y - 8, 56, 12);
+      for (let i = 0; i < 4; i++) { const bx = x - 21 + i * 14;
+        g.strokeStyle = '#8b949e'; g.lineWidth = 4; g.beginPath(); g.moveTo(bx, y - 6); g.lineTo(bx + 3, y - 44); g.stroke();
+        g.fillStyle = '#c9d1d9'; g.beginPath(); g.arc(bx + 3, y - 46, 4, 0, 7); g.fill(); } },
+    anvil(g, x, y, m){ g.fillStyle = '#2f2a26'; g.fillRect(x - 12, y - 16, 24, 18);
+      g.fillStyle = '#4a4a52'; roundRect(g, x - 24, y - 30, 48, 16, 4); g.fill();
+      g.fillStyle = '#6b6b76'; g.fillRect(x - 24, y - 30, 48, 4);
+      g.fillStyle = '#4a4a52'; g.beginPath(); g.moveTo(x - 24, y - 24); g.lineTo(x - 38, y - 22); g.lineTo(x - 24, y - 16); g.fill(); },
+    dummy(g, x, y, m){ g.fillStyle = '#5b4a33'; g.fillRect(x - 4, y - 40, 8, 44);
+      g.fillStyle = '#8e7a62'; roundRect(g, x - 15, y - 44, 30, 26, 9); g.fill();
+      g.fillStyle = '#6b5a48'; g.fillRect(x - 22, y - 36, 44, 6); },
+    still(g, x, y, m){ g.fillStyle = '#6b5236'; g.fillRect(x - 20, y - 12, 40, 14);
+      g.fillStyle = '#b08b53'; g.beginPath(); g.ellipse(x, y - 22, 15, 13, 0, 0, 7); g.fill();
+      g.strokeStyle = '#b08b53'; g.lineWidth = 4; g.beginPath(); g.moveTo(x + 12, y - 30); g.lineTo(x + 24, y - 42); g.stroke();
+      g.fillStyle = '#76e3ea'; g.beginPath(); g.arc(x, y - 22, 6, 0, 7); g.fill(); },
+    desk(g, x, y, m){ g.fillStyle = '#5b4a33'; roundRect(g, x - 32, y - 24, 64, 26, 4); g.fill();
+      g.fillStyle = '#7a6547'; g.fillRect(x - 32, y - 24, 64, 5);
+      g.fillStyle = '#e6edf3'; g.fillRect(x - 14, y - 20, 22, 14);
+      g.fillStyle = '#3b2f22'; g.fillRect(x - 30, y + 2, 6, 12); g.fillRect(x + 24, y + 2, 6, 12); },
+    bench(g, x, y, m){ g.fillStyle = '#5b4a33'; g.fillRect(x - 30, y - 20, 60, 20);
+      g.fillStyle = '#7a6547'; g.fillRect(x - 30, y - 20, 60, 5);
+      g.fillStyle = '#8b949e'; g.fillRect(x - 20, y - 30, 6, 10); g.fillRect(x + 6, y - 28, 14, 8); },
+    table(g, x, y, m){ g.fillStyle = '#5b4a33'; roundRect(g, x - 26, y - 20, 52, 24, 6); g.fill();
+      g.fillStyle = '#7a6547'; roundRect(g, x - 26, y - 20, 52, 6, 3); g.fill();
+      g.fillStyle = '#c2a44a'; g.beginPath(); g.arc(x, y - 12, 5, 0, 7); g.fill(); },
+    crate(g, x, y, m){ g.fillStyle = '#6b5236'; g.fillRect(x - 18, y - 30, 36, 34);
+      g.fillStyle = '#8f7048'; g.fillRect(x - 18, y - 30, 36, 5);
+      g.strokeStyle = '#3b2f22'; g.lineWidth = 3;
+      g.beginPath(); g.moveTo(x - 18, y - 14); g.lineTo(x + 18, y - 14); g.stroke(); },
+    barrel(g, x, y, m){ g.fillStyle = '#6b5236'; roundRect(g, x - 14, y - 32, 28, 36, 9); g.fill();
+      g.fillStyle = '#8f7048'; g.beginPath(); g.ellipse(x, y - 30, 14, 6, 0, 0, 7); g.fill();
+      g.strokeStyle = '#3b2f22'; g.lineWidth = 3;
+      for (const yy of [-22, -10]) { g.beginPath(); g.moveTo(x - 14, y + yy); g.lineTo(x + 14, y + yy); g.stroke(); } },
+    chest(g, x, y, m){ g.fillStyle = '#6b5236'; g.fillRect(x - 22, y - 24, 44, 28);
+      g.fillStyle = '#8f7048'; roundRect(g, x - 22, y - 32, 44, 12, 5); g.fill();
+      g.fillStyle = '#c2a44a'; g.fillRect(x - 5, y - 26, 10, 12); },
+    pot(g, x, y, m){ g.fillStyle = '#5a4a3a'; g.beginPath(); g.ellipse(x, y - 12, 15, 16, 0, 0, 7); g.fill();
+      g.fillStyle = '#7a6650'; g.beginPath(); g.ellipse(x, y - 24, 11, 5, 0, 0, 7); g.fill(); },
+    banner(g, x, y, m, c){ g.fillStyle = '#3b2f22'; g.fillRect(x - 2, y - 48, 4, 50);
+      g.fillStyle = c || '#8a3f36'; g.beginPath();
+      g.moveTo(x + 2, y - 48); g.lineTo(x + 26, y - 44); g.lineTo(x + 20, y - 32); g.lineTo(x + 26, y - 20); g.lineTo(x + 2, y - 24); g.fill(); },
+    timber(g, x, y, m){ g.fillStyle = '#6b5236';
+      for (let i = 0; i < 3; i++) g.fillRect(x - 26, y - 10 - i * 9, 52, 8);
+      g.fillStyle = '#8f7048'; for (let i = 0; i < 3; i++) g.fillRect(x - 26, y - 10 - i * 9, 52, 2); },
+    shrine(g, x, y, m){ g.fillStyle = m.wall; g.fillRect(x - 26, y - 10, 52, 12);
+      g.fillStyle = m.top; g.fillRect(x - 20, y - 34, 40, 24);
+      g.fillStyle = m.wall; g.beginPath();
+      g.moveTo(x - 30, y - 34); g.lineTo(x, y - 52); g.lineTo(x + 30, y - 34); g.fill();
+      g.fillStyle = '#2b2f38'; g.fillRect(x - 8, y - 28, 16, 18); },
+    brazier(g, x, y, m, c, t){ g.fillStyle = '#3b3f48'; g.fillRect(x - 4, y - 26, 8, 28);
+      g.fillStyle = '#4a4f5a'; roundRect(g, x - 15, y - 36, 30, 14, 5); g.fill();
+      const f = 8 + Math.sin((t || 0) * 4 + x) * 3;
+      g.fillStyle = 'rgba(240,150,60,.85)'; g.beginPath(); g.ellipse(x, y - 42, 8, f, 0, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,220,140,.55)'; g.beginPath(); g.ellipse(x, y - 40, 4, f * .6, 0, 0, 7); g.fill(); },
+    basin(g, x, y, m){ g.fillStyle = m.wall; roundRect(g, x - 20, y - 22, 40, 26, 8); g.fill();
+      g.fillStyle = '#2b6fb0'; g.beginPath(); g.ellipse(x, y - 16, 13, 7, 0, 0, 7); g.fill();
+      g.fillStyle = 'rgba(255,255,255,.35)'; g.beginPath(); g.ellipse(x - 4, y - 18, 5, 2, 0, 0, 7); g.fill(); },
+  };
+
   // ---------------- 描画 ----------------
   function roundRect(g, x, y, w, h, r){
     r = Math.min(r, w / 2, h / 2);
@@ -677,6 +829,13 @@ const Town = (() => {
       else if (bd.door === 'w') g.fillRect(bd.x - bd.w/2 - E*0, bd.y + (bd.doorOff||0) - dw/2 - E, WT, dw);
       else g.fillRect(bd.x + bd.w/2 - WT, bd.y + (bd.doorOff||0) - dw/2 - E, WT, dw);
       g.globalAlpha = 1;
+      // 床に敷く造作(壇・炉床・寝床・薬草棚など)。用途ごとに置くものが違う
+      g.save(); g.beginPath(); g.rect(ix, iy, iw, ih); g.clip();
+      for (const f of fitsOf(bd)) {
+        if (!FLAT[f.k] || !PROP[f.k]) continue;
+        PROP[f.k](g, f.x, f.y - E, m, null, t);
+      }
+      g.restore();
     }
     // 焚き火の跡・灯籠の台・列柱の礎(骨組みごとの地面の飾り)
     if (p.firepit) {
@@ -715,7 +874,34 @@ const Town = (() => {
         g.strokeRect(r2.x0 + 1, r2.y0 - L + 1, w - 2, h + HGT - 2);
       } });
     };
-    for (const bd of p.buildings) for (const r2 of bd.rects) wallItem(r2, bd.lv, m.roof);
+    for (const bd of p.buildings) {
+      const use = bd.use || bd.kind;
+      for (const r2 of bd.rects) wallItem(r2, bd.lv, ROOF[use] || m.roof);
+      // 立ち上がる造作(棚・武器架・金床・幟・火鉢など)は人と前後する
+      for (const f of fitsOf(bd)) {
+        if (FLAT[f.k] || !PROP[f.k]) continue;
+        const E = bd.lv * ELEV;
+        const cl = { x: bd.x - bd.w/2 + WT, y: bd.y - bd.h/2 + WT - E, w: bd.w - WT*2, h: bd.h - WT*2 };
+        out.push({ sy: f.y, draw:(g) => {
+          g.save(); g.beginPath(); g.rect(cl.x, cl.y, cl.w, cl.h); g.clip();
+          PROP[f.k](g, f.x, f.y - E, m, null, performance.now() / 1000);
+          g.restore();
+        } });
+      }
+      // 戸口の上の看板 ― 外から何の建物か分かる
+      const sg = SIGN[use];
+      if (sg) {
+        const d = { s:[0, 1], n:[0, -1], w:[-1, 0], e:[1, 0] }[bd.door] || [0, 1];
+        const sx = bd.x + d[0] * (bd.w / 2 + 16), sy2 = bd.y + d[1] * (bd.h / 2 + 16);
+        const E = bd.lv * ELEV;
+        out.push({ sy: sy2 + 1, draw:(g) => {
+          g.fillStyle = '#3b2f22'; roundRect(g, sx - 21, sy2 - E - 50, 42, 26, 5); g.fill();
+          g.fillStyle = ROOF[use] || m.top; roundRect(g, sx - 18, sy2 - E - 47, 36, 20, 4); g.fill();
+          g.fillStyle = '#0e1117'; g.font = 'bold 16px sans-serif'; g.textAlign = 'center';
+          g.fillText(sg, sx, sy2 - E - 31);
+        } });
+      }
+    }
     for (const w of p.walls) wallItem(w, 0, null);
     for (const c of (p.pillars || [])) out.push({ sy:c[1], draw:(g) => {
       g.fillStyle = 'rgba(0,0,0,.45)'; g.beginPath(); g.ellipse(c[0], c[1] + 4, 20, 8, 0, 0, 7); g.fill();
@@ -764,5 +950,5 @@ const Town = (() => {
   }
 
   return { plan, MAT, ELEV, WT, DOOR, levelAt, stairAt, elevAt, solidsOf, move, wallRects, inRect,
-           drawGround, items, drawAir };
+           drawGround, items, drawAir, FIT, FLAT, ROOF, SIGN, PROP, fitsOf };
 })();

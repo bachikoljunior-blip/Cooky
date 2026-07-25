@@ -20,11 +20,17 @@ const Hub = (() => {
   function stations(){
     const plan = Town.plan(H.area, bounds());
     const sl = plan.slots;
+    // 建物の用途を決める(中に入る施設で、屋根の色・看板・中の造作が変わる)
+    const setUse = (bd, use) => {
+      if (!bd || bd.use === use) return;
+      bd.use = use; bd._fits = null; plan._items = null;   // 造作が変わったので作り直す
+    };
     if (H.area === 'main') {
       const fac = ['altar', 'lab', 'camp', 'lib'];
       const list = plan.buildings.filter(b => b.fac !== undefined).sort((a, b) => a.fac - b.fac)
-        .map((b, i) => i < 4 ? { kind:'meta', st:fac[i], x:b.slot.x, y:b.slot.y, bld:b }
-                             : { kind:'armory', x:b.slot.x, y:b.slot.y, bld:b });
+        .map((b, i) => { setUse(b, i < 4 ? fac[i] : 'armory');
+          return i < 4 ? { kind:'meta', st:fac[i], x:b.slot.x, y:b.slot.y, bld:b }
+                       : { kind:'armory', x:b.slot.x, y:b.slot.y, bld:b }; });
       list.push({ kind:'gate', x:sl.gate.x, y:sl.gate.y });
       list.push({ kind:'stats', x:sl.stats.x, y:sl.stats.y });
       ((DATA.SIDEQUESTS && DATA.SIDEQUESTS.main) || []).filter(sq => Quest.sideVisible(sq))
@@ -36,6 +42,7 @@ const Hub = (() => {
     if (H.area.startsWith('port:')) {
       const pid = H.area.slice(5);
       const ware = plan.buildings.find(b => b.fac === 0);
+      setUse(ware, 'ship');
       const plist = [
         { kind:'portnpc', port:pid, x:ware ? ware.slot.x : sl.portnpc.x, y:ware ? ware.slot.y : sl.portnpc.y, bld:ware },
         { kind:'gate', x:sl.gate.x, y:sl.gate.y },
@@ -54,6 +61,7 @@ const Hub = (() => {
     const houses = plan.buildings.filter(b => b.fac !== undefined).sort((a, b) => a.fac - b.fac);
     present.forEach((f, i) => {
       const b = houses[i % houses.length];
+      setUse(b, f);   // war=武練場 / life=生命の祠 / lore=秘宝の蔵
       list.push({ kind:'meta', st:H.area, fac:f, x:b.slot.x, y:b.slot.y, bld:b });
     });
     if (DATA.QUESTS[H.area]) list.push({ kind:'npc', base:H.area, x:sl.npc.x, y:sl.npc.y });
