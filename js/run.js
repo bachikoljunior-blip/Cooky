@@ -29,7 +29,7 @@ const Run = (() => {
            * (1 + 0.06*m('g_forge_gear')) * (1 + sun) * (1 + 0.08*m('g_end_beyond')) * (1 + 0.02*m('m_war')),
       // 初期は足が遅い。健脚・太陽の恩寵・靴スキルで広大な世界を踏破する
       speed: 42 * (1 + 0.04*m('altar_speed')) * (1 + sun) * (1 + 0.02*m('m_pioneer')),
-      boatSpeed: 42 * (1 + 0.08*m('lab_sail')) * (1 + 0.05*m('m_shipwright')),   // 素の船足は徒歩と同じ。速さは帆の強化と「航路の早瀬」で得る
+      boatSpeed: 42 * (1 + 0.08*m('lab_sail')) * (1 + 0.12*m('m_shipwright')),   // 素の船足は徒歩と同じ。速さは帆の強化と「航路の早瀬」で得る
       regen: 0.5*m('altar_regen') + 1*m('g_south_heal') + 1*m('m_grit'),
       armor: Math.min(0.6, 0.02*m('altar_armor')),
       wall: 0.03*m('g_north_wall'),
