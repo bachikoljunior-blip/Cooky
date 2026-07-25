@@ -188,6 +188,7 @@ const Run = (() => {
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
     R.reinfPool = [];   // 大群の増援プール(実体化待ちの数)
+    lightList = null;   // 灯台一覧を組み直す(周回ごとに世界が変わる可能性に備える)
     R._slotMax = -1;    // 陣形スロットの最大番号(走査せずに割り当てる)
     crowd.cnt = -1; crowd.sum = 0; crowd.builtT = -9;   // 陣形一枚絵キャッシュを無効化
     R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
@@ -842,7 +843,7 @@ const Run = (() => {
   // 1波ぶんを、すぐ画面外から一斉に。実体の空きが無い分は増援プールへ回す
   // (数として保持し、実体が倒れるそばから画面外で実体化する ― 総数は無制限)
   function spawnHordeWave(wave){
-    const room = Math.max(0, Math.min(R.fieldCap || FIELD_CAP, ENEMY_BACKSTOP) - R.enemies.length);
+    const room = Math.max(0, Math.min(FIELD_CAP, ENEMY_BACKSTOP) - R.enemies.length);
     const now = Math.min(wave.count, room);
     if (wave.count > now) queueReinf(wave.count - now, wave.dir);
     if (now <= 0) return;
@@ -936,7 +937,7 @@ const Run = (() => {
     const moveA = pSpd > 20 ? Math.atan2(p.vy, p.vx) : null;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (nearN >= nearTarget || R.enemies.length >= (R.fieldCap || FIELD_CAP)) break;
+      if (nearN >= nearTarget || R.enemies.length >= FIELD_CAP) break;
       if (Math.random() < (R.worldEvent === 'migration' ? 0.22 : 0.12)) { spawnHerd(false); nearN += 5; }   // 時々、群れ
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
       // 移動中は進行方向の前方に多めに湧かせる(置いていった敵の分を前で補う)
@@ -952,7 +953,7 @@ const Run = (() => {
     // --- ティアごとの群れ: 密度と関係なく定期的に必ず出会う(その土地のティアで構成) ---
     if (R.herdT === undefined) R.herdT = rnd(14, 22);
     R.herdT -= dt;
-    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < (R.fieldCap || FIELD_CAP)) {
+    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < FIELD_CAP) {
       spawnHerd(false);
       R.herdT = rnd(20, 34) * (R.worldEvent === 'migration' ? 0.6 : 1);
     }
@@ -975,8 +976,7 @@ const Run = (() => {
     if (R.reinfPool && R.reinfPool.length) {
       let budget = 24;
       const rbase = (R.offscreenR || 950) + rnd(10, 80);
-      const cap = R.fieldCap || FIELD_CAP;
-      while (budget > 0 && R.reinfPool.length && R.enemies.length < cap) {
+      while (budget > 0 && R.reinfPool.length && R.enemies.length < FIELD_CAP) {
         const q = R.reinfPool[0];
         const a = q.dir + rnd(-0.7, 0.7);
         const d = rbase + rnd(0, 80);
@@ -1071,9 +1071,10 @@ const Run = (() => {
   // ---------------- 敵の更新 ----------------
   // 陸海判定のキャッシュ: 地形は静的なので40px格子で結果を貯める。
   // 敵・仲間の移動判定は毎フレーム数百回呼ばれるが、海岸線の距離計算は格子ごとに1回で済む
+  // キーは整数(gkey)。毎フレーム数万回呼ばれるため、文字列連結のキー生成をやめる
   const landCache = new Map();
   function isLandCached(x, y){
-    const k = ((x / 40) | 0) + ',' + ((y / 40) | 0);
+    const k = gkey((x / 40) | 0, (y / 40) | 0);
     let v = landCache.get(k);
     if (v === undefined) {
       if (landCache.size > 30000) landCache.clear();
@@ -1083,10 +1084,13 @@ const Run = (() => {
     return v;
   }
   function canStand(def, x, y){
-    // 岩場(地形の障害)の中には立てない・湧かない
-    if (R.crags) for (const c of R.crags) {
+    // 岩場(地形の障害)の中には立てない・湧かない(平方比較でsqrtを省く ― 判定結果は同一)
+    const crags = R.crags;
+    if (crags) for (let i = 0; i < crags.length; i++) {
+      const c = crags[i];
       const rr = c.r + (def.r || 10);
-      if (Math.abs(x - c.x) < rr && Math.abs(y - c.y) < rr && Math.hypot(x - c.x, y - c.y) < rr) return false;
+      const dx = x - c.x, dy = y - c.y;
+      if (dx < rr && dx > -rr && dy < rr && dy > -rr && dx * dx + dy * dy < rr * rr) return false;
     }
     if (def.env === 'both') return true;
     const land = isLandCached(x, y);
@@ -1104,6 +1108,52 @@ const Run = (() => {
     if (Math.abs(dx) > rr || Math.abs(dy) > rr) return;
     const d = Math.hypot(dx, dy);
     if (d < rr && d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
+  }
+
+  // 敵→仲間の近傍探索も同じくコールバックを使い回す(判定式は従来と同一)
+  let qE = null;
+  function qAggro(a){
+    if (!a.waitAt && Math.hypot(a.x - qx, a.y - qy) < qRange) { qE.mad = true; return true; }
+    return false;
+  }
+  // 一番近い仲間を探す(半径maxR以内)。同じくリング状に見て、確定した時点で打ち切る
+  let naX = 0, naY = 0, naBest = null, naBd2 = 0;
+  let naX0 = 0, naX1 = 0, naY0 = 0, naY1 = 0;
+  function naCell(cx, cy){
+    if (cx < naX0 || cx > naX1 || cy < naY0 || cy > naY1) return;
+    const arr = allyGrid.get(gkey(cx, cy));
+    if (!arr) return;
+    for (const a of arr) {
+      if (a.dead || a.waitAt) continue;
+      const dx = a.x - naX, dy = a.y - naY, d2 = dx * dx + dy * dy;
+      if (d2 < naBd2) { naBest = a; naBd2 = d2; }
+    }
+  }
+  function nearestAllyWithin(ex, ey, maxR){
+    if (!(maxR > 0)) return null;
+    naX = ex; naY = ey; naBest = null; naBd2 = maxR * maxR;
+    const c = ALLY_CELL;
+    const gx = (ex / c) | 0, gy = (ey / c) | 0;
+    naX0 = ((ex - maxR) / c) | 0; naX1 = ((ex + maxR) / c) | 0;
+    naY0 = ((ey - maxR) / c) | 0; naY1 = ((ey + maxR) / c) | 0;
+    const kmax = Math.max(gx - naX0, naX1 - gx, gy - naY0, naY1 - gy);
+    for (let k = 0; k <= kmax; k++) {
+      if (k > 1) { const lim = (k - 1) * c; if (lim * lim >= naBd2) break; }
+      if (k === 0) { naCell(gx, gy); continue; }
+      const x0 = gx - k, x1 = gx + k, y0 = gy - k, y1 = gy + k;
+      for (let cx = x0; cx <= x1; cx++) { naCell(cx, y0); naCell(cx, y1); }
+      for (let cy = y0 + 1; cy < y1; cy++) { naCell(x0, cy); naCell(x1, cy); }
+    }
+    return naBest;
+  }
+  function qContactAlly(a){
+    if (a.joining) return false;
+    if (Math.hypot(a.x - qx, a.y - qy) < qRange + a.def.r + 4) {
+      qE.contactCd = 0.6;
+      damageAlly(a, qE.dmg * 0.35, qE);  // 仲間への接触ダメージはかなり控えめ
+      return true;
+    }
+    return false;
   }
 
   function updateEnemies(dt){
@@ -1204,10 +1254,7 @@ const Run = (() => {
         // 気づき(アグロ): 近づくと追ってくる。一度気づけば追い続け、離れすぎると諦める
         if (pd < e.aggro) e.mad = true;
         else if (e.mad && pd > e.aggro + 520) e.mad = false;
-        if (!e.mad) forEachAllyNear(e.x, e.y, e.aggro, (a) => {   // 仲間が至近にいれば気づく
-          if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; return true; }
-          return false;
-        });
+        if (!e.mad) { qE = e; qx = e.x; qy = e.y; qRange = e.aggro; forEachAllyNear(e.x, e.y, e.aggro, qAggro); }
         // 群れの連鎖: 1体が気づいたら群れ全体が襲ってくる
         if (e.herd) { if (e.mad) e.herd.alerted = true; else if (e.herd.alerted) e.mad = true; }
         if (!e.mad) {
@@ -1256,12 +1303,7 @@ const Run = (() => {
             e._aTgt = null;
             let bd = pd;
             const sr = Math.min(pd * 0.7, 280);
-            if (sr > 0) forEachAllyNear(e.x, e.y, sr, (a) => {
-              if (a.waitAt) return false;
-              const d = Math.hypot(a.x - e.x, a.y - e.y);
-              if (d < bd * 0.7) { e._aTgt = a; bd = d; }
-              return false;
-            });
+            if (sr > 0) e._aTgt = nearestAllyWithin(e.x, e.y, Math.min(sr, bd * 0.7));
           }
           const tgt = (e._aTgt && !e._aTgt.dead && !e._aTgt.waitAt) ? e._aTgt : null;
           if (tgt) { tx = tgt.x; ty = tgt.y; }
@@ -1284,15 +1326,10 @@ const Run = (() => {
         damagePlayer(e.dmg, e);
       }
       // 接触ダメージ(仲間)。合流中は無敵なので狙わない
-      if (!confused && e.contactCd <= 0) forEachAllyNear(e.x, e.y, er + maxAllyR + 4, (a) => {
-        if (a.joining) return false;
-        if (Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
-          e.contactCd = 0.6;
-          damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
-          return true;
-        }
-        return false;
-      });
+      if (!confused && e.contactCd <= 0) {
+        qE = e; qx = e.x; qy = e.y; qRange = er;
+        forEachAllyNear(e.x, e.y, er + maxAllyR + 4, qContactAlly);
+      }
       // 範囲攻撃(スラム): 大型エリートが「攻撃対象の足元」へ振り下ろす。
       // 潰れる範囲は敵の体より小さい(slam.radiusは「届く距離」として使う)
       if (e.def.slam && !confused && e.mad) {
@@ -1432,6 +1469,52 @@ const Run = (() => {
     if (R._slotMax !== undefined && R._slotMax >= 0) R._slotMax--;
   }
 
+  // ---- 近傍探索の使い回しコールバック ----
+  // forEachFoeNear/forEachAllyNear にその場でアロー関数を渡すと、混戦では毎フレーム
+  // 数千個の関数オブジェクトが生成されGCを圧迫する。状態をモジュール変数で受け渡す
+  // 形にして関数は1つだけにする ― 判定式・選び方は従来と1文字も変えていない
+  let qx = 0, qy = 0, qRange = 0, qTgt = null, qTd = 0;
+  // 一番近い敵を探す。セルを中心から外側へリング状に見て、「これ以上外側には、
+  // 今見つけている相手より近い敵はいない」と確定した時点で打ち切る。
+  // 見るセルの範囲(従来の箱)からはみ出さないので、選ばれる相手は従来と同じ。
+  // 密集した戦線では最初の1〜2リングで確定し、走査量が数分の1になる
+  let nfAx = 0, nfAy = 0, nfEngage = 0, nfRanged = false;
+  let nfX0 = 0, nfX1 = 0, nfY0 = 0, nfY1 = 0;
+  function nfCell(cx, cy){
+    if (cx < nfX0 || cx > nfX1 || cy < nfY0 || cy > nfY1) return;   // 従来の走査範囲の外
+    const arr = hitGrid.get(gkey(cx, cy));
+    if (!arr) return;
+    for (const e of arr) {
+      if (e.dead) continue;
+      if (nfRanged) {
+        if (!e.mad) continue;
+        const d = Math.hypot(e.x - nfAx, e.y - nfAy);
+        if (d < nfEngage && d < qTd) { qTgt = e; qTd = d; }
+      } else {
+        const er = e.def.r * (e.sizeMul || 1);
+        const d = Math.hypot(e.x - nfAx, e.y - nfAy) - er;   // 仲間から敵の縁までの距離
+        if (d <= nfEngage && d < qTd) { qTgt = e; qTd = d; }
+      }
+    }
+  }
+  function nearestFoeRing(ax, ay, maxR, engage, ranged){
+    qTgt = null; qTd = 1e9;
+    nfAx = ax; nfAy = ay; nfEngage = engage; nfRanged = ranged;
+    const c = HIT_CELL;
+    const gx = (ax / c) | 0, gy = (ay / c) | 0;
+    nfX0 = ((ax - maxR) / c) | 0; nfX1 = ((ax + maxR) / c) | 0;
+    nfY0 = ((ay - maxR) / c) | 0; nfY1 = ((ay + maxR) / c) | 0;
+    const kmax = Math.max(gx - nfX0, nfX1 - gx, gy - nfY0, nfY1 - gy);
+    const pad = ranged ? 0 : (R.maxFoeR || 60);   // 近接は「敵の縁まで」の距離なので体の分だけ余裕を見る
+    for (let k = 0; k <= kmax; k++) {
+      if (k > 1 && (k - 1) * c - pad >= qTd) break;
+      if (k === 0) { nfCell(gx, gy); continue; }
+      const x0 = gx - k, x1 = gx + k, y0 = gy - k, y1 = gy + k;
+      for (let cx = x0; cx <= x1; cx++) { nfCell(cx, y0); nfCell(cx, y1); }
+      for (let cy = y0 + 1; cy < y1; cy++) { nfCell(x0, cy); nfCell(x1, cy); }
+    }
+  }
+
   function updateAllies(dt){
     const p = R.player;
     const wb = Skills.stat('warbanner');
@@ -1440,8 +1523,20 @@ const Run = (() => {
       ((R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1);   // 月光の疾走
     const n = R.allies.length;
     const formR = formationRadius(n);   // 陣形半径は全員共通(ループ外で1回だけ)
-    // 高負荷時は前線の帯を薄くして休息に入りやすくする(自動負荷調整の仲間側)
-    const mStay = R._loadHi ? 130 : 160, mEnter = R._loadHi ? 200 : 260;
+    R._formR = formR;   // 分離処理が「リーシュの届く範囲」を正確に知るために共有
+    // フレーム内で不変な値は1回だけ求める(1万体ぶんの関数呼び出しとオブジェクト生成を消す)
+    const frameAxis = R.botAxis || Input.axis();
+    const sigOn = sigActive(), sigSpd = sigOn ? 1.3 : 1, rampNow = R.rampMul || 1;
+    const stepMul = spdMul * sigSpd * rampNow * dt;
+    // 方位ごとの「休息できる半径のしきい値」を先に畳んでおく(1体ずつMath.minを3回呼ばない)
+    const sm = R._secMin;
+    if (sm) {
+      const s3 = R._sec3 || (R._sec3 = new Float64Array(8));
+      for (let k = 0; k < 8; k++) {
+        const v = sm[(k + 7) & 7] < sm[k] ? sm[(k + 7) & 7] : sm[k];
+        s3[k] = sm[(k + 1) & 7] < v ? sm[(k + 1) & 7] : v;
+      }
+    }
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
@@ -1484,12 +1579,10 @@ const Run = (() => {
         // 押し合いの連鎖が内側の仲間へも自然に伝わる
         if (a._wake) { a._wake = false; a._calmT = -0.2; }
         const sp = slotPos(a.slot);
-        const sm = R._secMin;
         let rest = false, secD = Infinity;
         if (sm && !a.def.heal && a.hp >= a.maxHp && sp.rad < formR - 40) {
-          const s = sp.sec;
-          secD = Math.min(sm[(s + 7) & 7], Math.min(sm[s], sm[(s + 1) & 7]));
-          if (secD > sp.rad + (a._rest ? mStay : mEnter)) {
+          secD = R._sec3[sp.sec];
+          if (secD > sp.rad + (a._rest ? 160 : 260)) {
             a._calmT = (a._calmT || 0) + dt;
             if (a._calmT > 0.6) rest = true;
           } else a._calmT = 0;
@@ -1500,7 +1593,7 @@ const Run = (() => {
           // 休むのは「自分の足で今フレーム定位置まで歩き切れる」仲間だけ。
           // 休息は追従計算を省くだけで加速はしない ― 主人公より足が遅い仲間は
           // この条件を満たせず、定位置のすぐ近くにいても自然に後ろへ流れていく
-          const step = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1) * dt;
+          const step = a.speed * stepMul;
           if (need <= step * 1.02 + 0.02 && canStand(a.def, nx, ny)) {
             a._rest = true; a.inForm = true; a._tgt = null;
             // 前線のすぐ後ろの薄い帯だけを、押し合いの「壁」として起こされ役にする。
@@ -1533,27 +1626,19 @@ const Run = (() => {
         a._retgtT = 0.12;
         tgt = null; td = 1e9;
         if (a.def.ranged) {
-          forEachFoeNear(a.x, a.y, a.def.ranged.range + 40, (e) => {
-            if (!e.mad) return false;
-            const d = Math.hypot(e.x - a.x, e.y - a.y);
-            if (d < a.def.ranged.range && d < td) { tgt = e; td = d; }
-            return false;
-          });
+          const rr = a.def.ranged.range;
+          nearestFoeRing(a.x, a.y, rr + 40, rr, true);
         } else {
           const engageR = a.def.r + 24 + (a.def.tier || 0) * 4;   // 追尾範囲は狭め(すぐそばの敵だけ)
-          forEachFoeNear(a.x, a.y, engageR + 90, (e) => {
-            const er = e.def.r * (e.sizeMul || 1);
-            const d = Math.hypot(e.x - a.x, e.y - a.y) - er;   // 仲間から敵の縁までの距離
-            if (d <= engageR && d < td) { tgt = e; td = d; }
-            return false;
-          });
+          nearestFoeRing(a.x, a.y, engageR + 90, engageR, false);
         }
+        tgt = qTgt; td = qTd;
         a._tgt = tgt;
       }
       // 主人公が敵と反対方向へ動いた瞬間、戦闘をやめて即座についてくる。
       // ただし射撃タイプ(弓など)は逃げながらでも撃ち続ける。
       if (tgt && !a.def.ranged) {
-        const ax2 = R.botAxis || Input.axis();
+        const ax2 = frameAxis;
         if (ax2.x || ax2.y) {
           const dx = tgt.x - p.x, dy = tgt.y - p.y;
           const dl = Math.hypot(dx, dy) || 1;
@@ -1561,7 +1646,7 @@ const Run = (() => {
           if ((dx * ax2.x + dy * ax2.y) / (dl * al) < -0.15) tgt = null;
         }
       }
-      let dest, spd = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1);   // 突撃の号令/歩きの加速: 足も速まる
+      let dest, spd = a.speed * spdMul * sigSpd * rampNow;   // 突撃の号令/歩きの加速: 足も速まる
       if (tgt && a.def.ranged) {
         // 弓兵は敵を追いかけず、陣形へ戻りながら(移動しながら)撃つ。destは決めない=陣形追従
         a.shootCd -= dt;
@@ -1578,8 +1663,8 @@ const Run = (() => {
         a.atkCd -= dt;
         if (td < a.def.r * (a.sizeMul || 1) + 4) {
           if (a.atkCd <= 0) {
-            a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd) * (sigActive() ? 0.55 : 1);   // 鬨の声/突撃の号令
-            dealDamage(tgt, a.dmg * atkMul * (sigActive() ? 1.3 : 1) / R.stats.atk); // dealDamage内でatk倍されるため相殺
+            a.atkCd = 0.7 * (1 - R.stats.allyAtkSpd) * (sigOn ? 0.55 : 1);   // 鬨の声/突撃の号令
+            dealDamage(tgt, a.dmg * atkMul * sigSpd / R.stats.atk); // dealDamage内でatk倍されるため相殺
             const ff = Skills.stat('forgefire');   // 鍛冶の心火: 確率で炎上
             if (ff && Math.random() < ff.chance) { tgt.burn = Math.max(tgt.burn, ff.burn); tgt.burnT = 3; }
             a.atkAnim = 0.24; a.atkDir = Math.atan2(tgt.y - a.y, tgt.x - a.x); a.atkBack = false;   // 斬りかかるモーション
@@ -1606,23 +1691,25 @@ const Run = (() => {
           } else dest = ot;
         }
       }
+      // 目的地は座標2つで持つ(1体ごとの{x,y}生成をやめる ― 位置計算は従来と同一)
+      let destX = 0, destY = 0, hasDest = false;
       if (dest === undefined) {
         // 同心円陣形: 主人公の周りに定位置。主人公が動けば陣形もついていく
         // (弓兵は敵がいてもここに来る=陣形へ戻りながら撃つ)
         const sp2 = slotPos(a.slot !== undefined ? a.slot : i);
-        dest = { x: p.x + sp2.x, y: p.y + sp2.y };
-        const d = Math.hypot(dest.x - a.x, dest.y - a.y);
+        destX = p.x + sp2.x; destY = p.y + sp2.y; hasDest = true;
+        const d = Math.hypot(destX - a.x, destY - a.y);
         // 定位置スナップ(揺れ防止)は「自分の足で今フレーム歩き切れる距離」の時だけ。
         // 従来の一律3px吸着だと、足の遅い仲間まで主人公の速度で運ばれてしまっていた。
         // 陣形追従はステータス速度どおり(早送りしない)― 遅い仲間は自然に後ろへ流れる
-        if (d <= Math.max(spd * dt, 0.5)) { dest = null; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }
+        if (d <= Math.max(spd * dt, 0.5)) { hasDest = false; a.x = p.x + sp2.x; a.y = p.y + sp2.y; }
         a.inForm = true;
-      }
-      if (dest) {
-        const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
+      } else if (dest) { destX = dest.x; destY = dest.y; hasDest = true; }
+      if (hasDest) {
+        const d = Math.hypot(destX - a.x, destY - a.y) || 1;
         const step2 = Math.min(d, spd * dt);
-        const nx = a.x + (dest.x - a.x) / d * step2;
-        const ny = a.y + (dest.y - a.y) / d * step2;
+        const nx = a.x + (destX - a.x) / d * step2;
+        const ny = a.y + (destY - a.y) / d * step2;
         if (canStand(a.def, nx, ny)) { a.x = nx; a.y = ny; }
         else if (canStand(a.def, nx, a.y)) a.x = nx;
         else if (canStand(a.def, a.x, ny)) a.y = ny;
@@ -1674,16 +1761,28 @@ const Run = (() => {
     }
     ent.x += fx; ent.y += fy;
   }
+  // 押し合い用の「ゆるいグリッド」。各ユニットを自分の当たり判定の四角が重なるセル全部に
+  // 入れ、moverも自分の四角が重なるセルだけを見る ― 二つの円が触れるなら四角は必ず重なり、
+  // 重なった点のセルには双方が入っているので、衝突する組は一つも取りこぼさない。
+  // 従来は一律64pxのセルに中心だけを入れて3×3セルを走査していたため、
+  // 実際の接触半径(小型で約8px)に対して候補が桁違いに多かった。
+  // 配列・Mapは世代スタンプで使い回す(毎フレームの再確保をなくしGC圧を下げる)
+  const SEP_CELL = 32;
+  const sepUnits = [], sepMovers = [];
+  const sepGrid = new Map();
+  let sepGen = 0, sepVisit = 0;
+  function sepCell(k){
+    let c = sepGrid.get(k);
+    if (!c) { c = { g: sepGen, a: [] }; sepGrid.set(k, c); }
+    else if (c.g !== sepGen) { c.g = sepGen; c.a.length = 0; }
+    return c.a;
+  }
   // 押し合いは質量ベース: 同格同士は均等に押し合い、強い(tierが高い/ボス)ほど押されにくい
   function separateUnits(){
     // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
-    const units = [];
-    for (const e of R.enemies) if (!e.dead) {
-      e._r = e.def.r * (e.sizeMul || 1) * 0.75;   // 敵は体の3/4で押し合う(あまり重ならない)
-      e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
-      units.push(e);
-    }
-    let asi = 0;
+    sepUnits.length = 0; sepMovers.length = 0;
+    const pl = R.player;
+    let asi = 0, maxMoverR = 4;
     // 休息中(_rest)の仲間は基本、押し合いから除外(定位置で重ならない)。
     // ただし前線に近い外周の休息者(_restEdge)は「壁」として入れる ―
     // 押し込まれた前衛が内側にめり込んで素通りせず、接触されたら起こされて(wake)
@@ -1697,36 +1796,48 @@ const Run = (() => {
       a._r = re / 3 + Math.max(0, re - 12) * 0.35;
       a._m = 1 + (a.def.tier || 0) * 0.6;
       a._ally = true;
-      units.push(a);
+      sepUnits.push(a);
+      if (!a._rest) { sepMovers.push(a); if (a._r > maxMoverR) maxMoverR = a._r; }
     }
     // 主人公にも当たり判定(船上は除く)。質量は極大 ― 仲間や敵に押されず、
     // 逆に周りをどかす(止まっていても仲間に押されない)
-    const pl = R.player;
-    if (!pl.onBoat) { pl._r = 4; pl._m = 1e7; units.push(pl); }
-    if (units.length < 2) return;
-    // グリッドには全員入れるが、ペアを列挙するのは仲間と主人公だけ。
-    // 敵は列挙しない=敵同士のペアはそもそも発生しない(大群でも軽い)。
-    // 敵↔仲間のペアは仲間側の列挙で1回だけ処理されるので、押し量は2倍で補正
-    // (従来は両側から2回処理していた)
-    const cell = 64, grid = new Map();   // キーは整数(gkey)。文字列連結より速い
-    for (const u of units) {
-      const k = gkey((u.x / cell) | 0, (u.y / cell) | 0);
-      const arr = grid.get(k);
-      if (arr) arr.push(u); else grid.set(k, [u]);
+    if (!pl.onBoat) { pl._r = 4; pl._m = 1e7; sepUnits.push(pl); sepMovers.push(pl); }
+    if (!sepMovers.length) return;
+    // 敵を集める。ペアを列挙するのは仲間と主人公だけなので、
+    // 「どのmoverの手も届かない敵」はグリッドに入れる必要すらない ―
+    // moverは必ず主人公からリーシュ距離(陣形半径+150)以内に居るので、
+    // その分だけ余裕を持たせた距離で切る(接触しうる敵は一体も落とさない)
+    const reach = (R._formR || formationRadius(R.allies.length)) + 150 + maxMoverR + 1;
+    for (const e of R.enemies) {
+      if (e.dead) continue;
+      e._r = e.def.r * (e.sizeMul || 1) * 0.75;   // 敵は体の3/4で押し合う(あまり重ならない)
+      const dx0 = e.x - pl.x, dy0 = e.y - pl.y, rr0 = reach + e._r;
+      if (dx0 * dx0 + dy0 * dy0 > rr0 * rr0) continue;
+      e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+      e._ally = false;
+      sepUnits.push(e);
     }
-    const movers = units.filter(u => (u._ally && !u._rest) || u === pl);
-    // 大軍の合戦では押し合いを1体おきに隔フレーム処理(補正は半分の頻度でも
-    // 数フレームで収束するので見た目は変わらず、コストが半減する)。少数なら毎フレーム
-    const stag = movers.length > 900;
-    for (const u of movers) {
-      if (stag && u !== pl && ((u._si + R.lodTick) & 1)) continue;
-      const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
-      for (let ix = gx - 1; ix <= gx + 1; ix++) {
-        for (let iy = gy - 1; iy <= gy + 1; iy++) {
-          const arr = grid.get(gkey(ix, iy));
-          if (!arr) continue;
+    if (sepUnits.length < 2) return;
+    sepGen++;
+    for (const u of sepUnits) {
+      const r = u._r;
+      const x0 = ((u.x - r) / SEP_CELL) | 0, x1 = ((u.x + r) / SEP_CELL) | 0;
+      const y0 = ((u.y - r) / SEP_CELL) | 0, y1 = ((u.y + r) / SEP_CELL) | 0;
+      for (let cx = x0; cx <= x1; cx++) for (let cy = y0; cy <= y1; cy++) sepCell(gkey(cx, cy)).push(u);
+    }
+    for (const u of sepMovers) {
+      const ur = u._r;
+      const x0 = ((u.x - ur) / SEP_CELL) | 0, x1 = ((u.x + ur) / SEP_CELL) | 0;
+      const y0 = ((u.y - ur) / SEP_CELL) | 0, y1 = ((u.y + ur) / SEP_CELL) | 0;
+      const tok = ++sepVisit;   // 複数セルに跨る相手を二重に処理しない印
+      for (let ix = x0; ix <= x1; ix++) {
+        for (let iy = y0; iy <= y1; iy++) {
+          const c = sepGrid.get(gkey(ix, iy));
+          if (!c || c.g !== sepGen) continue;
+          const arr = c.a;
           for (const v of arr) {
-            if (v === u) continue;
+            if (v === u || v._sv === tok) continue;
+            v._sv = tok;
             // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
             if (u === pl && !v._ally) continue;
             const dx = v.x - u.x, dy = v.y - u.y;
@@ -1751,6 +1862,10 @@ const Run = (() => {
           }
         }
       }
+    }
+    // 使われなくなったセルを時々捨てる(歩き回ってもMapが際限なく育たない)
+    if (sepGrid.size > 8192 && (sepGen & 63) === 0) {
+      for (const [k, c] of sepGrid) if (c.g < sepGen - 8) sepGrid.delete(k);
     }
   }
 
@@ -1787,9 +1902,40 @@ const Run = (() => {
     }
     return best;
   }
-  // 敵がいない時は岩や木箱などの破壊可能オブジェクトを狙う
+  // 敵がいない時は岩や木箱などの破壊可能オブジェクトを狙う。
+  // 探索半径が狭い時(仲間の採集など)は近傍グリッドで探す ― 前線の仲間が数千体でも
+  // オブジェクト一覧の全走査にならない。広い時は従来どおり全走査(そのほうが速い)
+  const OBJ_CELL = 64;
+  const objGrid = new Map();
+  let objGridSrc = null;
+  function rebuildObjGrid(){
+    const list = R.objects;
+    if (objGridSrc === list) return;
+    objGridSrc = list;
+    objGrid.clear();
+    if (!list) return;
+    for (const o of list) {
+      const k = gkey((o.x / OBJ_CELL) | 0, (o.y / OBJ_CELL) | 0);
+      const arr = objGrid.get(k);
+      if (arr) arr.push(o); else objGrid.set(k, [o]);
+    }
+  }
   function nearestObject(x, y, maxD){
     let best = null, bd = maxD || 300;
+    if (bd <= 120) {
+      rebuildObjGrid();
+      const c0x = ((x - bd) / OBJ_CELL) | 0, c1x = ((x + bd) / OBJ_CELL) | 0;
+      const c0y = ((y - bd) / OBJ_CELL) | 0, c1y = ((y + bd) / OBJ_CELL) | 0;
+      for (let cx = c0x; cx <= c1x; cx++) for (let cy = c0y; cy <= c1y; cy++) {
+        const arr = objGrid.get(gkey(cx, cy));
+        if (!arr) continue;
+        for (const o of arr) {
+          const d = Math.hypot(o.x - x, o.y - y);
+          if (d < bd) { best = o; bd = d; }
+        }
+      }
+      return best;
+    }
     for (const o of R.objects || []) {
       const d = Math.hypot(o.x - x, o.y - y);
       if (d < bd) { best = o; bd = d; }
@@ -2724,20 +2870,6 @@ const Run = (() => {
     }
     if (R.over) return;
     R.time += dt;
-    // 自動負荷調整: 実フレーム時間の移動平均を見て、重い時は「同時に動く敵の実体数」の
-    // 許容量を絞り、軽くなったら戻す。総数はプール制なので変わらない ― 押し寄せる敵の
-    // 総量はそのままに、同時に湧く数だけがマシンの性能に合わせて自動で増減する。
-    // どんな環境でも(敵・仲間が無限に増えても)フレームレートを優先して保つ
-    R._loadEma = R._loadEma === undefined ? dt : R._loadEma * 0.94 + dt * 0.06;
-    R._capT = (R._capT || 0) - dt;
-    if (R._capT <= 0) {
-      R._capT = 0.5;
-      const cur = R.fieldCap || FIELD_CAP;
-      if (R._loadEma > 0.024) R.fieldCap = Math.max(350, Math.round(cur * 0.85));       // 42fpsを切る → 絞る
-      else if (R._loadEma < 0.019 && cur < FIELD_CAP)
-        R.fieldCap = Math.min(FIELD_CAP, Math.round(cur * 1.12) + 8);                   // 余裕がある → 戻す
-    }
-    R._loadHi = R._loadEma > 0.024;   // 高負荷中は仲間の前線の帯も薄めにする
     R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
     // 古の祠の加護(時間制。毎フレーム素の値から計算し直すので重ね掛けにならない)
     if (R.bless && R.time < R.bless.until) {
@@ -2866,7 +2998,9 @@ const Run = (() => {
     // どこまでも引いていく(ズーム下限なし=巨大軍でも全体が映る)。
     // 敵のスポーン圏・退場距離は offscreenR 経由でこの視界に自動追従する
     const INIT_R = 158;
-    const formR = formationRadius(R.allies.filter(a => !a.waitAt).length);
+    let onField = 0;   // 数えるためだけの一時配列を作らない(1万体規模では毎フレームのゴミになる)
+    for (const a of R.allies) if (!a.waitAt) onField++;
+    const formR = formationRadius(onField);
     const margin = Math.max(INIT_R, formR * 0.45);
     const need = Math.max(120, formR + margin);
     const zTarget = Math.max(0.05, Math.min(3.0, (R.viewMin || 800) / (2 * need)));
@@ -3040,6 +3174,25 @@ const Run = (() => {
     }
   }
 
+  // ---- スプライトの取得をユニット定義ごとにキャッシュ ----
+  // Sprites.drawTinted/draw は毎回キー文字列('en_wolf|#ffd766|0.4'等)を組み立てるため、
+  // 混戦では1フレームに数千回の文字列生成が走っていた。通常向き/反転済みの組を
+  // def に貼り付けておき、以後は drawImage だけにする(絵は完全に同一)。
+  // 画像差し替え(assets/img)が起きたら Sprites.gen が変わるので取り直す
+  function allySprite(def){
+    let c = def._sprA;
+    if (!c || c.gen !== Sprites.gen) c = def._sprA = { gen: Sprites.gen, p: Sprites.tintedPair(def.sprite, '#2ea043', 0.42) };
+    return c.p;
+  }
+  function foeSprite(def, rank){
+    let c = def._sprE;
+    if (!c || c.gen !== Sprites.gen) c = def._sprE = { gen: Sprites.gen, r: [] };
+    let p = c.r[rank];
+    if (!p) p = c.r[rank] = rank > 0 ? Sprites.tintedPair(def.sprite, RANK_COLORS[rank], 0.4)
+                                     : Sprites.spritePair(def.sprite);
+    return p;
+  }
+
   // ---- キャラ1体ぶんの描画(Yソート描画から呼ばれる) ----
   function drawAllyUnit(g, a){
     if (a.waitAt) g.globalAlpha = 0.7;
@@ -3053,7 +3206,7 @@ const Run = (() => {
     // 仲間は全員統一の緑がかった色で描く ― 敵の色違い(金/紅/紫/青白)と被らず、
     // 混戦でも敵味方がひと目で分かる。大きさ(sizeMul)は敵だった時のまま
     const asz = a.def.r * 2.6 * (a.sizeMul || 1);
-    Sprites.drawTinted(g, a.def.sprite, ax, ay, asz, false, '#2ea043', 0.42);
+    g.drawImage(allySprite(a.def).n, ax - asz / 2, ay - asz / 2, asz, asz);
     const atop = a.def.r * (a.sizeMul || 1);
     if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
     if (a.waitAt) labelChip(g, a.x, a.y - atop - 16, '待機中', '#7ee787');
@@ -3084,8 +3237,10 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     if (e.flash > 0) { g.globalAlpha = 0.6; }
-    if (e.rank > 0) Sprites.drawTinted(g, e.def.sprite, e.x, e.y, sz, e.x > p.x, RANK_COLORS[e.rank], 0.4);
-    else Sprites.draw(g, e.def.sprite, e.x, e.y, sz, e.x > p.x);
+    {
+      const pr = foeSprite(e.def, e.rank || 0);
+      g.drawImage(e.x > p.x ? pr.m : pr.n, e.x - sz / 2, e.y - sz / 2, sz, sz);
+    }
     g.globalAlpha = 1;
     if (R.time < e.frozenUntil) {
       g.fillStyle = 'rgba(118,227,234,.4)';
@@ -3117,6 +3272,9 @@ const Run = (() => {
   // 下半分(手前)の2枚に分ける
   const crowd = { back: null, front: null, sum: 0, cnt: -1, cs: 1, r: 0, builtT: -9 };
   const CROWD_MIN = 150;      // 休息数がこれ未満なら従来どおり個別描画(小軍は挙動不変)
+  // 描画用の一時リストは使い回す(毎フレームの再確保をなくす。中身・順序は従来と同一)
+  const visFoes = [], visAllies = [], restList = [];
+  let lightList = null;   // 灯台(港+白亜の基地)の一覧。周回中は不変なので一度だけ組む
   function defHash(def){
     if (def._ch) return def._ch;
     let h = 7; const s = def.sprite;
@@ -3174,17 +3332,16 @@ const Run = (() => {
     // 見えない敵に描画時間を食われる ― 大群戦で効く
     const cullL = camX - 140, cullRt = camX + effW + 140;
     const cullT = camY - 160, cullB = camY + effH + 140;
-    const visFoes = [];
+    visFoes.length = 0;
     for (const e of R.enemies) {
       if (e.x > cullL && e.x < cullRt && e.y > cullT && e.y < cullB) visFoes.push(e);
     }
     // 休息中の仲間は一枚絵キャッシュ側で描く(数が一定以上の時のみ)。
-    // まず休息集合のチェックサムを取り、構成が変わった時だけ焼き直す
+    // まず休息集合のチェックサムだけを数え、実際に焼き直す時だけ一覧を組む
+    // (毎フレーム1万件の配列を作らない)
     let restCnt = 0, restSum = 0;
-    const restList = [];
     for (const a of R.allies) {
       if (a._rest && a.slot !== undefined) {
-        restList.push(a);
         restSum = (restSum + a.slot * 2654435761 + defHash(a.def)) | 0;
         restCnt++;
       }
@@ -3200,11 +3357,13 @@ const Run = (() => {
       const wait = Math.min(2, 0.4 + restCnt / 30000);
       if ((restSum !== crowd.sum || restCnt !== crowd.cnt || cs !== crowd.cs) &&
           (R.time - crowd.builtT > wait || R.time < crowd.builtT)) {
+        restList.length = 0;
+        for (const a of R.allies) if (a._rest && a.slot !== undefined) restList.push(a);
         rebuildCrowd(restList, cs);
         crowd.sum = restSum; crowd.cnt = restCnt; crowd.builtT = R.time;
       }
     }
-    const visAllies = [];
+    visAllies.length = 0;
     for (const a of R.allies) {
       if (crowdOn && a._rest) continue;   // 一枚絵側で描く
       if (a.x > cullL && a.x < cullRt && a.y > cullT && a.y < cullB) visAllies.push(a);
@@ -3437,28 +3596,37 @@ const Run = (() => {
 
     // 灯台の光: 港の灯りは夜通し回っていて、長い光の筋が地を掃く。
     // 海岸や海から光の筋を「目で見て」港を見つけるための目印(地図やテキストに頼らない)
-    const lighthouses = World.ports.slice();
-    { const wl = World.bases.find(b => b.id === 'b_white'); if (wl) lighthouses.push(wl); }
-    for (const lh of lighthouses) {
+    // 灯台の一覧は周回中ずっと同じ ― 毎フレームの配列生成と検索をやめて一度だけ組む
+    if (!lightList) {
+      lightList = World.ports.slice();
+      const wl = World.bases.find(b => b.id === 'b_white'); if (wl) lightList.push(wl);
+    }
+    for (const lh of lightList) {
       const ld = Math.hypot(lh.x - p.x, lh.y - p.y);
       if (ld > 3800) continue;
       const la = R.time * 0.4 + (lh.angle !== undefined ? lh.angle * 3.7 : 1.3);
       const beamLen = 3000;
       g.save();
       g.globalCompositeOperation = 'lighter';
-      // 港全体のほのかな灯り(光条の合間でも「あそこに何かある」と分かる)
-      const amb = g.createRadialGradient(lh.x, lh.y, 10, lh.x, lh.y, 260);
-      amb.addColorStop(0, 'rgba(255,224,130,0.20)');
-      amb.addColorStop(1, 'rgba(255,224,130,0)');
-      g.fillStyle = amb;
+      // 港全体のほのかな灯り(光条の合間でも「あそこに何かある」と分かる)。
+      // グラデーションはワールド座標で定義され灯台は動かないので、一度作れば使い回せる
+      // (塗り時の変換で位置は正しく追従する ― 見た目は毎フレーム作るのと完全に同一)
+      if (!lh._amb) {
+        const amb = g.createRadialGradient(lh.x, lh.y, 10, lh.x, lh.y, 260);
+        amb.addColorStop(0, 'rgba(255,224,130,0.20)');
+        amb.addColorStop(1, 'rgba(255,224,130,0)');
+        const grad = g.createRadialGradient(lh.x, lh.y, 24, lh.x, lh.y, beamLen);
+        grad.addColorStop(0, 'rgba(255,236,160,0.42)');
+        grad.addColorStop(0.5, 'rgba(255,236,160,0.15)');
+        grad.addColorStop(1, 'rgba(255,236,160,0)');
+        lh._amb = amb; lh._beam = grad;
+      }
+      g.fillStyle = lh._amb;
       g.beginPath(); g.arc(lh.x, lh.y, 260, 0, 7); g.fill();
       // 対の光条(灯台の双眼レンズ): 反対向きの2本が回る
-      const grad = g.createRadialGradient(lh.x, lh.y, 24, lh.x, lh.y, beamLen);
-      grad.addColorStop(0, 'rgba(255,236,160,0.42)');
-      grad.addColorStop(0.5, 'rgba(255,236,160,0.15)');
-      grad.addColorStop(1, 'rgba(255,236,160,0)');
-      g.fillStyle = grad;
-      for (const ba of [la, la + Math.PI]) {
+      g.fillStyle = lh._beam;
+      for (let bi = 0; bi < 2; bi++) {
+        const ba = bi ? la + Math.PI : la;
         g.beginPath();
         g.moveTo(lh.x, lh.y);
         g.arc(lh.x, lh.y, beamLen, ba - 0.085, ba + 0.085);
@@ -3588,7 +3756,7 @@ const Run = (() => {
     const _t2 = R._prof ? performance.now() : 0;
     const enemySorted = visFoes.sort((A, B) => A.y - B.y);
     for (const e of enemySorted) drawEnemyUnit(g, e);
-    if (R._prof) { R._prof.foes = (R._prof.foes || 0) + performance.now() - _t2; R._prof.frames = (R._prof.frames || 0) + 1; }
+    if (R._prof) { R._prof.foes = (R._prof.foes || 0) + performance.now() - _t2; R._prof.frames = (R._prof.frames || 0) + 1; R._prof._d2 = performance.now(); }
 
     // オービット描画
     const ob = wstat('orbit');
@@ -3715,8 +3883,10 @@ const Run = (() => {
     // ボスのHPと名前は頭上に表示(他のモンスターと同じ仕様)。専用の上部バーは廃止
 
     drawVignette(g, W, H);   // 画面周縁をわずかに落として視線を中央へ
+    if (R._prof) { R._prof.post = (R._prof.post || 0) + performance.now() - R._prof._d2; R._prof._d3 = performance.now(); }
     drawMinimap(g, W);
     drawFullMap(g, W, H);   // 全画面の全体図(開いている時のみ)
+    if (R._prof) R._prof.map = (R._prof.map || 0) + performance.now() - R._prof._d3;
   }
 
   // ビネット(サイズごとに一度だけ生成してキャッシュ)
@@ -4025,7 +4195,8 @@ const Run = (() => {
     dEl.textContent = '☠ 危険度 ' + danger;
     dEl.style.color = danger <= 2 ? '#7ee787' : danger <= 4 ? '#ffd766' : danger <= 8 ? '#f85149' : '#c084fc';
     document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
-    const waiting = R.allies.filter(a => a.waitAt).length;
+    let waiting = 0;
+    for (const a of R.allies) if (a.waitAt) waiting++;
     allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
     // スキルボタン: 今その場で取得/強化できるスキルがある限り光り、数を表示する
     const rc = Skills.readyCount();

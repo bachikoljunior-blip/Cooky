@@ -683,6 +683,8 @@ const Sprites = (() => {
           cache[id] = img;
           // 生成済みの色替え・反転キャッシュは古い絵から作られている ― 破棄して作り直す
           for (const k in tintCache) if (k.indexOf(id + '|') === 0) delete tintCache[k];
+          for (const k in pairCache) if (k.indexOf(id + '|') === 0) delete pairCache[k];
+          assetGen++;   // 呼び出し側が持っているスプライト参照も作り直させる
         };
       }
     } catch(e) { /* マニフェスト無し = 全部プレースホルダー */ }
@@ -733,10 +735,34 @@ const Sprites = (() => {
     return cv;
   }
   function drawTinted(g, id, x, y, size, flip, color, strength){
-    let im = tinted(id, color, strength);
-    if (flip) im = mirrorOf('t|' + id + '|' + color + '|' + (strength || 0.5), im);
+    const pr = tintedPair(id, color, strength);
+    const im = flip ? pr.m : pr.n;
     g.drawImage(im, x - size/2, y - size/2, size, size);
   }
 
-  return { get, draw, tinted, drawTinted, loadOverrides, DEFS };
+  // 通常向き+反転済みの組をまとめて返す。呼び出し側がこの組を保持しておけば、
+  // 毎フレームのキー文字列生成(1フレーム数千回)をなくして drawImage だけにできる。
+  // assetGen は画像差し替えのたびに増えるので、保持側は世代が変わったら取り直す
+  let assetGen = 0;
+  const pairCache = {};
+  function tintedPair(id, color, strength){
+    const key = id + '|' + color + '|' + (strength || 0.5);
+    let pr = pairCache[key];
+    if (!pr) {
+      const n = tinted(id, color, strength);
+      pr = pairCache[key] = { n, m: mirrorOf('t|' + key, n) };
+    }
+    return pr;
+  }
+  // 素のスプライトの通常/反転の組(色替えなし)
+  const plainPair = {};
+  function spritePair(id){
+    let pr = plainPair[id];
+    const src = get(id);
+    if (!pr || pr.src !== src) pr = plainPair[id] = { src, n: src, m: mirrorOf(id, src) };
+    return pr;
+  }
+
+  return { get, draw, tinted, drawTinted, tintedPair, spritePair, loadOverrides, DEFS,
+           get gen(){ return assetGen; } };
 })();
