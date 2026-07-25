@@ -27,6 +27,7 @@ const Game = (() => {
     state = 'title'; overlay = null;
     show('title-screen'); hide('hud'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
     document.body.classList.add('in-title');
+    refreshTitleRecord();
     Sfx.setScene('title');
   }
   function toHub(){
@@ -301,28 +302,76 @@ const Game = (() => {
       if (!overlay) Hub.update(dt);
       Hub.draw(g, W, H);
     } else {
-      // タイトル背景: 夜空+浮遊する光の粒
+      // タイトル背景: この世界そのものを見せる ―
+      // 魂の広場を実際の街の絵で描き、ゲートの前をゆっくり見渡す
       titleT += dt;
-      const bgGrad = g.createLinearGradient(0, 0, 0, H);
-      bgGrad.addColorStop(0, '#0b0f1a');
-      bgGrad.addColorStop(0.6, '#131c33');
-      bgGrad.addColorStop(1, '#1a1230');
-      g.fillStyle = bgGrad;
-      g.fillRect(0, 0, W, H);
-      for (let i = 0; i < 42; i++) {
-        const sp = 12 + (i * 37) % 30;
-        const px = ((i * 227) % 100) / 100 * W + Math.sin(titleT * 0.5 + i) * 30;
+      const bnd = { x0:-800, y0:-360, x1:800, y1:400 };
+      const plan = Town.plan('main', bnd);
+      // 縦横どちらの画面でも、広場が画面いっぱいに入る倍率を選ぶ
+      const Z = Math.min(1.25, Math.max(W / 1560, H / 780));
+      const VW = W / Z, VH = H / Z;
+      // 祭壇の壇からゲートへ、ゆっくり視線が流れる(広場の外は映さない)
+      const look = { x: Math.sin(titleT * 0.05) * 90, y: -20 + Math.cos(titleT * 0.04) * 50 };
+      const clamp = (v, lo, hi) => (lo > hi ? (lo + hi) / 2 : Math.max(lo, Math.min(hi, v)));
+      const camX = clamp(look.x - VW / 2, bnd.x0, bnd.x1 - VW);
+      const camY = clamp(look.y - VH / 2, bnd.y0, bnd.y1 - VH);
+      g.save();
+      g.scale(Z, Z);
+      Town.drawGround(g, plan, camX, camY, VW, VH, titleT);
+      g.save();
+      g.translate(-camX, -camY);
+      const draws = Town.items(plan, titleT).slice();
+      // 広場に立つ人影(死に戻りと、迎える住人たち)
+      // 人影は釦の列(画面中央)と、泉・建物の上を避けて道の上に置く
+      const cast = [['player', -380, 300], ['npc_miko', -360, 40], ['npc_smith', -470, -40],
+                    ['npc_elder', 330, 120], ['npc_girl', 470, 230]];
+      for (const [spr, x, y] of cast) {
+        draws.push({ sy: y, draw:(g2) => {
+          g2.fillStyle = 'rgba(0,0,0,.35)';
+          g2.beginPath(); g2.ellipse(x, y + 14, 15, 6, 0, 0, 7); g2.fill();
+          Sprites.draw(g2, spr, x, y - Town.elevAt(plan, x, y), spr === 'player' ? 52 : 84,
+                       spr === 'npc_elder' || spr === 'npc_smith');
+        } });
+      }
+      // 転送ゲート ― この物語の中心。灯りをまとって立つ
+      draws.push({ sy: 300, draw:(g2) => {
+        const gl = g2.createRadialGradient(0, 290, 6, 0, 290, 92);
+        gl.addColorStop(0, 'rgba(118,227,234,.30)'); gl.addColorStop(1, 'rgba(118,227,234,0)');
+        g2.fillStyle = gl; g2.beginPath(); g2.arc(0, 330, 92, 0, 7); g2.fill();
+        Sprites.draw(g2, 'st_gate', 0, 300, 110);
+      } });
+      draws.sort((a2, b2) => a2.sy - b2.sy);
+      for (const d of draws) d.draw(g);
+      Town.drawAir(g, plan, titleT);
+      g.restore();
+      g.restore();
+      // 立ちのぼる魂の粒(この世界の空気)
+      for (let i = 0; i < 34; i++) {
+        const sp = 10 + (i * 37) % 26;
+        const px = ((i * 227) % 100) / 100 * W + Math.sin(titleT * 0.5 + i) * 26;
         const py = H - (((titleT * sp + i * 173) % (H + 80)) - 40);
-        const hue = [45, 30, 200, 280][i % 4];
-        g.fillStyle = `hsla(${hue}, 90%, 65%, ${0.25 + (i % 3) * 0.12})`;
+        g.fillStyle = `hsla(${[186, 200, 45][i % 3]}, 85%, 70%, ${0.16 + (i % 3) * 0.1})`;
         g.beginPath(); g.arc(px, py, 1.5 + (i % 3), 0, 7); g.fill();
       }
-      // 地平線のシルエット
-      g.fillStyle = 'rgba(8,12,22,.85)';
-      g.beginPath(); g.moveTo(0, H);
-      for (let x = 0; x <= W; x += 40) g.lineTo(x, H - 40 - Math.sin(x * 0.01 + 2) * 24);
-      g.lineTo(W, H); g.closePath(); g.fill();
+      // 文字が読めるように、上下を落とす(絵は真ん中に残す)
+      const scrim = g.createLinearGradient(0, 0, 0, H);
+      scrim.addColorStop(0, 'rgba(6,9,17,.80)');
+      scrim.addColorStop(0.40, 'rgba(6,9,17,.26)');
+      scrim.addColorStop(0.72, 'rgba(6,9,17,.40)');
+      scrim.addColorStop(1, 'rgba(6,9,17,.88)');
+      g.fillStyle = scrim; g.fillRect(0, 0, W, H);
     }
+  }
+
+  // タイトルに「これまでの旅」を一行。死んで戻るゲームなので、回数そのものが物語になる
+  function refreshTitleRecord(){
+    const e = el('title-record');
+    const st = SaveSys.data.stats || {};
+    if (!st.runs) { e.classList.add('hidden'); return; }
+    const lit = Object.keys(SaveSys.data.bases || {}).length;
+    e.textContent = '周回 ' + st.runs + ' ・ 灯したゲート ' + lit
+      + ' ・ 最長 ' + fmtTime(st.bestTime || 0);
+    e.classList.remove('hidden');
   }
 
   // ミニマップをタップ/クリックで全画面の全体図を開く/閉じる
@@ -358,10 +407,13 @@ const Game = (() => {
   el('btn-help').onclick = () => { show('help-panel'); };
   el('help-close').onclick = () => { hide('help-panel'); };
   el('btn-wipe').onclick = () => {
-    if (confirm('本当に全データを消しますか?(恒久強化・基地・港もリセット)')) {
-      SaveSys.wipe();
-      alert('初期化しました');
-    }
+    const st = SaveSys.data.stats || {};
+    if (!confirm('全データを消しますか?\n\n周回 ' + (st.runs || 0) + ' ・ 灯したゲート '
+        + Object.keys(SaveSys.data.bases || {}).length + ' ・ パワーアップと武器\nすべて最初からになります。')) return;
+    if (!confirm('本当に消しますか?この操作は元に戻せません。')) return;
+    SaveSys.wipe();
+    refreshTitleRecord();
+    alert('初期化しました');
   };
   el('skill-close').onclick = () => toggleSkillPanel();
   el('station-close').onclick = () => {

@@ -148,36 +148,37 @@ body.pad-visible #touch-buttons { display:flex; }
 
 /* ---------- タイトル ---------- */
 #title-screen { position:absolute; inset:0; z-index:30; display:flex; flex-direction:column; align-items:center;
-  justify-content:center; gap:14px; overflow:hidden;
-  background:
-    radial-gradient(ellipse 60% 40% at 50% 8%, rgba(31,111,235,.16), transparent 70%),
-    radial-gradient(ellipse at center, rgba(22,33,62,.55) 0%, rgba(7,10,18,.85) 85%); }
-/* 漂う魂の粒(タイトルの空気感) */
-#title-screen::before, #title-screen::after { content:''; position:absolute; inset:-10%;
-  pointer-events:none; border-radius:50%;
-  background:
-    radial-gradient(circle 3px at 12% 30%, rgba(118,227,234,.8), transparent 60%),
-    radial-gradient(circle 2px at 28% 70%, rgba(165,216,255,.7), transparent 60%),
-    radial-gradient(circle 4px at 45% 20%, rgba(118,227,234,.5), transparent 60%),
-    radial-gradient(circle 2px at 62% 62%, rgba(255,215,102,.55), transparent 60%),
-    radial-gradient(circle 3px at 78% 34%, rgba(165,216,255,.7), transparent 60%),
-    radial-gradient(circle 2px at 90% 76%, rgba(118,227,234,.6), transparent 60%);
-  animation:souls-drift 26s linear infinite; }
-#title-screen::after { animation-duration:38s; animation-direction:reverse; transform:scale(1.4); opacity:.6; }
-@keyframes souls-drift {
-  from { transform:translateY(6%) rotate(0deg); }
-  to { transform:translateY(-6%) rotate(4deg); } }
-#title-screen h1 { font-size:min(64px,12vw); line-height:1.1; text-align:center; letter-spacing:6px;
-  background:linear-gradient(#ffd766,#ff8c37); -webkit-background-clip:text; background-clip:text; color:transparent;
-  filter:drop-shadow(0 4px 18px rgba(255,140,55,.45));
-  animation:title-glow 3s ease-in-out infinite; }
+  justify-content:center; gap:16px; overflow:hidden; background:transparent; }
+/* 背景は canvas に描かれた「魂の広場」そのもの。ここは文字と釦だけを置く */
+#title-mark { text-align:center; }
+#title-screen h1 { font-size:min(64px,12vw); line-height:1.06; text-align:center; letter-spacing:6px;
+  background:linear-gradient(#ffe9a8,#ffd766 45%,#e08a2e); -webkit-background-clip:text; background-clip:text;
+  color:transparent; filter:drop-shadow(0 3px 16px rgba(255,180,80,.45)); margin:0;
+  animation:title-glow 4s ease-in-out infinite; }
 @keyframes title-glow {
-  0%,100% { filter:drop-shadow(0 4px 14px rgba(255,140,55,.35)); }
-  50% { filter:drop-shadow(0 4px 30px rgba(255,180,80,.7)); }
-}
-.tagline { color:#9aa5b1; margin-bottom:12px; letter-spacing:4px; }
-#title-screen .big-btn { width:min(300px,80vw); }
-.ver { position:absolute; bottom:10px; right:14px; color:#484f58; font-size:12px; }
+  0%,100% { filter:drop-shadow(0 3px 12px rgba(255,180,80,.34)); }
+  50% { filter:drop-shadow(0 3px 26px rgba(255,200,110,.62)); } }
+.tagline { display:inline-block; margin:10px 0 0; padding:5px 16px; letter-spacing:4px;
+  color:#cbd6e4; font-size:13px; border-radius:999px;
+  background:rgba(8,12,22,.62); border:1px solid rgba(255,255,255,.10); }
+/* 主な行き先は2つだけ。設定と初期化は足元に小さく置く */
+#title-menu { display:flex; flex-direction:column; gap:10px; margin-top:8px; }
+#title-screen .big-btn { width:min(300px,80vw); border:1px solid rgba(255,255,255,.12);
+  background:rgba(12,17,29,.72); color:#e6edf3; backdrop-filter:blur(3px); }
+#title-screen #btn-start { border-color:rgba(255,215,102,.55); color:#ffd766;
+  background:linear-gradient(rgba(58,44,16,.86), rgba(20,16,10,.86));
+  box-shadow:0 0 22px rgba(255,180,80,.16); }
+#title-screen #btn-start:hover { background:linear-gradient(rgba(78,58,20,.9), rgba(28,22,12,.9)); }
+#title-screen .big-btn.sub { color:#a9b6c6; }
+#title-record { margin:2px 0 0; color:#8b949e; font-size:12.5px; letter-spacing:1px; }
+#title-foot { position:absolute; bottom:14px; left:0; right:0;
+  display:flex; justify-content:center; gap:10px; }
+.foot-btn { padding:7px 14px; font-size:12px; border-radius:999px; cursor:pointer;
+  background:rgba(8,12,22,.6); border:1px solid rgba(255,255,255,.10); color:#8b949e; }
+.foot-btn:hover { color:#e6edf3; border-color:rgba(255,255,255,.2); }
+.foot-btn.danger { color:#7d5a5f; border-color:rgba(180,80,90,.22); }
+.foot-btn.danger:hover { color:#f0777f; border-color:rgba(200,90,100,.5); }
+.ver { position:absolute; bottom:16px; right:14px; color:#484f58; font-size:12px; }
 
 #result-body .r-line { font-size:16px; margin:6px 0; }
 #result-body .r-big { font-size:22px; color:#ffd766; font-weight:bold; }
