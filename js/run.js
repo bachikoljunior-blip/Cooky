@@ -993,17 +993,58 @@ const Run = (() => {
     const land = isLandCached(x, y);
     return def.env === 'land' ? land : !land;
   }
-  // 岩場の押し出し(円の縁に沿って滑る)。壊せない自然の障害
-  function cragPush(u, rad){
+  // 岩場の押し出し(円の縁に沿って滑る)。壊せない自然の障害。
+  // 押し出す先は canStand と同じ基準(岩r + 体r)― 「立てない場所」へ押し込むと
+  // その後の移動が全方向で弾かれ、岩に貼り付いて動けなくなる
+  function cragPush(u, def){
     const crags = R.crags;
     if (!crags || !crags.length) return;
+    const rad = (def && def.r) || 10;
     for (const c of crags) {
       const dx = u.x - c.x, dy = u.y - c.y;
-      const rr = c.r + rad;
+      const rr = c.r + rad + 0.5;
       if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
       const d = Math.hypot(dx, dy);
-      if (d < rr && d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
+      if (d >= rr) continue;
+      if (d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
+      else { u.x = c.x + rr; u.y = c.y; }   // 中心と完全一致でも必ず外へ出す
     }
+  }
+  const PLAYER_BODY = { r: 14, env: 'both' };   // 主人公の当たり判定(岩の押し出し用)
+  // その座標で体が食い込んでいる岩(なければnull)
+  function blockingCrag(def, x, y){
+    if (!R.crags) return null;
+    const rad = (def && def.r) || 10;
+    for (const c of R.crags) {
+      const rr = c.r + rad;
+      if (Math.abs(x - c.x) < rr && Math.abs(y - c.y) < rr && Math.hypot(x - c.x, y - c.y) < rr) return c;
+    }
+    return null;
+  }
+  // 目標へ一歩進む。まっすぐ行けない時は岩の縁に沿って回り込む。
+  // (軸ずらしだけだと岩の斜め前で両軸とも塞がれ、その場で足踏みになる)
+  function stepToward(u, def, tx, ty, step){
+    const dx = tx - u.x, dy = ty - u.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    const s = Math.min(d, step);
+    if (canStand(def, u.x + ux * s, u.y + uy * s)) { u.x += ux * s; u.y += uy * s; return true; }
+    // 塞いでいる岩の接線方向へ滑る(目標に近づく回り方を先に試す)
+    const c = blockingCrag(def, u.x + ux * s, u.y + uy * s);
+    if (c) {
+      const bx = u.x - c.x, by = u.y - c.y;
+      const bl = Math.hypot(bx, by) || 1;
+      const tx1 = -by / bl, ty1 = bx / bl;               // 円の接線
+      const sgn = (tx1 * ux + ty1 * uy) >= 0 ? 1 : -1;   // 目標側へ回る向き
+      for (const sg of [sgn, -sgn]) {
+        const nx2 = u.x + tx1 * sg * s, ny2 = u.y + ty1 * sg * s;
+        if (canStand(def, nx2, ny2)) { u.x = nx2; u.y = ny2; return true; }
+      }
+    }
+    // 最後に軸ごとの滑り(海岸線など岩以外の境界のため)
+    if (canStand(def, u.x + ux * s, u.y)) { u.x += ux * s; return true; }
+    if (canStand(def, u.x, u.y + uy * s)) { u.y += uy * s; return true; }
+    return false;
   }
 
   function updateEnemies(dt){
@@ -1143,10 +1184,7 @@ const Run = (() => {
           if (e.def.ranged && d < e.def.ranged.range * 0.6) { vx = -vx * 0.5; vy = -vy * 0.5; }
         }
       }
-      const nx = e.x + vx * spd * dt, ny = e.y + vy * spd * dt;
-      if (canStand(e.def, nx, ny)) { e.x = nx; e.y = ny; }
-      else if (canStand(e.def, nx, e.y)) { e.x = nx; }
-      else if (canStand(e.def, e.x, ny)) { e.y = ny; }
+      stepToward(e, e.def, e.x + vx * 1000, e.y + vy * 1000, spd * dt);   // 岩は縁に沿って回り込む
 
       // 体の大きさ(ゴーレム・ボス等はsizeMulで大きい)を考慮した接触半径
       const er = e.def.r * (e.sizeMul || 1);
@@ -1427,13 +1465,7 @@ const Run = (() => {
         a.inForm = true;
       }
       if (dest) {
-        const d = Math.hypot(dest.x - a.x, dest.y - a.y) || 1;
-        const step2 = Math.min(d, spd * dt);
-        const nx = a.x + (dest.x - a.x) / d * step2;
-        const ny = a.y + (dest.y - a.y) / d * step2;
-        if (canStand(a.def, nx, ny)) { a.x = nx; a.y = ny; }
-        else if (canStand(a.def, nx, a.y)) a.x = nx;
-        else if (canStand(a.def, a.x, ny)) a.y = ny;
+        stepToward(a, a.def, dest.x, dest.y, spd * dt);   // 岩は縁に沿って回り込む
       }
       // ハードリーシュ(安全網): 主人公から離れられる範囲。広め(戻ってくるまでの距離が長い)。
       {
@@ -2545,7 +2577,7 @@ const Run = (() => {
     R.objects = World.nearbyObjects(p.x, p.y, 900);
     // 地形の障害(岩場): 主人公はここで押し出す(仲間・敵はそれぞれの移動処理で)
     R.crags = World.nearbyCrags(p.x, p.y, (R.offscreenR || 700) + 400);
-    cragPush(p, 14);
+    cragPush(p, PLAYER_BODY);
     // ランドマーク(見晴らし台・古の祠)
     R.landmarks = World.nearbyLandmarks(p.x, p.y, (R.offscreenR || 700) + 400);
     R.relics = World.nearbyRelics(p.x, p.y, (R.offscreenR || 700) + 400);
@@ -2626,8 +2658,8 @@ const Run = (() => {
     separateUnits();   // 敵・仲間が重ならない(合戦の戦線を形成)
     // 岩場(地形の障害): 敵も仲間も回り込む(ボスは巨躯なので押し通る)
     if (R.crags && R.crags.length) {
-      for (const e of R.enemies) if (!e.dead && !e.boss) cragPush(e, e.def.r * 0.6 * (e.sizeMul || 1));
-      for (const a of R.allies) if (!a.waitAt) cragPush(a, a.def.r * 0.6);
+      for (const e of R.enemies) if (!e.dead && !e.boss) cragPush(e, e.def);
+      for (const a of R.allies) if (!a.waitAt) cragPush(a, a.def);
     }
     updateSkills(dt);
     updateProjectiles(dt);
