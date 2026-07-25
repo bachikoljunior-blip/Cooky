@@ -842,7 +842,7 @@ const Run = (() => {
   // 1波ぶんを、すぐ画面外から一斉に。実体の空きが無い分は増援プールへ回す
   // (数として保持し、実体が倒れるそばから画面外で実体化する ― 総数は無制限)
   function spawnHordeWave(wave){
-    const room = Math.max(0, Math.min(FIELD_CAP, ENEMY_BACKSTOP) - R.enemies.length);
+    const room = Math.max(0, Math.min(R.fieldCap || FIELD_CAP, ENEMY_BACKSTOP) - R.enemies.length);
     const now = Math.min(wave.count, room);
     if (wave.count > now) queueReinf(wave.count - now, wave.dir);
     if (now <= 0) return;
@@ -936,7 +936,7 @@ const Run = (() => {
     const moveA = pSpd > 20 ? Math.atan2(p.vy, p.vx) : null;
     while (R.spawnAcc >= 1) {
       R.spawnAcc -= 1;
-      if (nearN >= nearTarget || R.enemies.length >= ENEMY_BACKSTOP) break;
+      if (nearN >= nearTarget || R.enemies.length >= (R.fieldCap || FIELD_CAP)) break;
       if (Math.random() < (R.worldEvent === 'migration' ? 0.22 : 0.12)) { spawnHerd(false); nearN += 5; }   // 時々、群れ
       // 画面外だが範囲内(offR〜offR+240)に湧かせる ― すぐ数が数えられ、画面へ寄ってくる
       // 移動中は進行方向の前方に多めに湧かせる(置いていった敵の分を前で補う)
@@ -952,7 +952,7 @@ const Run = (() => {
     // --- ティアごとの群れ: 密度と関係なく定期的に必ず出会う(その土地のティアで構成) ---
     if (R.herdT === undefined) R.herdT = rnd(14, 22);
     R.herdT -= dt;
-    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < ENEMY_BACKSTOP) {
+    if (R.herdT <= 0 && !isReaperTime && R.enemies.length < (R.fieldCap || FIELD_CAP)) {
       spawnHerd(false);
       R.herdT = rnd(20, 34) * (R.worldEvent === 'migration' ? 0.6 : 1);
     }
@@ -975,7 +975,8 @@ const Run = (() => {
     if (R.reinfPool && R.reinfPool.length) {
       let budget = 24;
       const rbase = (R.offscreenR || 950) + rnd(10, 80);
-      while (budget > 0 && R.reinfPool.length && R.enemies.length < FIELD_CAP) {
+      const cap = R.fieldCap || FIELD_CAP;
+      while (budget > 0 && R.reinfPool.length && R.enemies.length < cap) {
         const q = R.reinfPool[0];
         const a = q.dir + rnd(-0.7, 0.7);
         const d = rbase + rnd(0, 80);
@@ -1095,13 +1096,14 @@ const Run = (() => {
   function cragPush(u, rad){
     const crags = R.crags;
     if (!crags || !crags.length) return;
-    for (const c of crags) {
-      const dx = u.x - c.x, dy = u.y - c.y;
-      const rr = c.r + rad;
-      if (Math.abs(dx) > rr || Math.abs(dy) > rr) continue;
-      const d = Math.hypot(dx, dy);
-      if (d < rr && d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
-    }
+    for (const c of crags) cragPushOne(u, c, rad);
+  }
+  function cragPushOne(u, c, rad){
+    const dx = u.x - c.x, dy = u.y - c.y;
+    const rr = c.r + rad;
+    if (Math.abs(dx) > rr || Math.abs(dy) > rr) return;
+    const d = Math.hypot(dx, dy);
+    if (d < rr && d > 0.001) { u.x = c.x + dx / d * rr; u.y = c.y + dy / d * rr; }
   }
 
   function updateEnemies(dt){
@@ -1438,6 +1440,8 @@ const Run = (() => {
       ((R.speedBurst && R.time < R.speedBurst.until) ? R.speedBurst.mult : 1);   // 月光の疾走
     const n = R.allies.length;
     const formR = formationRadius(n);   // 陣形半径は全員共通(ループ外で1回だけ)
+    // 高負荷時は前線の帯を薄くして休息に入りやすくする(自動負荷調整の仲間側)
+    const mStay = R._loadHi ? 130 : 160, mEnter = R._loadHi ? 200 : 260;
     for (let i = R.allies.length - 1; i >= 0; i--) {
       const a = R.allies[i];
       if (a.dead) { const s = a.slot; R.allies.splice(i, 1); freeSlot(s); continue; }
@@ -1485,7 +1489,7 @@ const Run = (() => {
         if (sm && !a.def.heal && a.hp >= a.maxHp && sp.rad < formR - 40) {
           const s = sp.sec;
           secD = Math.min(sm[(s + 7) & 7], Math.min(sm[s], sm[(s + 1) & 7]));
-          if (secD > sp.rad + (a._rest ? 160 : 260)) {
+          if (secD > sp.rad + (a._rest ? mStay : mEnter)) {
             a._calmT = (a._calmT || 0) + dt;
             if (a._calmT > 0.6) rest = true;
           } else a._calmT = 0;
@@ -1499,8 +1503,10 @@ const Run = (() => {
           const step = a.speed * spdMul * (sigActive() ? 1.3 : 1) * (R.rampMul || 1) * dt;
           if (need <= step * 1.02 + 0.02 && canStand(a.def, nx, ny)) {
             a._rest = true; a.inForm = true; a._tgt = null;
-            // 前線に近い外周の休息者は、押し合いの「壁」として起こされ役になる
-            a._restEdge = secD < sp.rad + 460;
+            // 前線のすぐ後ろの薄い帯だけを、押し合いの「壁」として起こされ役にする。
+            // 敵が実際に陣形の縁まで来ている(secD<formR+60)時だけでよい ―
+            // 接近中の段階では押し込みは起きないので壁は不要(分離処理の負荷を抑える)
+            a._restEdge = secD < sp.rad + 280 && secD < formR + 60;
             a.x = nx; a.y = ny;
             continue;
           }
@@ -1581,8 +1587,13 @@ const Run = (() => {
           dest = null;
         }
       } else {
-        // 敵がいなければ、陣形が触れているオブジェクトを壊す(素材集めを手伝う)
-        const ot = nearestObject(a.x, a.y, 52);
+        // 敵がいなければ、陣形が触れているオブジェクトを壊す(素材集めを手伝う)。
+        // 探索は0.15秒ごとに間引く(前線の仲間数千がオブジェクト一覧を
+        // 毎フレーム全走査すると、それだけで数msかかる)
+        a._objT = (a._objT === undefined ? Math.random() * 0.15 : a._objT) - dt;
+        let ot = a._obj;
+        if (ot && (ot.hp <= 0 || Math.hypot(ot.x - a.x, ot.y - a.y) > 90)) ot = a._obj = null;
+        if (a._objT <= 0) { a._objT = 0.15; ot = a._obj = nearestObject(a.x, a.y, 52); }
         if (ot && Math.hypot(ot.x - p.x, ot.y - p.y) < formR + 64) {
           a.atkCd -= dt;
           const od = Math.hypot(ot.x - a.x, ot.y - a.y);
@@ -1647,6 +1658,22 @@ const Run = (() => {
   }
 
   // ---------------- ユニット分離(敵・仲間・自分が重ならない = 合戦の戦線) ----------------
+  // 押し出しの適用。敵が押し合いで主人公へ押し込まれない: 主人公の近くでは、
+  // 主人公方向への押し成分を消す(後ろの群れが前の敵を擦り付けてくるのを防ぐ)。
+  // ※ペアごとのクロージャ生成をしないよう関数はここに1つだけ定義(合戦時は毎フレーム
+  //   数万ペアが発生するため、ループ内での関数生成はGC負荷で数十msの差になる)
+  function sepPush(ent, fx, fy, pl){
+    if (!ent._ally && ent !== pl) {
+      const dxp = pl.x - ent.x, dyp = pl.y - ent.y;
+      const dp2 = dxp * dxp + dyp * dyp;
+      if (dp2 < 120 * 120) {
+        const dl = Math.sqrt(dp2) || 1;
+        const tw = (fx * dxp + fy * dyp) / dl;
+        if (tw > 0) { fx -= dxp / dl * tw; fy -= dyp / dl * tw; }
+      }
+    }
+    ent.x += fx; ent.y += fy;
+  }
   // 押し合いは質量ベース: 同格同士は均等に押し合い、強い(tierが高い/ボス)ほど押されにくい
   function separateUnits(){
     // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
@@ -1688,7 +1715,11 @@ const Run = (() => {
       if (arr) arr.push(u); else grid.set(k, [u]);
     }
     const movers = units.filter(u => (u._ally && !u._rest) || u === pl);
+    // 大軍の合戦では押し合いを1体おきに隔フレーム処理(補正は半分の頻度でも
+    // 数フレームで収束するので見た目は変わらず、コストが半減する)。少数なら毎フレーム
+    const stag = movers.length > 900;
     for (const u of movers) {
+      if (stag && u !== pl && ((u._si + R.lodTick) & 1)) continue;
       const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
       for (let ix = gx - 1; ix <= gx + 1; ix++) {
         for (let iy = gy - 1; iy <= gy + 1; iy++) {
@@ -1715,22 +1746,8 @@ const Run = (() => {
             // 壁役の休息者もこのフレームは動かず、代わりに起こされて次フレームから押し合いに参加
             const uImm = u === pl, vImm = v === pl || vRest;
             if (vRest) v._wake = true;
-            // 敵が押し合いで主人公へ押し込まれない: 主人公の近くでは、
-            // 主人公方向への押し成分を消す(後ろの群れが前の敵を擦り付けてくるのを防ぐ)
-            const push = (ent, fx, fy) => {
-              if (!ent._ally && ent !== pl) {
-                const dxp = pl.x - ent.x, dyp = pl.y - ent.y;
-                const dp2 = dxp * dxp + dyp * dyp;
-                if (dp2 < 120 * 120) {
-                  const dl = Math.sqrt(dp2) || 1;
-                  const tw = (fx * dxp + fy * dyp) / dl;
-                  if (tw > 0) { fx -= dxp / dl * tw; fy -= dyp / dl * tw; }
-                }
-              }
-              ent.x += fx; ent.y += fy;
-            };
-            if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); push(u, -nx * tot * f, -ny * tot * f); }
-            if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); push(v, nx * tot * f, ny * tot * f); }
+            if (!uImm) { const f = vImm ? 1 : mv / (mu + mv); sepPush(u, -nx * tot * f, -ny * tot * f, pl); }
+            if (!vImm) { const f = uImm ? 1 : mu / (mu + mv); sepPush(v, nx * tot * f, ny * tot * f, pl); }
           }
         }
       }
@@ -2707,6 +2724,20 @@ const Run = (() => {
     }
     if (R.over) return;
     R.time += dt;
+    // 自動負荷調整: 実フレーム時間の移動平均を見て、重い時は「同時に動く敵の実体数」の
+    // 許容量を絞り、軽くなったら戻す。総数はプール制なので変わらない ― 押し寄せる敵の
+    // 総量はそのままに、同時に湧く数だけがマシンの性能に合わせて自動で増減する。
+    // どんな環境でも(敵・仲間が無限に増えても)フレームレートを優先して保つ
+    R._loadEma = R._loadEma === undefined ? dt : R._loadEma * 0.94 + dt * 0.06;
+    R._capT = (R._capT || 0) - dt;
+    if (R._capT <= 0) {
+      R._capT = 0.5;
+      const cur = R.fieldCap || FIELD_CAP;
+      if (R._loadEma > 0.024) R.fieldCap = Math.max(350, Math.round(cur * 0.85));       // 42fpsを切る → 絞る
+      else if (R._loadEma < 0.019 && cur < FIELD_CAP)
+        R.fieldCap = Math.min(FIELD_CAP, Math.round(cur * 1.12) + 8);                   // 余裕がある → 戻す
+    }
+    R._loadHi = R._loadEma > 0.024;   // 高負荷中は仲間の前線の帯も薄めにする
     R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
     // 古の祠の加護(時間制。毎フレーム素の値から計算し直すので重ね掛けにならない)
     if (R.bless && R.time < R.bless.until) {
@@ -2846,21 +2877,40 @@ const Run = (() => {
     R.rangeCapPx = 68 * (R.stats.range || 1);
 
     Quest.tick(dt);   // 防衛クエストの進行
+    const _pf = R._prof;
+    const _pn = _pf ? (n) => { const t = performance.now(); _pf[n] = (_pf[n] || 0) + t - _pf._t; _pf._t = t; } : null;
+    if (_pn) _pf._t = performance.now();
     director(dt);
+    if (_pn) _pn('director');
     rebuildFoeGrid();   // 湧いた直後の敵も近傍グリッドに載せる(敵AI内のグリッド参照用)
     updateEnemies(dt);
+    if (_pn) _pn('enemies');
     rebuildFoeGrid();   // 移動後の位置で近傍グリッドを組み直す
     updateAllies(dt);
+    if (_pn) _pn('allies');
     separateUnits();   // 敵・仲間が重ならない(合戦の戦線を形成)
-    // 岩場(地形の障害): 敵も仲間も回り込む(ボスは巨躯なので押し通る)
+    if (_pn) _pn('separate');
+    // 岩場(地形の障害): 敵も仲間も回り込む(ボスは巨躯なので押し通る)。
+    // 岩ごとに近傍グリッドを引く ― コストは実体総数でなく「岩の周りにいる数」だけ。
+    // 休息中の内側の仲間は対象外(前線の帯が岩を避けるので内側が岩を踏むのは
+    // 一瞬で、密集の中では見えない)
     if (R.crags && R.crags.length) {
-      for (const e of R.enemies) if (!e.dead && !e.boss) cragPush(e, e.def.r * 0.6 * (e.sizeMul || 1));
-      for (const a of R.allies) if (!a.waitAt) cragPush(a, a.def.r * 0.6);
+      for (const c of R.crags) {
+        forEachFoeNear(c.x, c.y, c.r + (R.maxFoeR || 60), (e) => {
+          if (!e.boss) cragPushOne(e, c, e.def.r * 0.6 * (e.sizeMul || 1));
+          return false;
+        });
+        forEachAllyNear(c.x, c.y, c.r + (R.maxAllyR || 12) + 20, (a) => {
+          if (!a.waitAt) cragPushOne(a, c, a.def.r * 0.6);
+          return false;
+        });
+      }
     }
     updateSkills(dt);
     updateProjectiles(dt);
     updatePickups(dt);
     updateInteractions(dt);
+    if (_pn) { _pn('skills'); _pf.uframes = (_pf.uframes || 0) + 1; }
 
     // エフェクト時間
     for (let i = R.effects.length - 1; i >= 0; i--) {
