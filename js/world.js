@@ -201,7 +201,10 @@ const World = (() => {
   let objHp = new Map();       // key -> 残りHP
   let clock = 0;
   const RESPAWN_SEC = 90;
-  function resetRun(){ destroyed = new Map(); objHp = new Map(); clock = 0; }
+  function resetRun(){
+    destroyed = new Map(); objHp = new Map(); clock = 0;
+    objCache.cx = 1e9;   // 前周回のオブジェクト状態(削りHP・破壊)をキャッシュに残さない
+  }
   function tick(dt){ clock += dt; }
   function setObjHp(key, hp){ objHp.set(key, hp); }
   function isDestroyed(key){
@@ -273,6 +276,11 @@ const World = (() => {
       if (d < 5600) nearBase = b;
     }
     const rd = nearBase ? roadOf(nearBase.id) : null;
+    // 見晴らし台・祠を岩や崖で埋めない(近傍9チャンクのランドマークを避ける)
+    const lms = [];
+    for (let iy = cy - 1; iy <= cy + 1; iy++)
+      for (let ix = cx - 1; ix <= cx + 1; ix++) lms.push(...chunkLandmarks(ix, iy));
+    const nearLm = (x, y, r) => lms.some(lm => Math.hypot(x - lm.x, y - lm.y) < r + 60);
     // 崖の尾根: 岩群のおよそ1/4は、一列に連なる段差(崖)になる。
     // 当たり判定は従来の円のまま(既存の回り込み・湧き規則がそのまま効く)
     if (hash(cx, cy, 105) < 0.25) {
@@ -285,6 +293,7 @@ const World = (() => {
         const t = terrainAt(x, y);
         if (t !== 'grass' && t !== 'sand') continue;
         if (rd && roadDist(rd, x, y) < 120) continue;
+        if (nearLm(x, y, r)) continue;
         list.push({ x, y, r, cliff: true, ang });
       }
       return list;
@@ -296,7 +305,9 @@ const World = (() => {
       const t = terrainAt(x, y);
       if (t !== 'grass' && t !== 'sand') continue;
       if (rd && roadDist(rd, x, y) < 120) continue;   // 基地の小道は塞がない
-      list.push({ x, y, r: 20 + hash(cx, cy, 101 + i) * 22 });
+      const rr2 = 20 + hash(cx, cy, 101 + i) * 22;
+      if (nearLm(x, y, rr2)) continue;
+      list.push({ x, y, r: rr2 });
     }
     return list;
   }
@@ -333,55 +344,60 @@ const World = (() => {
     list.push({ x, y, kind: kinds[Math.floor(hash(cx, cy, 134) * kinds.length)] });
     return list;
   }
-  let relCache = { cx: 1e9, cy: 1e9, list: [] };
+  let relCache = { cx: 1e9, cy: 1e9, rng: 0, list: [] };
   function nearbyRelics(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
-    if (relCache.cx === cx && relCache.cy === cy) return relCache.list;
     const rng = Math.ceil(radius / CHUNK);
+    if (relCache.cx === cx && relCache.cy === cy && relCache.rng >= rng) return relCache.list;
     const list = [];
     for (let iy = cy - rng; iy <= cy + rng; iy++)
       for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkRelics(ix, iy));
-    relCache = { cx, cy, list };
+    relCache = { cx, cy, rng, list };
     return list;
   }
 
-  let lmCache = { cx: 1e9, cy: 1e9, list: [] };
+  let lmCache = { cx: 1e9, cy: 1e9, rng: 0, list: [] };
   function nearbyLandmarks(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
-    if (lmCache.cx === cx && lmCache.cy === cy) return lmCache.list;
     const rng = Math.ceil(radius / CHUNK);
+    if (lmCache.cx === cx && lmCache.cy === cy && lmCache.rng >= rng) return lmCache.list;
     const list = [];
     for (let iy = cy - rng; iy <= cy + rng; iy++)
       for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkLandmarks(ix, iy));
-    lmCache = { cx, cy, list };
+    lmCache = { cx, cy, rng, list };
     return list;
   }
 
-  let cragCache = { cx: 1e9, cy: 1e9, list: [] };
+  let cragCache = { cx: 1e9, cy: 1e9, rng: 0, list: [] };
   function nearbyCrags(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
-    if (cragCache.cx === cx && cragCache.cy === cy) return cragCache.list;
     const rng = Math.ceil(radius / CHUNK);
+    if (cragCache.cx === cx && cragCache.cy === cy && cragCache.rng >= rng) return cragCache.list;
     const list = [];
     for (let iy = cy - rng; iy <= cy + rng; iy++)
       for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkCrags(ix, iy));
-    cragCache = { cx, cy, list };
+    cragCache = { cx, cy, rng, list };
     return list;
   }
 
   // プレイヤー周辺のオブジェクトを列挙(キャッシュ付き)
-  let objCache = { cx:1e9, cy:1e9, list:[] };
+  let objCache = { cx:1e9, cy:1e9, rng:0, list:[] };
   function nearbyObjects(px, py, radius){
     const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
     const rng = Math.ceil(radius / CHUNK);
-    if (objCache.cx === cx && objCache.cy === cy) {
-      return objCache.list.filter(o => !isDestroyed(o.key));
+    if (objCache.cx === cx && objCache.cy === cy && objCache.rng >= rng) {
+      // リスポーン時間が明けた破壊物があれば消化して、同チャンク内でも再生成する
+      let expired = false;
+      for (const [k, t] of destroyed) {
+        if (clock - t >= RESPAWN_SEC) { destroyed.delete(k); objHp.delete(k); expired = true; }
+      }
+      if (!expired) return objCache.list.filter(o => !isDestroyed(o.key));
     }
     const list = [];
     for (let ix = cx - rng; ix <= cx + rng; ix++)
       for (let iy = cy - rng; iy <= cy + rng; iy++)
         list.push(...chunkObjects(ix, iy));
-    objCache = { cx, cy, list };
+    objCache = { cx, cy, rng, list };
     return list;
   }
   function destroyObject(key){ destroyed.set(key, clock); objHp.delete(key); objCache.cx = 1e9; }

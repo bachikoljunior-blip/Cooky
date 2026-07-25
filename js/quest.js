@@ -149,7 +149,7 @@ const Quest = (() => {
     if (activeFor(kind, id)) { atNpc(kind, id); return; }
     const introLines = def.intro.slice();
     // 施設解放クエスト: 果たせば眠っている強化施設が目を覚ますことが、受ける前から分かるように
-    if (kind === 'base2') introLines.push('(この頼みを果たせば、この基地の眠っている強化施設が目を覚ますようだ)');
+    if (kind === 'base2') introLines.push('(果たせば、眠っている強化施設が目を覚ますようだ)');
     Game.dialog(def.npcName, face, introLines, () => {
       if (def.type === 'delivery') deliveryChoice(kind, id, def);
       else {
@@ -238,6 +238,20 @@ const Quest = (() => {
   function finalize(kind, id, def){
     const R = Run.state;
     removeActive(kind, id);
+    // 死に戻り後(周回精算済み)の報告: 周回の財布は締めた後なので、
+    // コインは銀行へ、素材は保管庫(次の周回へ持ち越し)へ直接入れる ― 報酬を消さない
+    const settled = !!R.settled;
+    const giveCoins = (n) => {
+      if (!n) return;
+      if (settled) { SaveSys.data.coins += n; SaveSys.save(); } else R.coins += n;
+    };
+    const giveMat = (m, n) => {
+      if (settled) {
+        SaveSys.data.stash = SaveSys.data.stash || {};
+        SaveSys.data.stash[m] = (SaveSys.data.stash[m] || 0) + n;
+        SaveSys.save();
+      } else Skills.addMat(m, n);
+    };
     if (kind === 'port') {
       SaveSys.data.ports[id] = true;
       const p = DATA.PORTS.find(p => p.id === id);
@@ -262,7 +276,7 @@ const Quest = (() => {
       const rw = def.reward || {};
       const txt = [];
       if (rw.coins) { SaveSys.data.coins += rw.coins; txt.push('🪙' + rw.coins); }
-      for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
+      for (const mm in rw.mats || {}) { giveMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
       if (rw.story) { SaveSys.data.story = SaveSys.data.story || {}; SaveSys.data.story[rw.story] = true; }
       SaveSys.data.seen = SaveSys.data.seen || {};
       // 物語のヒントは「おおよその見当(?)」が地図に付くだけ。正確な場所は
@@ -287,7 +301,7 @@ const Quest = (() => {
       }
       R.warnMsg = '🎁 依頼達成! ' + (txt.length ? '報酬: ' + txt.join('・') : '');
     } else if (kind === 'board') {
-      R.coins += (def.reward || {}).coins || 0;
+      giveCoins((def.reward || {}).coins || 0);
       R.boardDone = R.boardDone || {};
       R.boardDone[id] = true;
       R.warnMsg = '📋 依頼板の依頼を果たした! 🪙' + ((def.reward || {}).coins || 0);
@@ -297,8 +311,8 @@ const Quest = (() => {
       SaveSys.data.quests2[id] = true;
       const rw = def.reward || {};
       const txt = [];
-      if (rw.coins) { R.coins += rw.coins; txt.push('🪙' + rw.coins); }
-      for (const mm in rw.mats || {}) { Skills.addMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
+      if (rw.coins) { giveCoins(rw.coins); txt.push('🪙' + rw.coins); }
+      for (const mm in rw.mats || {}) { giveMat(mm, rw.mats[mm]); txt.push(DATA.MATERIALS[mm].name + '×' + rw.mats[mm]); }
       if (rw.hintPort && !(SaveSys.data.seen || {})[rw.hintPort]) {
         SaveSys.data.hints = SaveSys.data.hints || {}; SaveSys.data.hints[rw.hintPort] = true;
         const hp = DATA.PORTS.find(p => p.id === rw.hintPort); txt.push('🗺「' + (hp ? hp.name : '') + '」の見当'); }

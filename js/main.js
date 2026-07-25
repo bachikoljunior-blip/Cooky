@@ -25,15 +25,15 @@ const Game = (() => {
   // ---------------- 状態遷移 ----------------
   function toTitle(){
     state = 'title'; overlay = null;
-    show('title-screen'); hide('hud'); hide('btn-skill'); hide('btn-sig');
+    show('title-screen'); hide('hud'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
     document.body.classList.add('in-title');
     Sfx.setScene('title');
   }
   function toHub(){
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill'); hide('btn-sig');
-    hide('quest-obj'); hide('interact-hint');   // 周回の帯を持ち込まない
+    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
+    hide('quest-obj'); hide('interact-hint'); hide('help-panel');   // 周回の帯・開きっぱなしのヘルプを持ち込まない
     Hub.enter();
     Sfx.setScene('hub');
   }
@@ -52,8 +52,8 @@ const Game = (() => {
     }
     state = 'run'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud'); show('btn-skill'); show('btn-sig');   // スキル/号令ボタンは周回中のみ
+    hide('title-screen'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('help-panel');
+    show('hud'); show('btn-skill'); show('btn-sig'); show('btn-pause');   // スキル/号令/⏸は周回中のみ
     el('interact-hint').classList.add('hidden');
     Run.start(pos);
     Sfx.setScene('run');
@@ -61,7 +61,7 @@ const Game = (() => {
   // 周回中に基地へ着いた: 拠点マップへ転移(周回は裏で保持)
   function enterBaseFromRun(baseId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
     hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun(baseId);
@@ -70,7 +70,7 @@ const Game = (() => {
   // 周回中に港へ着いた: 港町マップへ転移(周回は裏で保持)
   function enterPortFromRun(portId){
     state = 'hub'; overlay = null;
-    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig');
+    hide('hud'); hide('station-panel'); hide('skill-panel'); hide('pause-panel'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
     hide('quest-obj');
     el('interact-hint').classList.add('hidden');
     Hub.enterFromRun('port:' + portId);
@@ -80,7 +80,7 @@ const Game = (() => {
   function resumeRun(){
     state = 'run'; overlay = null;
     hide('station-panel'); hide('skill-panel'); hide('pause-panel');
-    show('hud'); show('btn-skill'); show('btn-sig');
+    show('hud'); show('btn-skill'); show('btn-sig'); show('btn-pause');
     el('interact-hint').classList.add('hidden');
     Run.state.noInteractT = 1.0;   // 復帰直後に再び転移しないよう猶予
     Sfx.setScene('run');
@@ -91,6 +91,7 @@ const Game = (() => {
   function openRunDialog(name, lines, onDone, face){
     overlay = 'dialog';
     el('interact-hint').classList.add('hidden');   // 会話中は「E:〜」のピルを重ねない
+    el('dialog-hint').textContent = 'タップ / E で進む ▼';
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -124,6 +125,7 @@ const Game = (() => {
   function dialogChoice(name, face, text, choices){
     overlay = 'dialog';
     el('interact-hint').classList.add('hidden');
+    el('dialog-hint').textContent = '選んでください(Eで やめておく)';   // 選択肢中の実態に合わせる
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -232,7 +234,7 @@ const Game = (() => {
 
   function endRun(retired){
     const res = Run.finishRun(retired);
-    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill'); hide('btn-sig');
+    hide('pause-panel'); hide('skill-panel'); hide('station-panel'); hide('hud'); hide('btn-skill'); hide('btn-sig'); hide('btn-pause');
     hide('quest-obj'); hide('interact-hint');
     showResult(res);
   }
@@ -244,7 +246,11 @@ const Game = (() => {
     if (Input.once('KeyM')) {
       const m = Sfx.toggleMute();
       SaveSys.data.settings.mute = m; SaveSys.save();   // 再開後もミュート設定を保持
-      if (state === 'run') { Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON'; Run.state.warnT = 1.2; }
+      if (state === 'run') {
+        Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON';
+        Run.state.warnColor = '#a5d8ff';   // 情報色(危険スタイルの誤発火・前の色の残留を防ぐ)
+        Run.state.warnT = 1.2;
+      }
     }
     if (Input.once('KeyE') || Input.once('Space')) {
       if (overlay === 'dialog') advanceRunDialog();
@@ -353,6 +359,7 @@ const Game = (() => {
   el('pause-resume').onclick = () => togglePause();
   el('pause-retire').onclick = () => { endRun(true); };
   el('btn-skill').onclick = () => toggleSkillPanel();
+  el('btn-pause').onclick = () => togglePause();   // タッチ端末でも一時停止・リタイアできる
   el('btn-sig').onclick = () => { if (state === 'run') Run.warcry(); };
   el('btn-act').onclick = () => {
     if (overlay === 'dialog') { advanceRunDialog(); return; }

@@ -78,6 +78,7 @@ body.pad-visible #touch-buttons { display:flex; }
   box-shadow:0 4px 16px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.10);
   backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); }
 .tbtn:active { background:#1f6feb; box-shadow:0 2px 8px rgba(0,0,0,.45); }
+.small-tbtn { height:40px; font-size:18px; border-color:rgba(255,255,255,.28); }
 /* スキルが取得可能になったらボタンが光る */
 #btn-skill.ready { border-color:#3fb950; animation:skill-pulse 1s infinite; }
 @keyframes skill-pulse {
@@ -275,6 +276,18 @@ body.pad-visible #touch-buttons { display:flex; }
 .dlg-choice:disabled { background:#30363d; color:#8b949e; }
 
 body.in-title #stick-zone, body.in-title #touch-buttons { display:none !important; }
+/* タイトルからでもヘルプが最前面に来る(タイトルは z-index:30) */
+#help-panel { z-index:31; }
+
+/* モバイル: クエスト帯・警告帯ともミニマップ帯(右158px)を常時空ける
+   (ベースの #quest-obj 規則より後に置いて確実に適用する) */
+@media (max-width: 700px) {
+  #quest-obj { left:8px; transform:none; text-align:left; top:100px;
+    max-width:calc(100vw - 158px); font-size:12px; }
+  #warn-banner { max-width:calc(100vw - 166px); left:calc((100vw - 158px) / 2); }
+  #ally-view { top:74px; }
+  #loot-feed { top:150px; }
+}
 
 .st-grid { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
 .st-cell { display:flex; justify-content:space-between; background:#141a26; border:1px solid #2c3650;

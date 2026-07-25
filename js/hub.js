@@ -106,7 +106,23 @@ const Hub = (() => {
     H.area = areaId;
     H.list = stations();
     H.player.x = 0; H.player.y = 90;
+    settleArrival();
     Sfx.skill();
+  }
+  // 到着位置が地形の障害(焚き火・泉など)と重なっていたら縁まで押し出す
+  // (中心と完全一致の場合はゲート側=下へ出す)
+  function settleArrival(){
+    const th = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
+    const obst = ((th && th.obst) || [])
+      .concat(H.area.startsWith('port:') ? portScenery(H.area.slice(5)).obst : []);
+    for (const o of obst) {
+      const dx = H.player.x - o.x, dy = H.player.y - o.y;
+      const d = Math.hypot(dx, dy);
+      if (d >= o.r + 16) continue;
+      if (d < 0.001) { H.player.y = o.y + o.r + 20; continue; }
+      H.player.x = o.x + dx / d * (o.r + 20);
+      H.player.y = o.y + dy / d * (o.r + 20);
+    }
   }
 
   // 周回中に基地へ着いた時の転移: 拠点マップ(ゲートから行けるマップと同じ)に入る。
@@ -116,6 +132,7 @@ const Hub = (() => {
     H.area = areaId;
     H.list = stations();
     H.player.x = 0; H.player.y = 200;
+    settleArrival();
     Sfx.skill();
   }
 
@@ -163,14 +180,15 @@ const Hub = (() => {
     }
     const hint = document.getElementById('interact-hint');
     const actBtn = document.getElementById('btn-act');
-    if (H.interact) {
-      // 周回中と同じキーキャップ([E])表示
+    const dlgOpen = !document.getElementById('dialog-box').classList.contains('hidden');
+    if (H.interact && !dlgOpen) {
+      // 周回中と同じキーキャップ([E])表示。会話中は重ねない
       hint.innerHTML = '<kbd>E</kbd><span></span>';
       hint.lastChild.textContent = interactLabel(H.interact);
       hint.classList.remove('no-key');
       hint.classList.remove('hidden');
       actBtn.classList.remove('hidden');
-    } else { hint.classList.add('hidden'); actBtn.classList.add('hidden'); }
+    } else { hint.classList.add('hidden'); if (dlgOpen || !H.interact) actBtn.classList.add('hidden'); }
   }
 
   // 段丘: 街の奥は一段高い台地になっていて、崖肌と石段で繋がる(街の「地形」)。
@@ -233,10 +251,13 @@ const Hub = (() => {
     const houses = [];
     const nH = 2 + rnd2(2);   // 2〜3軒。1軒目は高台(崖の上)に建ち、石段で下と繋がる
     for (let i = 0; i < nH; i++) {
-      houses.push({ spr: rnd2(2) ? 'ob_house' : 'ob_house2',
+      const hs = { spr: rnd2(2) ? 'ob_house' : 'ob_house2',
         x: -560 + i * (150 + rnd2(90)) + rnd2(70),
         y: i === 0 ? -305 + rnd2(30) : -150 + rnd2(80) + (i % 2) * 40,   // 下段の家は崖面に食い込まない高さ
-        s: 74 + rnd2(34) });
+        s: 74 + rnd2(34) };
+      // 船大工(-300,-60)の立ち位置に家を被せない(決定論のままずらす)
+      if (Math.hypot(hs.x + 300, hs.y + hs.s * 0.15 + 60) < hs.s * 0.42 + 56) hs.x += hs.x < -300 ? -90 : 90;
+      houses.push(hs);
     }
     const barrels = [];
     const bx = -480 + rnd2(360), by = 20 + rnd2(90);

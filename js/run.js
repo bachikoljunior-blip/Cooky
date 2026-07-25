@@ -211,6 +211,11 @@ const Run = (() => {
     }
     R.usedShrines = {};   // 古の祠は「周回に一度」― 新しい周回では祈り直せる
     R.bless = null;       // 前の周回の加護は持ち越さない
+    R.speedBurst = null;  // 月光の疾走の残留を断つ(untilは周回内時刻のため)
+    R.sandsUntil = 0; R.sandsRadius = 0; R.sandsSlow = 0;   // 時の砂の減速フィールドも同様
+    R.breathUntil = 0;    // 同型の時限フィールド
+    R.reaperWarned = false;   // 終焉の刻の警告は周回ごとに出す
+    R.lastBurstHitT = -9;     // 「弾ける」色違いの爆発クールダウンの残留を断つ
     R.foeMap = new Map();         // マップ用の敵目撃情報 cellKey -> {x,y,t,boss}(離れて消えても保持)
     R.foeScanT = 0;
     R.interact = null;
@@ -2263,10 +2268,10 @@ const Run = (() => {
 
   function doInteract(){
     const p = R.player;
+    if (R.mapFull) { R.mapFull = false; return; }   // 全体図中のE/実行は地図を閉じるだけ
     const it = R.interact;
     if (!it) return;
     if (it.type === 'enterport') Game.enterPortFromRun(it.port.id);
-    else if (it.type === 'trader') openTrade('port_' + it.port.id, '貿易商');
     else if (it.type === 'peddler') openTrade('ped_' + it.base.id, '行商人');
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
@@ -3615,7 +3620,7 @@ const Run = (() => {
     const p = R.player, st = R.stats;
     hpBar.style.width = Math.max(0, p.hp / st.maxHp * 100) + '%';
     hpBar.style.background = p.hp / st.maxHp > 0.35 ? '' : 'linear-gradient(#f85149,#8b1e24)';
-    hpText.textContent = Math.ceil(Math.max(0, p.hp)) + ' / ' + st.maxHp;
+    hpText.textContent = Math.ceil(Math.max(0, p.hp)) + ' / ' + Math.round(st.maxHp);
     timerEl.textContent = fmtTime(R.time);
     timerEl.style.color = R.time >= DATA.REAPER_AT ? '#f85149' : (R.time >= DATA.REAPER_AT - 60 ? '#ffd766' : '');
     coinEl.textContent = fmtNum(R.coins);
@@ -3632,11 +3637,20 @@ const Run = (() => {
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
-    // 全体図を開いている間は、地図に重なる帯・ヒント類を引っ込める
+    // 周回が終わっている(リザルト中): 帯・ヒント・ボタンを全て引っ込める
+    if (R.over || R.settled) {
+      warnEl.classList.add('hidden');
+      hintEl.classList.add('hidden');
+      document.getElementById('quest-obj').classList.add('hidden');
+      document.getElementById('btn-act').classList.add('hidden');
+      return;
+    }
+    // 全体図を開いている間は、地図に重なる帯・ヒント・実行ボタンを引っ込める
     if (R.mapFull) {
       warnEl.classList.add('hidden');
       hintEl.classList.add('hidden');
       document.getElementById('quest-obj').classList.add('hidden');
+      document.getElementById('btn-act').classList.add('hidden');
       return;
     }
     // マップ内クエストの目標表示
@@ -3655,7 +3669,9 @@ const Run = (() => {
       // 危険警告はクエスト帯より優先(重なって警告が読めない事故を防ぐ)
       if (isAlarm) qObj.classList.add('hidden');
     } else { warnEl.classList.add('hidden'); R.warnColor = null; }
-    if (R.interact && R.interact.type !== 'land') {
+    // 会話ウィンドウ表示中は「E:〜」のピルを重ねない(閉じたら自然に復帰)
+    const dlgOpen = !document.getElementById('dialog-box').classList.contains('hidden');
+    if (R.interact && R.interact.type !== 'land' && !dlgOpen) {
       // 「E: 〜」はキーキャップ+本文に分けて表示
       const lb = R.interact.label;
       if (lb.startsWith('E: ')) {
