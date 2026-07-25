@@ -757,8 +757,10 @@ const Sprites = (() => {
   // ---- 色違い(段階)・大きさ(段階)ごとの固有の姿 ----
   // 色を塗る/拡大するだけでは「同じ魔物」に見えてしまう。段階ごとに造形そのものを
   // 変え、姿かたちで「格が違う」と分かるようにする(生成は一度だけでキャッシュ)。
-  //   色違い: 1金=双角 / 2紅=背の棘 / 3紫=王冠と宝珠 / 4青白=霜の結晶
-  //   大きさ: 1大=肩当てと古傷 / 2巨=背甲と牙
+  // 段階ごとに「造形の言語」自体を変える ― 同じモチーフ(尖った突起・肩の装甲…)を
+  // 使い回すと、色や大小が違うだけの同じ絵に見えてしまう。
+  //   色違い: 1金=硬い双角 / 2紅=立ち上る炎 / 3紫=装身具(王冠と宝珠) / 4青白=浮かぶ氷の光輪
+  //   大きさ: 1大=体を巻く革帯と古傷(線) / 2巨=足元の地割れと砂埃(地形と量感)
   const RANK_ORN = [
     null,
     { c:'#ffd766', e:'#8a6a1e' },
@@ -781,14 +783,27 @@ const Sprites = (() => {
         g.beginPath(); g.moveTo(sx * 7, -17);
         g.quadraticCurveTo(sx * 15, -23, sx * 13, -30); g.stroke();
       }
-    } else if (rank === 2) {   // 背の棘: 頭上から背へ連なる紅の棘
-      const sp = [[-11, -14, 5], [0, -20, 7], [11, -14, 5]];
-      for (const [x, y, h] of sp) {
-        g.fillStyle = o.e;
-        g.beginPath(); g.moveTo(x - 5, y); g.lineTo(x, y - h - 5); g.lineTo(x + 5, y); g.closePath(); g.fill();
-        g.fillStyle = o.c;
-        g.beginPath(); g.moveTo(x - 2.6, y - 1); g.lineTo(x, y - h - 3); g.lineTo(x + 2.6, y - 1); g.closePath(); g.fill();
-      }
+    } else if (rank === 2) {   // 立ち上る炎: 頭上で揺らめく紅い火(角とは似ない柔らかい波形)
+      g.fillStyle = o.e;
+      g.beginPath();
+      g.moveTo(-12, -14);
+      g.bezierCurveTo(-14, -22, -6, -22, -5, -30);
+      g.bezierCurveTo(-1, -23, 3, -27, 3, -31);
+      g.bezierCurveTo(7, -25, 13, -21, 12, -14);
+      g.closePath(); g.fill();
+      g.fillStyle = o.c;
+      g.beginPath();
+      g.moveTo(-7, -14);
+      g.bezierCurveTo(-8, -19, -3, -20, -2, -26);
+      g.bezierCurveTo(1, -21, 5, -22, 5, -25);
+      g.bezierCurveTo(7, -20, 8, -18, 7, -14);
+      g.closePath(); g.fill();
+      g.fillStyle = '#ffe0a8';
+      g.beginPath();
+      g.moveTo(-3, -14);
+      g.bezierCurveTo(-4, -17, 0, -18, 0, -22);
+      g.bezierCurveTo(2, -18, 3, -17, 3, -14);
+      g.closePath(); g.fill();
     } else if (rank === 3) {   // 王冠と宝珠: 頭上の紫の冠、両脇に浮かぶ珠
       g.fillStyle = o.e;
       g.beginPath();
@@ -801,51 +816,49 @@ const Sprites = (() => {
         g.fillStyle = '#fff'; g.globalAlpha = 0.7;
         g.beginPath(); g.arc(x - 0.9, y - 0.9, 1, 0, 7); g.fill(); g.globalAlpha = 1;
       }
-    } else if (rank === 4) {   // 霜の結晶: 体の周りに突き出す青白い氷片
-      const sh = [[0, -26, 9, 0], [-16, -16, 7, -0.7], [16, -16, 7, 0.7],
-                  [-20, 2, 6, -1.5], [20, 2, 6, 1.5]];
-      for (const [x, y, h, a2] of sh) {
-        g.save(); g.translate(x, y); g.rotate(a2);
-        g.fillStyle = o.e;
-        g.beginPath(); g.moveTo(-4, 4); g.lineTo(0, -h); g.lineTo(4, 4); g.closePath(); g.fill();
-        g.fillStyle = o.c;
-        g.beginPath(); g.moveTo(-1.8, 3); g.lineTo(0, -h + 2); g.lineTo(1.8, 3); g.closePath(); g.fill();
-        g.restore();
+    } else if (rank === 4) {   // 氷の光輪: 頭上に浮かぶ輪(突起でも装身具でもない環)
+      g.save(); g.translate(0, -23);
+      g.strokeStyle = o.e; g.lineWidth = 5;
+      g.beginPath(); g.ellipse(0, 0, 15, 5, 0, 0, 7); g.stroke();
+      g.strokeStyle = o.c; g.lineWidth = 2.4;
+      g.beginPath(); g.ellipse(0, 0, 15, 5, 0, 0, 7); g.stroke();
+      g.fillStyle = '#fff'; g.globalAlpha = 0.75;   // 輪の上で光る粒
+      for (const a2 of [0.4, 2.5, 4.4]) {
+        g.beginPath(); g.arc(Math.cos(a2) * 15, Math.sin(a2) * 5, 1.7, 0, 7); g.fill();
       }
+      g.globalAlpha = 1;
+      g.restore();
     }
     g.restore();
   }
   function drawSizeOrn(g, tier){
     if (!tier) return;
     g.save(); g.translate(S / 2, S / 2);
-    // 顔(目・口)は隠さない ― 装甲は体の外側の輪郭にだけ足す
-    if (tier === 1) {          // 大: 肩当てと古傷
-      for (const sx of [-1, 1]) {
-        g.fillStyle = '#454e5c';
-        g.beginPath(); g.ellipse(sx * 14, 3, 6, 4.4, sx * 0.3, 0, 7); g.fill();
-        g.fillStyle = 'rgba(255,255,255,.20)';
-        g.beginPath(); g.ellipse(sx * 14, 1.6, 3.6, 2, sx * 0.3, 0, 7); g.fill();
+    // 顔(目・口)は隠さない。色違いの飾りは頭上、大きさは体の下半分と足元 ―
+    // 造形の言語も分ける(大=線、巨=地形)ので、見た目のモチーフが被らない
+    if (tier === 1) {          // 大: 体を巻く革帯と古傷(線の造形)
+      g.strokeStyle = '#5a4632'; g.lineWidth = 3.4; g.lineCap = 'butt';
+      g.beginPath(); g.moveTo(-16, 4); g.quadraticCurveTo(0, 9, 16, 4); g.stroke();
+      g.strokeStyle = '#7a6144'; g.lineWidth = 1.2;
+      g.beginPath(); g.moveTo(-16, 3.2); g.quadraticCurveTo(0, 8.2, 16, 3.2); g.stroke();
+      g.fillStyle = '#c9a227';   // 帯の留め金
+      g.beginPath(); g.arc(0, 6.4, 2.4, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(255,235,235,.6)'; g.lineWidth = 1.5; g.lineCap = 'round';
+      g.beginPath(); g.moveTo(-10, 10); g.lineTo(-4, 16); g.stroke();   // 古傷
+      g.lineCap = 'butt';
+    } else {                   // 巨: 踏み割れた地面と舞い上がる砂埃(地形の造形)
+      g.strokeStyle = '#2a313b'; g.lineWidth = 2.2; g.lineCap = 'round';
+      const cracks = [[-18, 20, -8, 15], [-8, 15, -2, 21], [4, 22, 12, 16], [12, 16, 20, 20]];
+      for (const [x1, y1, x2, y2] of cracks) {
+        g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
       }
-      g.strokeStyle = 'rgba(255,235,235,.55)'; g.lineWidth = 1.6; g.lineCap = 'round';
-      g.beginPath(); g.moveTo(-9, 6); g.lineTo(-3, 13); g.stroke();
-    } else {                   // 巨: 左右へ張り出す岩塊・棘・下あごの牙・足元の瓦礫
-      for (const sx of [-1, 1]) {
-        g.fillStyle = '#2a313b';   // 肩の岩塊(輪郭の外へ張り出す量感)
-        g.beginPath(); g.ellipse(sx * 16, 1, 7.6, 6.4, sx * 0.25, 0, 7); g.fill();
-        g.fillStyle = 'rgba(255,255,255,.16)';
-        g.beginPath(); g.ellipse(sx * 16, -1.4, 4.4, 2.6, sx * 0.25, 0, 7); g.fill();
-        g.fillStyle = '#39414d';   // 岩塊から突き出す棘(横向き)
-        g.beginPath();
-        g.moveTo(sx * 18, -3); g.lineTo(sx * 26, -7); g.lineTo(sx * 20, 2); g.closePath(); g.fill();
-      }
-      g.fillStyle = '#e8eef5';     // 下あごから覗く牙(顔より下)
-      for (const sx of [-1, 1]) {
-        g.beginPath(); g.moveTo(sx * 5, 11); g.lineTo(sx * 7, 17.5); g.lineTo(sx * 9, 11); g.closePath(); g.fill();
-      }
-      g.fillStyle = '#2a313b';     // 足元の瓦礫(踏み締める重さ)
-      for (const [x, y, r2] of [[-13, 19, 3], [-4, 21, 2.2], [12, 19, 3.4]]) {
+      g.strokeStyle = 'rgba(20,26,34,.5)'; g.lineWidth = 4.5;   // 沈み込む影
+      g.beginPath(); g.moveTo(-15, 18.5); g.lineTo(15, 18.5); g.stroke();
+      g.fillStyle = 'rgba(190,180,160,.5)';   // 舞い上がる砂埃
+      for (const [x, y, r2] of [[-21, 13, 3.4], [-16, 8, 2.2], [20, 12, 3.8], [16, 7, 2.4]]) {
         g.beginPath(); g.arc(x, y, r2, 0, 7); g.fill();
       }
+      g.lineCap = 'butt';
     }
     g.restore();
   }
