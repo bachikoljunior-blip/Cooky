@@ -1462,9 +1462,11 @@ const Run = (() => {
   function separateUnits(){
     // 体の当たり判定は見た目の1/3 ― 密集して互いにめり込めるが、中心は重ならない
     const units = [];
+    let esi = 0;
     for (const e of R.enemies) if (!e.dead) {
       e._r = e.def.r * (e.sizeMul || 1) * 0.75;   // 敵は体の3/4で押し合う(あまり重ならない)
       e._m = 1 + (e.def.tier || 0) * 0.6 + (e.boss ? 8 : 0) + (e.def.isReaper ? 2 : 0);
+      e._si = esi++;   // 敵同士のペアを1回だけ処理するための順序
       units.push(e);
     }
     let asi = 0;
@@ -1483,18 +1485,16 @@ const Run = (() => {
     const pl = R.player;
     if (!pl.onBoat) { pl._r = 4; pl._m = 1e7; units.push(pl); }
     if (units.length < 2) return;
-    // グリッドには全員入れるが、ペアを列挙するのは仲間と主人公だけ。
-    // 敵は列挙しない=敵同士のペアはそもそも発生しない(大群でも軽い)。
-    // 敵↔仲間のペアは仲間側の列挙で1回だけ処理されるので、押し量は2倍で補正
-    // (従来は両側から2回処理していた)
+    // グリッドには全員入れ、全員が列挙側になる(敵同士も重ならない)。
+    // 各ペアは1回だけ処理する: 同側(仲間同士・敵同士)は _si の順序で片側だけ、
+    // 敵↔仲間は仲間側の列挙だけで処理(押し量は2倍補正済みの係数)
     const cell = 64, grid = new Map();
     for (const u of units) {
       const k = ((u.x / cell) | 0) + ',' + ((u.y / cell) | 0);
       const arr = grid.get(k);
       if (arr) arr.push(u); else grid.set(k, [u]);
     }
-    const movers = units.filter(u => u._ally || u === pl);
-    for (const u of movers) {
+    for (const u of units) {
       const gx = (u.x / cell) | 0, gy = (u.y / cell) | 0;
       for (let ix = gx - 1; ix <= gx + 1; ix++) {
         for (let iy = gy - 1; iy <= gy + 1; iy++) {
@@ -1504,6 +1504,9 @@ const Run = (() => {
             if (v === u) continue;
             // 主人公は敵をすり抜ける(主人公と敵は当たり判定なし。仲間とは押し合う)
             if (u === pl && !v._ally) continue;
+            if (v === pl && !u._ally) continue;
+            // 敵↔仲間は仲間側の列挙で1回だけ(敵側からは処理しない)
+            if (!u._ally && u !== pl && v._ally) continue;
             const dx = v.x - u.x, dy = v.y - u.y;
             const rr = (u._r + v._r) * 0.9;
             const d2 = dx * dx + dy * dy;
