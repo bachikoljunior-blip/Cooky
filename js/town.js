@@ -723,6 +723,24 @@ const Town = (() => {
       g.fillStyle = m.top; g.fillRect(c[0] - 19, c[1] - 92, 38, 10);
       g.fillStyle = 'rgba(0,0,0,.2)'; g.fillRect(c[0] + 6, c[1] - 84, 9, 88);
     } });
+    // 施設の建物には帳場(カウンター)がある ― 主はその奥に立つ
+    for (const bd of p.buildings) {
+      if (bd.fac === undefined) continue;
+      const E = bd.lv * ELEV;
+      const front = { s:[0, 1], n:[0, -1], w:[-1, 0], e:[1, 0] }[bd.door] || [0, 1];
+      const cx = bd.slot.x + front[0] * 38, cy = bd.slot.y + front[1] * 38;
+      const horiz = front[1] !== 0;
+      const w = horiz ? Math.min(bd.w - WT * 2 - 20, 150) : 26;
+      const h = horiz ? 26 : Math.min(bd.h - WT * 2 - 20, 130);
+      out.push({ sy: cy + h / 2, draw:(g) => {
+        g.fillStyle = 'rgba(0,0,0,.4)';
+        g.fillRect(cx - w / 2 + 3, cy + h / 2 - E - 2, w, 7);
+        g.fillStyle = m.wall; g.fillRect(cx - w / 2, cy - h / 2 - E - 14, w, h + 14);
+        g.fillStyle = m.top;  g.fillRect(cx - w / 2, cy - h / 2 - E - 14, w, 5);
+        g.strokeStyle = 'rgba(0,0,0,.5)'; g.lineWidth = 2;
+        g.strokeRect(cx - w / 2 + 1, cy - h / 2 - E - 13, w - 2, h + 12);
+      } });
+    }
     for (const c of (p.trees || [])) out.push({ sy:c[1], draw:(g) => Sprites.draw(g, 'ob_tree', c[0], c[1] - 30, 84) });
     for (const c of (p.lanterns || [])) out.push({ sy:c[1], draw:(g) => {
       g.fillStyle = m.wall; g.fillRect(c[0] - 5, c[1] - 46, 10, 46);

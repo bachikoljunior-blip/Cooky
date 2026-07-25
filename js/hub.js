@@ -560,13 +560,19 @@ const Hub = (() => {
   function stationVisual(s){
     if (s.kind === 'portnpc') return { spr:'npc_sailor', label:'船大工', short:'船大工' };
     if (s.kind === 'trader') return { spr:'npc_scholar', label:'貿易商', short:'貿易' };
+    // 建物そのものが施設なので、看板の絵は置かない。帳場の奥に立つ「主」を描く
     if (s.kind === 'meta') {
+      const KEEP = { altar:'npc_miko', lab:'npc_scholar', camp:'npc_elder', lib:'npc_sage',
+                     war:'npc_smith', life:'npc_miko', lore:'npc_scholar' };
       const stDef = DATA.STATIONS[s.st];
-      if (stDef) return { spr: stDef.sprite, label: stDef.name, short: stDef.name.slice(-2) };
       const fac = s.fac && DATA.BASE_FACS[s.fac];
-      if (fac) return { spr: fac.sprite, label: fac.name, short: fac.short };
-      return { spr:'st_altar', label:'特別強化', short:'強化' };
+      const spr = KEEP[s.fac || s.st] || 'npc_elder';
+      if (stDef) return { spr, label: stDef.name, short: stDef.name.slice(-2) };
+      if (fac) return { spr, label: fac.name, short: fac.short };
+      return { spr:'npc_elder', label:'特別強化', short:'強化' };
     }
+    // 武器庫も人が打つ。建物は地形として建っている
+    if (s.kind === 'armory') return { spr:'npc_smith', label:'武器庫', short:'武器' };
     if (s.kind === 'npc') { const q = DATA.QUESTS[s.base]; return { spr: (q && q.npc) || 'npc_elder', label: q ? q.npcName : 'NPC', short: 'NPC' }; }
     if (s.kind === 'sidenpc') return { spr: s.spr || 'npc_girl', label: s.name, short: '住民' };
     if (s.kind === 'villager') return { spr: s.v.spr, label: s.v.name, short: '住民' };
@@ -841,6 +847,20 @@ const Hub = (() => {
 
     // 壁・柱・木・灯籠と、人。同じ列に並べて手前のものを後に描く
     const draws = Town.items(plan, t).slice();
+    // 名札が重ならないように、近い順に上へ逃がす(誰の名前か読めなくなるのを防ぐ)
+    const placed = [];
+    for (const s of H.list.slice().sort((a2, b2) => a2.y - b2.y)) {
+      const v0 = stationVisual(s);
+      const w = String(v0.label).length * 12 + 16;
+      const cx = s.x + (s.ox || 0);
+      let ly = s.y + (s.oy || 0) - Town.elevAt(plan, s.x, s.y) + 62;
+      for (let g2 = 0; g2 < 8; g2++) {
+        if (!placed.some(q => Math.abs(q.x - cx) < (q.w + w) / 2 && Math.abs(q.y - ly) < 20)) break;
+        ly -= 21;
+      }
+      placed.push({ x: cx, y: ly, w });
+      s._labelY = ly;
+    }
     // 物語に出てくるもの(御神木・歌碑・湯壺・竜骨のアーチ・日輪の鏡など)を街に置く。
     // 建物や壁と重なる位置のものは、その街では骨組みが同じ役目を果たすので出さない
     const theme = DATA.HUB_THEME && DATA.HUB_THEME[H.area];
@@ -859,7 +879,7 @@ const Hub = (() => {
         g2.fillStyle = gg;
         g2.beginPath(); g2.arc(sx, sy + 20, 66, 0, 7); g2.fill();
         Sprites.draw(g2, v.spr, sx, sy, 84);
-        labelChip(g2, sx, sy + 62, v.label, glow ? '#ffd766' : '#c9d1d9', 12);
+        labelChip(g2, sx, s._labelY !== undefined ? s._labelY : sy + 62, v.label, glow ? '#ffd766' : '#c9d1d9', 12);
       } });
     }
     draws.push({ sy: p.y, draw:(g2) => {
