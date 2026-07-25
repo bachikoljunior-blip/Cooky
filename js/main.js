@@ -238,6 +238,7 @@ const Game = (() => {
     if (Input.once('KeyN') && state === 'run') Run.toggleMap();
     if (Input.once('KeyM')) {
       const m = Sfx.toggleMute();
+      SaveSys.data.settings.mute = m; SaveSys.save();   // 再開後もミュート設定を保持
       if (state === 'run') { Run.state.warnMsg = m ? '🔇 ミュート' : '🔊 サウンドON'; Run.state.warnT = 1.2; }
     }
     if (Input.once('KeyE') || Input.once('Space')) {
@@ -374,7 +375,22 @@ const Game = (() => {
   SaveSys.load();
   World.initExplored(SaveSys.data.explored);
   Input.setPadMode(SaveSys.data.settings.pad);
+  Sfx.setMuted(SaveSys.data.settings.mute);   // ミュート設定を復元
   Sprites.loadOverrides();
+  // ページを閉じる/リロードする時: 周回中なら帰還扱いで精算して保存
+  // (再開後に「その周回で得たもの・晴らした霧」が巻き戻らない)
+  const settleOnLeave = () => {
+    try {
+      const R = Run.state;
+      const inRun = R && R.player && !R.settled &&
+        (state === 'run' || (state === 'hub' && Hub.state.fromRun));
+      if (inRun) Run.finishRun(true);
+      else SaveSys.data.explored = World.exploredArray();
+      SaveSys.save();
+    } catch(e) {}
+  };
+  window.addEventListener('pagehide', settleOnLeave);
+  window.addEventListener('beforeunload', settleOnLeave);
   toTitle();
   refreshPadButtons();
   setTimeout(() => World.worldImage(), 60);   // 全世界ミニマップを裏で生成

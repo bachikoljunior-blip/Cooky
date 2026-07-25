@@ -2639,6 +2639,13 @@ const Run = (() => {
       if (pp.t <= 0) R.popups.splice(i, 1);
     }
     R.warnT = Math.max(0, R.warnT - dt);
+    // 晴らした霧はこまめに保存(クラッシュや強制終了でも再開後に巻き戻らない)
+    R.exSaveT = (R.exSaveT || 0) + dt;
+    if (R.exSaveT > 10) {
+      R.exSaveT = 0;
+      SaveSys.data.explored = World.exploredArray();
+      SaveSys.save();
+    }
   }
 
   // ---------------- 描画 ----------------

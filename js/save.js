@@ -27,7 +27,7 @@ const SaveSys = (() => {
       skillsListSeen: {},  // 一度一覧で見たスキル(未見=ピン後の新登場は最上段に出す)
       skillCatByTab: { up:'all', new:'all' },   // スキル画面のカテゴリ選択(タブごと)
       explored: [],   // 行ったことのある場所(霧マップ用セル)
-      settings: { pad:'on' },   // 移動パネル: on(スマホ標準) / off / auto
+      settings: { pad:'on', mute:false },   // 移動パネル: on(スマホ標準)/off/auto、ミュートも再開後に保持
       seenHelp: false,
       introSeen: false,   // プロローグ(最初の印の基地を目指す)を見たか
     };

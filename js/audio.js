@@ -116,6 +116,7 @@ const Sfx = (() => {
   return {
     setScene, biomeScene,
     toggleMute(){ muted = !muted; return muted; },
+    setMuted(v){ muted = !!v; },
     get muted(){ return muted; },
     shoot(){ throttled('sh', ()=>tone(680, .07, 'square', .025, -300), 70); },
     hit(){ throttled('hit', ()=>tone(220, .06, 'sawtooth', .03, -80), 50); },
