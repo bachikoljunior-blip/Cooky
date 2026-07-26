@@ -155,7 +155,16 @@ const Skills = (() => {
     if (changed) SaveSys.save();
   }
 
+  // 旅に出ている最中か。スキルと素材は周回ごとに白紙に戻るので、
+  // 力尽きて広場へ帰った後に取っても、次の出撃で消えてしまう ―
+  // 意味のない買い物をさせないため、旅の外では取得そのものを閉じる
+  function inRun(){
+    const R = Run.state;
+    if (!R || !R.player || R.settled || R.over) return false;
+    return Game.state === 'run' || (Game.state === 'hub' && Hub.state && Hub.state.fromRun);
+  }
   function acquire(id){
+    if (!inRun()) return false;
     if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) return false;   // 書庫で「獲得しない」設定は取れない
     const cost = nextCost(id);
     if (!cost || !costMet(cost)) return false;
@@ -202,7 +211,7 @@ const Skills = (() => {
     const l = lv(id);
     const cost = nextCost(id);
     // 前提スキルは素材と同じ「必要なもの」― 揃うまで取得できないのも素材と同じ扱い
-    const can = cost && costMet(cost) && reqMet(id);
+    const can = cost && costMet(cost) && reqMet(id) && inRun();
     const nextTxt = l === 0 ? def.desc : (cost ? 'Lv' + (l+1) + ': ' + (def.lvText[l-1] || '強化') : '最大レベル');
     const iconUrl = Sprites.get(def.icon).toDataURL ? Sprites.get(def.icon).toDataURL() : '';
     return `<div class="skill-card ${can ? 'ready' : ''}">
@@ -295,12 +304,24 @@ const Skills = (() => {
       if (!skillUnlocked(id) || hiddenByUser(id)) continue;   // 前提スキル未達でも並べる
       if (revealed[id]) newIds.push(id);
     }
-    // 取得可能を先頭に
-    const sortReady = ids => ids.sort((a, b) => {
-      const ca = nextCost(a), cb = nextCost(b);
-      return ((cb && costMet(cb)) ? 1 : 0) - ((ca && costMet(ca)) ? 1 : 0);
+    // 並びの土台は「種類ごと・軽い順」。定義順のままだと、補助と仲間と心得が入り混じり、
+    // 開くたびに関係のないスキルが隣り合って、探しているものが見つからない
+    const CAT_ORDER = { sup:0, ally:1, foe:2, passive:3 };
+    const weight = id => {
+      const c = nextCost(id);
+      if (!c) return 1e9;                       // 最大レベルは末尾
+      let w = 0;
+      for (const m in c) w += c[m] * (1 + (DATA.MATERIALS[m] ? (DATA.MATERIALS[m].tier || 0) : 0) * 2);
+      return w;
+    };
+    const baseSort = ids => ids.sort((a, b) => {
+      const ca = CAT_ORDER[DATA.SKILLS[a].cat] ?? 9, cb = CAT_ORDER[DATA.SKILLS[b].cat] ?? 9;
+      if (ca !== cb) return ca - cb;
+      const wa = weight(a), wb = weight(b);
+      if (wa !== wb) return wa - wb;
+      return DATA.SKILLS[a].name.localeCompare(DATA.SKILLS[b].name, 'ja');
     });
-    sortReady(upIds); sortReady(newIds);
+    baseSort(upIds); baseSort(newIds);
 
     const isReady = id => { const c = nextCost(id); return c && costMet(c); };
     // 並び: 未見(新登場) → 今すぐ取得/強化できるもの → それ以外。
@@ -355,8 +376,12 @@ const Skills = (() => {
       const cat = curCat();
       const ids = pinnedTop((tab === 'up' ? upIds : newIds).filter(id => cat === 'all' || DATA.SKILLS[id].cat === cat));
       for (const id of ids) shownThisOpen[id] = true;   // 表示したものは閉じる時に既読化
-      if (ids.length) h = ids.map(id => skillCard(id)).join('');
-      else h = tab === 'up'
+      // 旅の外では取れない理由を先に言う(釦だけ灰色にして黙っていると理不尽に見える)
+      if (!inRun()) h += '<p class="small" style="padding:6px 4px 10px">' +
+        'スキルと素材は旅ごとに白紙に戻る。取得できるのは旅の最中だけ ― ' +
+        'ここでは今どんなスキルがあるかを見ておける。</p>';
+      if (ids.length) h += ids.map(id => skillCard(id)).join('');
+      else h += tab === 'up'
         ? '<p class="small" style="padding:20px">このカテゴリの取得済みスキルはまだない。</p>'
         : '<p class="small" style="padding:20px">スキルは無数にある。素材が揃ったものから、ここに現れる(一度現れたら残り続ける)。</p>';
     }

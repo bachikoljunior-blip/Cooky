@@ -105,7 +105,7 @@ DATA.SKILLS = {
   },
   sanctuary: {
     name:'サンクチュアリ', cat:'sup', icon:'sk_sanct',
-    desc:'自分と仲間のHPを徐々に回復するオーラ。',
+    desc:'自分と仲間のHPを毎秒1.5回復するオーラ(半径110)。',
     cost:(lv)=>matCost(lv,{jelly:6,shell:2},[{from:2,mat:'magic',qty:2},{from:6,mat:'coral',qty:3}]),
     lvText:['回復量+60%','範囲拡大(仲間に届きやすく)','回復量+60%','オーラ内の敵を微減速','回復量+80%・範囲拡大'],
     stats:(lv)=>({ hps:1.5*Math.pow(1.6,(lv>=2?1:0)+(lv>=4?1:0))*(lv>=6?1.8:1),
@@ -113,28 +113,28 @@ DATA.SKILLS = {
   },
   magnetSk: {
     name:'マグネットフィールド', cat:'sup', icon:'sk_magnet',
-    desc:'アイテムの回収範囲が広がる。',
+    desc:'アイテムの回収範囲が1.5倍に広がる。',
     cost:(lv)=>matCost(lv,{scrap:3,jelly:3},[{from:2,mat:'shell',qty:3},{from:5,mat:'magic',qty:2}]),
     lvText:['回収範囲+40%','たまに全画面吸引(30秒毎)','回収範囲+50%','全画面吸引の間隔-10秒'],
     stats:(lv)=>({ mult:1.5+(lv>=2?0.4:0)+(lv>=4?0.5:0), vacuum:(lv>=3), vacuumCd:(lv>=5?20:30) }),
   },
   resonance: {
     name:'共鳴の水晶', cat:'sup', icon:'sk_area',
-    desc:'全てのスキルの効果範囲が広がる。',
+    desc:'全てのスキルの効果範囲が+10%広がる。',
     cost:(lv)=>matCost(lv,{crystal:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:7,mat:'star',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`効果範囲+10%(累計${(i+2)*10}%)`),
     stats:(lv)=>({ passive:{ key:'areaMul', value:0.10*lv } }),
   },
   boots: {
     name:'ヘルメスの靴', cat:'sup', icon:'sk_boots',
-    desc:'移動速度が上がる。逃げる敵を追いやすくなる。',
+    desc:'移動速度+10%。逃げる敵を追いやすくなる。',
     cost:(lv)=>matCost(lv,{hide:4,bone:3},[{from:2,mat:'crystal',qty:3},{from:5,mat:'star',qty:1}]),
     lvText:['移動速度+8%','ダッシュの残像が敵にダメージ','移動速度+10%','移動速度+12%'],
     stats:(lv)=>({ mult:1.1+(lv>=2?0.08:0)+(lv>=4?0.10:0)+(lv>=5?0.12:0), trail:(lv>=3?5:0) }),
   },
   warbanner: {
     name:'ウォーバナー', cat:'ally', icon:'sk_banner',
-    desc:'仲間の攻撃力とHPを強化する軍旗。',
+    desc:'掲げた時点で仲間の攻撃力+20%。レベルを上げるとHPと足も伸びる。',
     requires:{ skill:'charisma', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,wood:5},[{from:2,mat:'magic',qty:2}]),
     lvText:['仲間攻撃+20%','仲間HP+30%','仲間攻撃+25%','仲間の移動速度+20%','仲間攻撃+35%・HP+35%'],
@@ -144,7 +144,7 @@ DATA.SKILLS = {
   // ---- 多角スキル: 仲間・敵・武器・経済 ----
   charisma: {
     name:'カリスマの歌', cat:'ally', icon:'sk_charisma',
-    desc:'敵が仲間になる確率が上がる。',
+    desc:'敵が仲間になる確率+3%。',
     cost:(lv)=>matCost(lv,{jelly:4,hide:4},[{from:2,mat:'crystal',qty:3},{from:7,mat:'star',qty:1}]),
     lvText:['勧誘確率+3%','仲間の全能力+8%','勧誘確率+4%','仲間の全能力+8%','勧誘確率+5%','全能力+8%・確率+6%'],
     stats:(lv)=>({ recruit:0.03+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0)+(lv>=7?0.06:0),
@@ -152,7 +152,7 @@ DATA.SKILLS = {
   },
   fear: {
     name:'威圧のオーラ', cat:'foe', icon:'sk_fear',
-    desc:'周囲の敵の攻撃力を下げるオーラ。',
+    desc:'半径50の敵の攻撃力-15%。',
     cost:(lv)=>matCost(lv,{bone:5,hide:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'scale',qty:1}]),
     lvText:['弱体化+10%','オーラ範囲拡大','弱体化+5%','弱体化+10%','オーラ範囲拡大','瀕死の敵が逃げ出す'],
     stats:(lv)=>({ radius:50+(lv>=3?45:0)+(lv>=6?65:0),
@@ -160,7 +160,7 @@ DATA.SKILLS = {
   },
   vampire: {
     name:'吸血の刻印', cat:'sup', icon:'sk_vampire',
-    desc:'敵を倒すとHPを吸収する。',
+    desc:'敵を倒すたびHP+3。',
     requires:{ skill:'sanctuary', lv:2 },
     cost:(lv)=>matCost(lv,{hide:5,jelly:4},[{from:2,mat:'magic',qty:2},{from:6,mat:'abyss',qty:1}]),
     lvText:['吸収量+2','与ダメージの1%を回復','吸収量+3','与ダメ回復2%に強化','吸収量+5','与ダメ回復3%に強化'],
@@ -169,7 +169,7 @@ DATA.SKILLS = {
   },
   confuse: {
     name:'混沌の瘴気', cat:'foe', icon:'sk_confuse', unlock:'lib_sk_confuse',
-    desc:'一定間隔で敵を混乱させ、同士討ちさせる。',
+    desc:'8秒ごとに敵2体を3秒混乱させ、同士討ちさせる(半径340)。',
     cost:(lv)=>matCost(lv,{magic:3,crystal:5},[{from:2,mat:'star',qty:2}]),
     lvText:['混乱数+1','混乱時間+50%・範囲拡大','混乱数+2','再発動-25%・範囲拡大','混乱数+2・時間さらに+'],
     stats:(lv)=>({ count:2+(lv>=2?1:0)+(lv>=4?2:0)+(lv>=6?2:0),
@@ -187,7 +187,7 @@ DATA.SKILLS = {
   // ---- 魂の広場で解放するスキル ----
   sands: {
     name:'時の砂', cat:'foe', icon:'sk_sands', unlock:'lib_sk_sands',
-    desc:'一定間隔で周囲の敵を大きく減速させる。',
+    desc:'12秒ごとに半径220の敵を3秒-40%に減速させる。',
     cost:(lv)=>matCost(lv,{star:2,magic:6},[{from:2,mat:'abyss',qty:1}]),
     lvText:['減速率アップ','効果時間+50%','範囲拡大','再発動-25%','ほぼ静止級の減速'],
     stats:(lv)=>({ slow:0.4+(lv>=2?0.15:0)+(lv>=6?0.25:0), dur:3*(lv>=3?1.5:1),
@@ -195,7 +195,7 @@ DATA.SKILLS = {
   },
   ember: {
     name:'火の粉', cat:'foe', icon:'sk_ember', unlock:'g_ember_sk',
-    desc:'一定間隔で周囲の敵に火の粉を撒き、炎上させる。',
+    desc:'6秒ごとに敵3体を3秒炎上させる(半径240、毎秒4)。',
     cost:(lv)=>matCost(lv,{scrap:4,hide:4},[{from:2,mat:'cinder',qty:3}]),
     lvText:['炎上ダメージ+50%','対象+2','再発動-25%','炎上ダメージ+60%','対象+3'],
     stats:(lv)=>({ count:3+(lv>=3?2:0)+(lv>=6?3:0), burn:4*(lv>=2?1.5:1)*(lv>=5?1.6:1),
@@ -203,7 +203,7 @@ DATA.SKILLS = {
   },
   frostaura: {
     name:'霜のオーラ', cat:'foe', icon:'sk_frostaura', unlock:'g_frost_sk',
-    desc:'周囲の敵を絶えず減速させるオーラ。',
+    desc:'半径130の敵をつねに-20%減速させる。',
     cost:(lv)=>matCost(lv,{crystal:4,shell:3},[{from:2,mat:'iceshard',qty:3}]),
     lvText:['減速+10%','範囲拡大','減速+10%','範囲拡大','減速+15%'],
     stats:(lv)=>({ radius:130+(lv>=3?40:0)+(lv>=5?50:0),
@@ -211,7 +211,7 @@ DATA.SKILLS = {
   },
   bonewall: {
     name:'骨の呼び声', cat:'ally', icon:'sk_bonecall', unlock:'g_bones_sk',
-    desc:'一定間隔で骸骨の仲間を呼び出す。',
+    desc:'24秒ごとに骸骨の仲間を1体呼び出す。',
     cost:(lv)=>matCost(lv,{bone:6,jelly:4},[{from:2,mat:'soulshard',qty:3}]),
     lvText:['召喚間隔-20%','骸骨が強くなる','召喚間隔-20%','骸骨がさらに強く','召喚間隔-25%'],
     stats:(lv)=>({ cd:24*(lv>=2?0.8:1)*(lv>=4?0.8:1)*(lv>=6?0.75:1),
@@ -219,7 +219,7 @@ DATA.SKILLS = {
   },
   pulse: {
     name:'遺跡の脈動', cat:'foe', icon:'sk_pulse', unlock:'g_east_sk',
-    desc:'一定間隔で周囲の敵を弾き飛ばし、短時間停止させる。',
+    desc:'9秒ごとに半径170の敵を弾き飛ばし、0.5秒止める。',
     cost:(lv)=>matCost(lv,{crystal:4,scrap:4},[{from:2,mat:'relic',qty:3}]),
     lvText:['停止時間+','範囲拡大','再発動-25%','弾き距離+','停止時間+'],
     stats:(lv)=>({ radius:170+(lv>=3?50:0), cd:9*(lv>=4?0.75:1),
@@ -227,7 +227,7 @@ DATA.SKILLS = {
   },
   spring: {
     name:'命の泉水', cat:'sup', icon:'sk_spring', unlock:'g_south_sk',
-    desc:'一定間隔で自分と仲間のHPをまとめて回復する。',
+    desc:'16秒ごとに自分と仲間のHPを30回復する。',
     cost:(lv)=>matCost(lv,{jelly:5,shell:3},[{from:2,mat:'dew',qty:3}]),
     lvText:['回復量+20','再発動-20%','回復量+30','再発動-25%','回復量+40'],
     stats:(lv)=>({ heal:30+(lv>=2?20:0)+(lv>=4?30:0)+(lv>=6?40:0),
@@ -235,7 +235,7 @@ DATA.SKILLS = {
   },
   forgefire: {
     name:'鍛冶の心火', cat:'ally', icon:'sk_forgefire', unlock:'g_west_sk',
-    desc:'仲間の近接攻撃が確率で敵を炎上させる。',
+    desc:'仲間の近接攻撃が4%で敵を炎上させる(毎秒5)。',
     cost:(lv)=>matCost(lv,{scrap:5,hide:4},[{from:2,mat:'cinder',qty:3}]),
     lvText:['確率+3%','炎上ダメージ+','確率+4%','炎上ダメージ+','確率+5%'],
     stats:(lv)=>({ chance:0.04+(lv>=2?0.03:0)+(lv>=4?0.04:0)+(lv>=6?0.05:0),
@@ -243,14 +243,14 @@ DATA.SKILLS = {
   },
   dragonscale: {
     name:'竜鱗の陣', cat:'ally', icon:'sk_dscale', unlock:'g_dragon_sk',
-    desc:'仲間が受けるダメージを減らす。',
+    desc:'仲間が受けるダメージ-8%。',
     cost:(lv)=>matCost(lv,{bone:5,hide:5},[{from:2,mat:'scale',qty:1}]),
     lvText:Array.from({length:5},()=>'仲間の被ダメージ-5%'),
     stats:(lv)=>({ res:Math.min(0.5, 0.08+(lv-1)*0.05) }),
   },
   veil: {
     name:'黄昏の帳', cat:'sup', icon:'sk_veil', unlock:'g_dusk_sk',
-    desc:'一定間隔で敵の弾をかき消し、周囲の敵の射撃を封じる。',
+    desc:'12秒ごとに敵の弾をかき消し、半径400の敵の射撃を2秒封じる。',
     cost:(lv)=>matCost(lv,{hide:4,crystal:4},[{from:2,mat:'duskveil',qty:3}]),
     lvText:['再発動-20%','封印時間+1秒','封印時間+1秒','再発動-25%','封印時間+1秒'],
     stats:(lv)=>({ seal:2+(lv>=3?1:0)+(lv>=4?1:0)+(lv>=6?1:0),
@@ -273,7 +273,7 @@ DATA.SKILLS = {
   },
   beacon: {
     name:'白亜の灯', cat:'sup', icon:'sk_beacon', unlock:'g_white_sk',
-    desc:'一定間隔で画面中のアイテムを引き寄せる。',
+    desc:'20秒ごとに画面中のアイテムを2秒引き寄せる。',
     cost:(lv)=>matCost(lv,{shell:5,crystal:3},[{from:2,mat:'magic',qty:2}]),
     lvText:['再発動-20%','引き寄せが速く','再発動-25%','引き寄せがさらに速く','再発動-30%'],
     stats:(lv)=>({ cd:20*(lv>=2?0.8:1)*(lv>=4?0.75:1)*(lv>=6?0.7:1),
@@ -281,21 +281,21 @@ DATA.SKILLS = {
   },
   pact: {
     name:'対価の契約', cat:'sup', icon:'sk_pact', unlock:'g_black_sk',
-    desc:'コイン獲得量が増える。',
+    desc:'コイン獲得量+4%。',
     cost:(lv)=>matCost(lv,{bone:5,scrap:4},[{from:2,mat:'obsidshard',qty:2}]),
     lvText:Array.from({length:9},(_,i)=>`コイン+4%(累計${(i+2)*4}%)`),
     stats:(lv)=>({ passive:{ key:'coinMul', value:0.04*lv } }),
   },
   mistwalk: {
     name:'霧渡り', cat:'sup', icon:'sk_mistwalk', unlock:'g_mist_sk',
-    desc:'移動速度が上がる。',
+    desc:'移動速度+2%。',
     cost:(lv)=>matCost(lv,{jelly:4,crystal:4},[{from:2,mat:'magic',qty:2}]),
     lvText:Array.from({length:9},(_,i)=>`移動速度+2%(累計${(i+2)*2}%)`),
     stats:(lv)=>({ passive:{ key:'speedMul', value:0.02*lv } }),
   },
   forgeguard: {
     name:'神鉄の壁', cat:'ally', icon:'sk_fguard', unlock:'g_forge_sk',
-    desc:'仲間の最大HPが上がる。',
+    desc:'仲間の最大HP+5%。',
     cost:(lv)=>matCost(lv,{scrap:6,bone:4},[{from:2,mat:'scale',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間HP+5%(累計${(i+2)*5}%)`),
     stats:(lv)=>({ passive:{ key:'allyHpMul', value:0.05*lv } }),
@@ -303,7 +303,7 @@ DATA.SKILLS = {
   moonrush: {
     requires:{ skill:'boots', lv:2 },
     name:'月光の疾走', cat:'sup', icon:'sk_moonrush', unlock:'g_moon_sk',
-    desc:'一定間隔で短時間、自分と仲間が加速する。',
+    desc:'18秒ごとに3秒間、自分と仲間の足が1.25倍になる。',
     cost:(lv)=>matCost(lv,{crystal:4,hide:4},[{from:2,mat:'stardust',qty:2}]),
     lvText:['持続+1秒','加速+10%','再発動-25%','持続+1.5秒','加速+15%'],
     stats:(lv)=>({ mult:1.25+(lv>=3?0.1:0)+(lv>=6?0.15:0),
@@ -312,7 +312,7 @@ DATA.SKILLS = {
   stormcall: {
     requires:{ skill:'wildcall', lv:2 },
     name:'雷雲の呼び声', cat:'foe', icon:'sk_stormcall', unlock:'g_storm_sk',
-    desc:'一定間隔で周囲の敵を感電させ、短時間動きを止める。',
+    desc:'11秒ごとに半径200の敵を感電させ、0.8秒止める。',
     cost:(lv)=>matCost(lv,{scrap:4,crystal:4},[{from:2,mat:'stardust',qty:2}]),
     lvText:['停止時間+','範囲拡大','再発動-25%','停止時間+','再発動-20%'],
     stats:(lv)=>({ radius:200+(lv>=3?60:0), dur:0.8+(lv>=2?0.4:0)+(lv>=5?0.5:0),
@@ -320,7 +320,7 @@ DATA.SKILLS = {
   },
   gravemark: {
     name:'墓守の加護', cat:'ally', icon:'sk_gravemark', unlock:'g_grave_sk',
-    desc:'倒れた仲間が踏みとどまる確率が上がる。',
+    desc:'倒れた仲間が踏みとどまる確率+3%。',
     cost:(lv)=>matCost(lv,{bone:6,jelly:4},[{from:2,mat:'soulshard',qty:3}]),
     lvText:Array.from({length:9},(_,i)=>`踏みとどまる確率+3%(累計${(i+2)*3}%)`),
     stats:(lv)=>({ passive:{ key:'allyReviveAdd', value:0.03*lv } }),
@@ -328,7 +328,7 @@ DATA.SKILLS = {
   sunburst: {
     requires:{ skill:'ember', lv:2 },
     name:'太陽の熱波', cat:'foe', icon:'sk_sunburst', unlock:'g_sun_sk',
-    desc:'一定間隔で広範囲の敵をまとめて炎上させる。',
+    desc:'14秒ごとに半径280の敵をまとめて4秒炎上させる(毎秒6)。',
     cost:(lv)=>matCost(lv,{bone:5,crystal:5},[{from:2,mat:'sunstone',qty:3}]),
     lvText:['炎上ダメージ+50%','範囲拡大','再発動-25%','炎上ダメージ+50%','範囲拡大'],
     stats:(lv)=>({ radius:280+(lv>=3?80:0)+(lv>=6?80:0), burn:6*(lv>=2?1.5:1)*(lv>=5?1.5:1),
@@ -336,7 +336,7 @@ DATA.SKILLS = {
   },
   voidgrip: {
     name:'虚無の引力', cat:'foe', icon:'sk_voidgrip', unlock:'g_void_sk',
-    desc:'一定間隔で周囲の敵を自分のそばへ引き寄せる。',
+    desc:'13秒ごとに半径260の敵を自分のそばへ引き寄せる。',
     cost:(lv)=>matCost(lv,{magic:4,crystal:4},[{from:2,mat:'abyss',qty:1}]),
     lvText:['範囲拡大','再発動-15%','引きが強く','範囲拡大','再発動-25%'],
     stats:(lv)=>({ radius:260+(lv>=2?80:0)+(lv>=5?80:0), cd:13*(lv>=3?0.85:1)*(lv>=6?0.75:1),
@@ -344,21 +344,21 @@ DATA.SKILLS = {
   },
   tidebless: {
     name:'潮汐の恵み', cat:'sup', icon:'sk_spring', unlock:'g_sea_sk',
-    desc:'沈み都の潮の力を身に宿し、HP自動回復が増す。',
+    desc:'沈み都の潮の力を宿し、HP自動回復+0.5/秒。',
     cost:(lv)=>matCost(lv,{shell:6,coral:4},[{from:2,mat:'pearl',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`HP自動回復+1.0/秒(累計${((i+2)*1.0).toFixed(1)})`),
     stats:(lv)=>({ passive:{ key:'regenAdd', value:0.5*lv } }),
   },
   endpact: {
     name:'終焉の誓い', cat:'ally', icon:'sk_endpact', unlock:'g_end_sk',
-    desc:'仲間の攻撃力が上がる。',
+    desc:'仲間の攻撃力+4%。',
     cost:(lv)=>matCost(lv,{bone:6,magic:4},[{from:2,mat:'abyss',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間攻撃+4%(累計${(i+2)*4}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.04*lv } }),
   },
   oath: {
     name:'老兵の誓い', icon:'sk_oath', cat:'ally', unlockQuest:'b_north',
-    desc:'仲間の攻撃力が大きく上がる。老兵ガルドの戦術。',
+    desc:'仲間の攻撃力+10%。老兵ガルドの戦術。',
     cost:(lv)=>matCost(lv,{bone:6,hide:4},[{from:2,mat:'crystal',qty:4},{from:6,mat:'scale',qty:1}]),
     lvText:Array.from({length:9},(_,i)=>`仲間の攻撃力+10%(累計${(i+2)*10}%)`),
     stats:(lv)=>({ passive:{ key:'allyAtkMul', value:0.10*lv } }),
@@ -816,7 +816,7 @@ function gcost(base, growth){ return (lv)=>Math.floor(base*1.5*Math.pow(growth,l
 DATA.META = {
   // --- 強化の祭壇(戦闘) ---
   altar_hp:     { st:'altar', name:'生命力',       desc:'最大HP +20。Lv15で「死線の護り」: 致死の一撃を周回に1度、HP1で耐える',            max:40, cost:gcost(15,1.32),  },
-  altar_atk:    { st:'altar', name:'攻撃力',       desc:'全ダメージ +8%',        max:40, cost:gcost(20,1.34),  },
+  altar_atk:    { st:'altar', name:'攻撃力',       desc:'主人公の与ダメージ +8%',        max:40, cost:gcost(20,1.34),  },
   altar_speed:  { st:'altar', name:'健脚',         desc:'移動速度 +4%', max:25, cost:gcost(30,1.42), },
   altar_regen:  { st:'altar', name:'自然治癒',     desc:'HP自動回復 +0.5/秒',    max:20, cost:gcost(40,1.42),  },
   altar_armor:  { st:'altar', name:'鉄の皮膚',     desc:'被ダメージ -2%(最大60%)', max:30, cost:gcost(35,1.4) },
@@ -836,7 +836,7 @@ DATA.META = {
   lab_mat_star: { st:'lab', name:'【解放】星のかけら', desc:'新素材「星のかけら」が出現する', max:1, cost:gcost(15000,1) },
   lab_mat_abyss:{ st:'lab', name:'【解放】深淵の核', desc:'新素材「深淵の核」が出現する', max:1, cost:gcost(50000,1) },
   // --- 仲間の宿舎 ---
-  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +0.2%(素の確率20%に加算)', max:20, cost:gcost(40,1.38) },
+  camp_recruit: { st:'camp', name:'カリスマ',      desc:'敵が仲間になる確率 +1%(素の確率20%に加算)', max:20, cost:gcost(40,1.38) },
   camp_fury:    { st:'camp', name:'鬨の声',        desc:'仲間の攻撃間隔 -3%', max:15, cost:gcost(80,1.5) },
   camp_hp:      { st:'camp', name:'仲間の生命',    desc:'仲間HP +1.5%',          max:30, cost:gcost(30,1.35) },
   camp_atk:     { st:'camp', name:'仲間の闘志',    desc:'仲間攻撃力 +1.2%。Lv15で「士気」: 仲間10体以上で仲間攻撃+10%',      max:30, cost:gcost(30,1.35) },
@@ -854,7 +854,7 @@ DATA.META = {
   // effAdd/effMul はデータ定義だけでステータスに反映される汎用効果
   // 北の砦: 武練場(反撃/会心) / 生命の祠(城壁/最大HP) / 秘宝の蔵(兵站/仲間俊足)
   g_north_thorn: { st:'b_north', fac:'war',  name:'茨の鎧',    desc:'接触してきた敵に反撃ダメージ +5', max:20, cost:gcost(150,1.4) },
-  g_north_edge:  { st:'b_north', fac:'war',  name:'砦の刃',    desc:'全ダメージ +2%', max:20, cost:gcost(160,1.4), effMul:{atk:.02} },
+  g_north_edge:  { st:'b_north', fac:'war',  name:'砦の刃',    desc:'主人公の与ダメージ +2%', max:20, cost:gcost(160,1.4), effMul:{atk:.02} },
   g_north_wall:  { st:'b_north', fac:'life', name:'城壁の加護',desc:'HPが30%以下の時、被ダメージ -3%', max:15, cost:gcost(200,1.45) },
   g_north_keep:  { st:'b_north', fac:'life', name:'砦の備え',  desc:'最大HP +12', max:20, cost:gcost(170,1.4), effAdd:{maxHp:12} },
   g_north_supply:{ st:'b_north', fac:'lore', name:'兵站術',    desc:'素材ドロップ量 +3%', max:15, cost:gcost(180,1.42), effMul:{dropMul:.03} },
@@ -869,7 +869,7 @@ DATA.META = {
   g_east_muster: { st:'b_east', fac:'lore', name:'遺跡の共鳴', desc:'仲間の攻撃力 +3%', max:15, cost:gcost(210,1.44), effMul:{allyAtk:.03} },
   g_east_sk:     { st:'b_east', fac:'lore', name:'【解放】遺跡の脈動', desc:'スキル「遺跡の脈動」を習得可能に(素材「遺物のかけら」も出現)', max:1, cost:gcost(2500,1) },
   // 南の泉: 武練場(浄化/会心) / 生命の祠(治癒/自然回復) / 秘宝の蔵(霊薬/仲間回復)
-  g_south_bless: { st:'b_south', fac:'war',  name:'清めの刃',  desc:'全ダメージ +3%', max:15, cost:gcost(200,1.42), effMul:{atk:.03} },
+  g_south_bless: { st:'b_south', fac:'war',  name:'清めの刃',  desc:'主人公の与ダメージ +3%', max:15, cost:gcost(200,1.42), effMul:{atk:.03} },
   g_south_focus: { st:'b_south', fac:'war',  name:'澄んだ心',  desc:'会心率 +1%', max:12, cost:gcost(230,1.44), effAdd:{crit:.01} },
   g_south_heal:  { st:'b_south', fac:'life', name:'癒しの水',  desc:'HP自動回復 +1/秒',      max:15, cost:gcost(220,1.45) },
   g_south_spring:{ st:'b_south', fac:'life', name:'泉の恵み',  desc:'最大HP +17', max:15, cost:gcost(200,1.42), effAdd:{maxHp:17} },
@@ -878,7 +878,7 @@ DATA.META = {
   g_south_sanct: { st:'b_south', fac:'life', name:'聖域の祝福', desc:'スキル「サンクチュアリ」の効き目 +4%', max:15, cost:gcost(240,1.45) },
   g_south_sk:    { st:'b_south', fac:'lore', name:'【解放】命の泉水', desc:'スキル「命の泉水」を習得可能に(素材「命の雫」も出現)', max:1, cost:gcost(2500,1) },
   // 西の炉: 武練場(業火/巨人殺し) / 生命の祠(鎧下/棘) / 秘宝の蔵(精錬/仲間HP)
-  g_west_fire:   { st:'b_west', fac:'war',  name:'業火の刻印', desc:'全ダメージ +5%', max:25, cost:gcost(250,1.4) },
+  g_west_fire:   { st:'b_west', fac:'war',  name:'業火の刻印', desc:'主人公の与ダメージ +5%', max:25, cost:gcost(250,1.4) },
   g_west_boss:   { st:'b_west', fac:'war',  name:'巨人殺し',   desc:'ボスへのダメージ +8%',  max:20, cost:gcost(300,1.42) },
   g_west_mail:   { st:'b_west', fac:'life', name:'鋼の鎧下',   desc:'最大HP +18', max:15, cost:gcost(250,1.42), effAdd:{maxHp:18} },
   g_west_forge:  { st:'b_west', fac:'life', name:'炉の頑健',   desc:'被ダメージ -1%', max:12, cost:gcost(280,1.46), effAdd:{armor:.01} },
@@ -901,7 +901,7 @@ DATA.META = {
   g_star_chart:  { st:'b_star', fac:'lore', name:'星図の導き', desc:'移動速度 +1.5%', max:15, cost:gcost(1400,1.5), effMul:{speed:.015} },
   g_star_sands:  { st:'b_star', fac:'lore', name:'刻の砂時計', desc:'スキル「時の砂」の効き目 +4%', max:15, cost:gcost(1500,1.5) },
   g_star_sk:     { st:'b_star', fac:'war',  name:'【解放】星の吉兆', desc:'スキル「星の吉兆」を習得可能に(素材「星屑」も出現)', max:1, cost:gcost(1900,1) },
-  g_green_hunt:  { st:'b_green', fac:'war',  name:'森の狩人',  desc:'全ダメージ +3%', max:15, cost:gcost(600,1.48), effMul:{atk:.03} },
+  g_green_hunt:  { st:'b_green', fac:'war',  name:'森の狩人',  desc:'主人公の与ダメージ +3%', max:15, cost:gcost(600,1.48), effMul:{atk:.03} },
   g_green_rest:  { st:'b_green', fac:'life', name:'森の寝床',  desc:'HP自動回復 +1/秒', max:10, cost:gcost(650,1.5), effAdd:{regen:1} },
   g_green_ally:  { st:'b_green', fac:'lore', name:'森の恵み',  desc:'仲間の全能力 +8%',      max:15, cost:gcost(630,1.5) },
   g_green_charisma:{ st:'b_green', fac:'lore', name:'森の歌声', desc:'スキル「カリスマの歌」の効き目 +4%', max:15, cost:gcost(650,1.5) },
@@ -911,7 +911,7 @@ DATA.META = {
   g_white_gold:  { st:'b_white', fac:'lore', name:'白亜の商才', desc:'コイン獲得量 +15%', max:15, cost:gcost(2450,1.5) },
   g_white_magnet:{ st:'b_white', fac:'lore', name:'白亜の磁鉄', desc:'スキル「マグネットフィールド」の効き目 +4%', max:15, cost:gcost(2350,1.5) },
   g_white_sk:    { st:'b_white', fac:'war', name:'【解放】白亜の灯', desc:'スキル「白亜の灯」を習得可能に', max:1, cost:gcost(2850,1) },
-  g_black_dark:  { st:'b_black', fac:'war',  name:'黒曜の契約', desc:'全ダメージ+10% / 最大HP+40', max:15, cost:gcost(2250,1.55) },
+  g_black_dark:  { st:'b_black', fac:'war',  name:'黒曜の契約', desc:'主人公の与ダメージ+10% / 最大HP+40', max:15, cost:gcost(2250,1.55) },
   g_black_skin:  { st:'b_black', fac:'life', name:'黒曜の皮膚', desc:'最大HP +28', max:15, cost:gcost(2150,1.5), effAdd:{maxHp:28} },
   g_black_pact:  { st:'b_black', fac:'lore', name:'契約の対価', desc:'コイン獲得量 +8%', max:15, cost:gcost(2300,1.55), effMul:{coinMul:.08} },
   g_black_vamp:  { st:'b_black', fac:'war',  name:'血の契約',   desc:'スキル「吸血の刻印」の効き目 +4%', max:15, cost:gcost(2250,1.5) },
@@ -934,12 +934,12 @@ DATA.META = {
   g_ember_mat:   { st:'b_ember', fac:'lore', name:'【解放】燃え殻', desc:'新素材「燃え殻」が灼熱系の魔物から出る', max:1, cost:gcost(1100,1) },
   // 竜の湯(竜骨の内陸): 湯治=回復と血行。湯上がりの体で殴る
   g_spa_soak:    { st:'b_spa', fac:'life', name:'湯治の癒し',   desc:'HP自動回復 +1.2/秒(長旅の体力)', max:10, cost:gcost(1500,1.45), effAdd:{regen:1.2} },
-  g_spa_vigor:   { st:'b_spa', fac:'war',  name:'湯上がりの活力', desc:'全ダメージ +5%', max:10, cost:gcost(1600,1.5), effMul:{atk:.05} },
+  g_spa_vigor:   { st:'b_spa', fac:'war',  name:'湯上がりの活力', desc:'主人公の与ダメージ +5%', max:10, cost:gcost(1600,1.5), effMul:{atk:.05} },
   g_spa_flow:    { st:'b_spa', fac:'lore', name:'湯の流れの心得', desc:'アイテム回収範囲 +8%', max:10, cost:gcost(1400,1.45), effMul:{magnet:.08} },
   g_spa_scale:   { st:'b_spa', fac:'lore', name:'竜鱗磨き',     desc:'コイン獲得量 +6%', max:15, cost:gcost(1500,1.5), effMul:{coinMul:.06} },
   // 白風の宿場(星嵐の峠道): 宿=旅支度と商い
   g_inn_hearth:  { st:'b_inn', fac:'life', name:'囲炉裏の温もり', desc:'最大HP +30', max:15, cost:gcost(2400,1.45), effAdd:{maxHp:30} },
-  g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'全ダメージ +4% / 移動速度 +2.5%(峠越えの脚)', max:10, cost:gcost(2600,1.5), effMul:{atk:.04, speed:.025} },
+  g_inn_guard:   { st:'b_inn', fac:'war',  name:'荷駄の護衛術', desc:'主人公の与ダメージ +4% / 移動速度 +2.5%(峠越えの脚)', max:10, cost:gcost(2600,1.5), effMul:{atk:.04, speed:.025} },
   g_inn_trade:   { st:'b_inn', fac:'lore', name:'宿場の商い',   desc:'コイン獲得量 +8%', max:15, cost:gcost(2500,1.5), effMul:{coinMul:.08} },
   g_inn_pack:    { st:'b_inn', fac:'lore', name:'荷継ぎの目利き', desc:'素材ドロップ量 +8%', max:10, cost:gcost(2500,1.5), effMul:{dropMul:.08} },
   // 苔の庵(深緑の森の奥): 薬師=膏薬と急所の知識
@@ -953,7 +953,7 @@ DATA.META = {
   g_frost_sk:    { st:'b_frost', fac:'war',  name:'【解放】霜のオーラ', desc:'スキル「霜のオーラ」を習得できるようになる', max:1, cost:gcost(2500,1) },
   g_frost_mat:   { st:'b_frost', fac:'lore', name:'【解放】氷晶', desc:'新素材「氷晶」が氷雪系の魔物から出る', max:1, cost:gcost(1200,1) },
   // --- 第2環 ---
-  g_forge_gear:  { st:'b_forge', fac:'war',  name:'神鉄の装備', desc:'全ダメージ+6% / 最大HP+10', max:25, cost:gcost(5600,1.4) },
+  g_forge_gear:  { st:'b_forge', fac:'war',  name:'神鉄の装備', desc:'主人公の与ダメージ+6% / 最大HP+10', max:25, cost:gcost(5600,1.4) },
   g_forge_helm:  { st:'b_forge', fac:'life', name:'神鉄の兜',  desc:'最大HP +36', max:15, cost:gcost(5250,1.45), effAdd:{maxHp:36} },
   g_forge_arms:  { st:'b_forge', fac:'lore', name:'神鉄の武具(仲間用)', desc:'仲間の攻撃力 +7%', max:15, cost:gcost(5950,1.45), effMul:{allyAtk:.07} },
   g_forge_banner:{ st:'b_forge', fac:'war',  name:'軍旗の鍛造', desc:'スキル「ウォーバナー」の効き目 +4%', max:15, cost:gcost(6100,1.45) },
@@ -973,7 +973,7 @@ DATA.META = {
   g_grave_curse: { st:'b_grave', fac:'war',  name:'墓標の呪詛', desc:'スキル「衰弱の呪印」の効き目 +4%', max:15, cost:gcost(3600,1.5) },
   g_grave_sk:    { st:'b_grave', fac:'life', name:'【解放】墓守の加護', desc:'スキル「墓守の加護」を習得可能に', max:1, cost:gcost(3850,1) },
   // --- 第3環 ---
-  g_sun_wrath:   { st:'b_sun',   fac:'war',  name:'太陽の憤怒', desc:'全ダメージ +4%', max:20, cost:gcost(13000,1.5), effMul:{atk:.04} },
+  g_sun_wrath:   { st:'b_sun',   fac:'war',  name:'太陽の憤怒', desc:'主人公の与ダメージ +4%', max:20, cost:gcost(13000,1.5), effMul:{atk:.04} },
   g_sun_life:    { st:'b_sun',   fac:'life', name:'太陽の生命', desc:'HP自動回復 +2.5/秒', max:15, cost:gcost(12000,1.5), effAdd:{regen:2.5} },
   g_sun_grace:   { st:'b_sun',   fac:'lore', name:'太陽の恩寵', desc:'攻撃・HP・移動速度 +2%', max:20, cost:gcost(13500,1.5) },
   g_sun_sk:      { st:'b_sun',  fac:'war',  name:'【解放】太陽の熱波', desc:'スキル「太陽の熱波」を習得可能に(素材「太陽石」も出現)', max:1, cost:gcost(14500,1) },
@@ -982,7 +982,7 @@ DATA.META = {
   g_void_calm:   { st:'b_void',  fac:'lore', name:'無の悟り',  desc:'武器の攻撃間隔 -1%', max:10, cost:gcost(14000,1.55), effAdd:{cdr:.01} },
   g_void_sk:     { st:'b_void', fac:'war',  name:'【解放】虚無の引力', desc:'スキル「虚無の引力」を習得可能に', max:1, cost:gcost(13500,1) },
   // --- 実績で解放される強化項目 ---
-  m_war:       { st:'altar', name:'戦意',     desc:'全ダメージ +2%',            max:10, cost:gcost(300,1.4),   unlockAch:'ach_kill1' },
+  m_war:       { st:'altar', name:'戦意',     desc:'主人公の与ダメージ +2%',            max:10, cost:gcost(300,1.4),   unlockAch:'ach_kill1' },
   m_ashura:    { st:'altar', name:'修羅',     desc:'会心率 +1.5%',      max:10, cost:gcost(1700,1.45), unlockAch:'ach_kill2' },
   m_grit:      { st:'altar', name:'不屈',     desc:'HP自動回復 +1/秒',          max:10, cost:gcost(300,1.45),  unlockAch:'ach_time1' },
   m_pioneer:   { st:'altar', name:'開拓魂',   desc:'移動速度 +2%',              max:5,  cost:gcost(550,1.5),  unlockAch:'ach_bases' },
@@ -1000,7 +1000,7 @@ DATA.META = {
   m_invest:    { st:'lab',   name:'投資',     desc:'コイン獲得 +8%',            max:10, cost:gcost(1300,1.5),  unlockAch:'ach_coins' },
   m_stash:     { st:'lab',   name:'保管庫',   desc:'周回終了時、貴重な素材から順に Lv×4個 を次の周回へ持ち越す', max:8, cost:gcost(320,1.6) },
   // --- 最果て ---
-  g_end_beyond:  { st:'b_end',   fac:'war',  name:'終焉超越',   desc:'色違いの敵がさらに出にくくなる(-2%) / 全ダメージ+8%', max:20, cost:gcost(30500,1.55) },
+  g_end_beyond:  { st:'b_end',   fac:'war',  name:'終焉超越',   desc:'色違いの敵がさらに出にくくなる(-2%) / 主人公の与ダメージ+8%', max:20, cost:gcost(30500,1.55) },
   g_end_vessel:  { st:'b_end',   fac:'life', name:'終焉の器',   desc:'最大HP +4%', max:15, cost:gcost(29000,1.55), effMul:{maxHp:.04} },
   g_end_relic:   { st:'b_end',   fac:'lore', name:'彼方の遺物', desc:'素材ドロップ量 +7%', max:15, cost:gcost(26500,1.55), effMul:{dropMul:.07} },
   g_end_sk:      { st:'b_end',  fac:'war',  name:'【解放】終焉の誓い', desc:'スキル「終焉の誓い」を習得可能に', max:1, cost:gcost(30500,1) },
@@ -1804,3 +1804,34 @@ DATA.FAC_STATE = {
 DATA.DIST_RING = 2600;         // 距離リング幅(px)。バイオドーム(約1分=2600px)を1つ越えるごとに危険度+1
 DATA.REAPER_AT = 1800;         // 終焉の刻(秒)
 DATA.WORLD_EXTENT = 860000;    // 世界の半径(ミニマップ用)
+
+// ---- バイオドームごとの「採れる素材」と「採れない素材」 ----
+// 行商人が何を売るかの根拠になる表。実際の敵のドロップ表と地形物から機械的に作るので、
+// 敵や素材を足しても表がずれない。
+//   ・どこでも採れるもの(木・岩・木箱から出る素材)は全バイオドーム共通で「採れる」
+//   ・隣り合うバイオドーム(BIO_ORDERで前後)で採れるものは「すぐ行けば手に入る」ので、
+//     行商人の品目からは外す ― 一歩隣で拾えるものを売っても意味がない
+(function(){
+  const BIO_ORDER = ['grass','jungle','mist','chalk','bones','desert','storm','frost',
+                     'moon','twilight','obsidian','volcano','magma','makai','void','end'];
+  const EVERYWHERE = ['wood','scrap','crystal','magic','jelly','hide'];   // 木・岩・木箱
+  const own = {};
+  for (const b of BIO_ORDER) {
+    const set = new Set(EVERYWHERE);
+    for (const key of (DATA.BIOME_FAUNA[b] || [])) {
+      const e = DATA.ENEMIES[key];
+      if (e) for (const d of (e.drops || [])) set.add(d.m);
+    }
+    own[b] = set;
+  }
+  DATA.BIOME_MATS = own;
+  const all = Object.keys(DATA.MATERIALS);
+  DATA.BIOME_WANTS = {};
+  BIO_ORDER.forEach((b, i) => {
+    const near = [own[b], own[BIO_ORDER[i - 1]], own[BIO_ORDER[i + 1]]].filter(Boolean);
+    // 虹のかけら(レアモンスターの落とし物)だけは売り物にしない ―
+    // 店で買えるなら、探し当てた時の値打ちが消える
+    DATA.BIOME_WANTS[b] = all.filter(m => m !== 'prism' && !near.some(s => s.has(m)));
+  });
+  DATA.BIO_ORDER = BIO_ORDER;
+})();

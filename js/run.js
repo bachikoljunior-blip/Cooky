@@ -44,7 +44,7 @@ const Run = (() => {
       cdr: Math.min(0.4, 0.02*m('lib_cdr') + 0.015*m('g_east_cdr') + 0.01*m('m_satori')),
       area: 1 + 0.04*m('g_east_area'),
       magnet: 42 * (1 + 0.12*m('lab_magnet')),
-      recruit: 0.2 + 0.002*m('camp_recruit'),   // 仲間になりやすさ(基本20%)
+      recruit: 0.2 + 0.01*m('camp_recruit'),   // 仲間になりやすさ(基本20%、カリスマ1Lvにつき+1%)
       allyCap: 250,   // 上限なし(処理負荷の保険値のみ)
       allyAtkSpd: Math.min(0.5, 0.03*m('camp_fury')),
       allyHp: (1 + 0.015*m('camp_hp')) * (1 + 0.08*m('g_green_ally')) * (1 + 0.06*m('m_bond2')),
@@ -373,7 +373,9 @@ const Run = (() => {
       // 置いていかれないように(以降はパワーアップ/スキルの仲間強化が乗る)。
       maxHp: e.maxHp * hpMul,
       hp: e.maxHp * hpMul,
-      dmg: e.dmg,
+      // 攻撃力の下限は自分のHPの1/10。硬いだけで何も削れない仲間だと、
+      // 頭数を増やしても戦線が押し上がらない(敵側も同じ床を敷く)
+      dmg: Math.max(e.dmg, e.maxHp * ALLY_DMG_FLOOR),
       speed: st.speed,
       atkCd: 0, healCd: 0, shootCd: 0,
       waitAt: null, saved: false, slot: undefined,
@@ -426,6 +428,13 @@ const Run = (() => {
     while (R.dmgLog.length > 60) R.dmgLog.shift();
     R.hitFlashT = 0.35;
     R.hitDir = (src && src.x !== undefined) ? Math.atan2(src.y - p.y, src.x - p.x) : null;
+    // 誰に殴られたのかを画面で名指しする。混戦だと方向のフラッシュだけでは
+    // どの一体にやられているのか分からず、避けようがない
+    if (src && src.x !== undefined && !src.dead) {
+      R.blame = { e: src, t: 1.1,
+        name: src.bossName || ((src.rank > 0 ? '色違いの' : '') + (src.def ? src.def.name : '???')) };
+      src.blameT = 1.1;
+    }
     // 茨の鎧
     if (st.thorns > 0 && src && !src.dead && src.hp !== undefined) {
       src.hp -= st.thorns * st.atk;
@@ -533,7 +542,9 @@ const Run = (() => {
         pk.y += (p.y - pk.y) / (d || 1) * sp * dt;
       }
       if (d < 26) {
-        if (pk.type === 'coin') { R.coins += pk.value; Sfx.coin(); effect('spark', pk.x, pk.y, { color:'#ffd766' }); }
+        if (pk.type === 'coin') { R.coins += pk.value;
+          if (R.time >= (R.quietCoinUntil || 0)) Sfx.coin();
+          effect('spark', pk.x, pk.y, { color:'#ffd766' }); }
         else if (pk.type === 'mat') {
           Skills.addMat(pk.mat, 1); R.matsGot++; Sfx.mat();
           effect('spark', pk.x, pk.y, { color: DATA.MATERIALS[pk.mat].color });
@@ -541,7 +552,8 @@ const Run = (() => {
         }
         else if (pk.type === 'potion') { p.hp = Math.min(st.maxHp, p.hp + st.maxHp * 0.2); popup(p.x, p.y-30, '+HP20%', '#7ee787'); }
         else if (pk.type === 'chest') {   // 宝箱: 開けると報酬が噴き出す
-          Sfx.buy();
+          Sfx.chest();
+          R.quietCoinUntil = R.time + 1.2;   // 噴き出したコインの音は重ねない
           effect('burst', pk.x, pk.y, { color:'#ffd766', r:34 });
           popup(pk.x, pk.y - 30, '宝箱!', '#ffd766');
           const n = 5 + Math.floor(Math.random() * 4);
@@ -602,14 +614,22 @@ const Run = (() => {
   // 大きさの段階(並/大/巨)。時間・危険度で大きい個体が増える。
   // 色(rank)と組み合わさって強さのグラデーションを作る:
   //   並r0=1 < 大r0=1.9 < 巨r0=3.4 < 並r1=4 < 大r1=7.6 < 巨r1=13.6 < 並r2=16 …(HP比)
+  // 攻撃力の床: 素の攻撃力がHPの1/10に満たない個体は、そこまで引き上げる。
+  // 「硬いのに何も削れない」個体は、敵として脅威にならず、仲間にしても頭数が増えるだけになる
+  const ALLY_DMG_FLOOR = 0.1;
   const SIZE_VIS = [1, 1.32, 1.65];      // 見た目の倍率
   const SIZE_HP  = [1, 1.9, 3.4];
   const SIZE_DMG = [1, 1.35, 1.8];
   const SIZE_COIN = [1, 1.4, 2];
+  // 大きさの段階は「時間」だけで決める。危険度(遠さ)で大型ばかりになると、
+  // 遠くへ行くほど画面が巨体で埋まって、どの土地も同じ絵になってしまう。
+  // 遠さは色違い(rank)と敵の顔ぶれで語り、体の大きさは終焉の刻(30分)へ向かう
+  // 時計として使う ― 序盤は基本みな並の大きさ、終盤に向けて巨体が混じり出す。
   function pickSize(){
-    const escal = escalNow();
-    if (Math.random() < Math.min(0.28, 0.01 + Math.max(0, escal - 0.8) * 0.07)) return 2;   // 巨
-    if (Math.random() < Math.min(0.5, 0.04 + escal * 0.11)) return 1;                        // 大
+    const min = R.time / 60;
+    const t = Math.max(0, (min - 12) / (DATA.REAPER_AT / 60 - 12));   // 12分から効き始め、30分で最大
+    if (Math.random() < 0.30 * t * t) return 2;          // 巨: 終盤に向けて増える
+    if (Math.random() < 0.02 + 0.42 * t) return 1;       // 大: 序盤は2%だけ
     return 0;
   }
 
@@ -656,7 +676,9 @@ const Run = (() => {
       def, defKey,
       x, y,
       maxHp: def.hp * RANK_HP[rank] * SIZE_HP[sizeTier] * (opts.hpMul || 1),
-      dmg: def.dmg * RANK_DMG[rank] * SIZE_DMG[sizeTier] * (opts.dmgMul || 1),
+      // 攻撃力の下限はHPの1/10。硬いだけで削れない個体を作らない(仲間になっても同じ床)
+      dmg: Math.max(def.dmg * RANK_DMG[rank] * SIZE_DMG[sizeTier] * (opts.dmgMul || 1),
+                    def.hp * RANK_HP[rank] * SIZE_HP[sizeTier] * (opts.hpMul || 1) * ALLY_DMG_FLOOR),
       coin: (opts.coin || def.coin) * SIZE_COIN[sizeTier],
       boss: !!opts.boss, bossName: opts.bossName,
       hp: 0, flash: 0, slowUntil: 0, slowMul: 1, frozenUntil: 0,
@@ -1005,6 +1027,26 @@ const Run = (() => {
     }
     return v === null ? World.isLand(x, y) : v;
   }
+  // 敵と主人公のあいだに割って入っている仲間を返す。敵から見て主人公の手前、
+  // 体が触れる位置に立っている一体だけが身代わりになる(全方位の無敵にはしない)
+  function blockerFor(e, p, er){
+    const dx = p.x - e.x, dy = p.y - e.y;
+    const d = Math.hypot(dx, dy) || 1;
+    const ux = dx / d, uy = dy / d;
+    let best = null, bestT = 1e9;
+    for (const a of R.allies) {
+      if (a.waitAt || a.joining || a.dead) continue;
+      const ax = a.x - e.x, ay = a.y - e.y;
+      const t = ax * ux + ay * uy;                  // 敵→主人公の線に沿った距離
+      if (t < 0 || t > d) continue;                 // 手前でも向こうでもない
+      const side = Math.abs(ax * uy - ay * ux);     // 線からの横のずれ
+      const ar = a.def.r * (a.sizeMul || 1);
+      if (side > ar + 6) continue;
+      if (t > er + ar + 10) continue;               // 敵の腕が届く範囲にいること
+      if (t < bestT) { bestT = t; best = a; }
+    }
+    return best;
+  }
   function canStand(def, x, y){
     // 岩場(地形の障害)の中には立てない・湧かない
     if (R.crags) for (const c of R.crags) {
@@ -1099,6 +1141,7 @@ const Run = (() => {
         R.enemies.splice(i, 1); continue;
       }
       e.flash = Math.max(0, e.flash - dt);
+      if (e.blameT > 0) e.blameT -= dt;   // 「今殴ってきた相手」の名指しは少しで消える
       e.contactCd = Math.max(0, e.contactCd - dt);
       // 燃焼・時間系
       if (e.burn > 0) { e.burnT -= dt; e.hp -= e.burn * dt * R.stats.atk; if (e.burnT <= 0) e.burn = 0;
@@ -1142,9 +1185,12 @@ const Run = (() => {
         // 威圧のオーラ: 瀕死の敵が逃げ出す
         vx = (e.x - p.x) / (pd || 1); vy = (e.y - p.y) / (pd || 1);
       } else {
-        // 気づき(アグロ): 近づくと追ってくる。一度気づけば追い続け、離れすぎると諦める
-        if (pd < e.aggro) e.mad = true;
-        else if (e.mad && pd > e.aggro + 520) e.mad = false;
+        // 気づき(アグロ): こちらの得物が届く所にいる相手は、必ずこちらに気づく。
+        // 敵の気づく距離を固定にすると、射程を伸ばすほど「撃たれても寄って来ない案山子」に
+        // なってしまうため、主人公の実際の攻撃の届く距離を下限にする
+        const notice = Math.max(e.aggro, R.reachPx || 0);
+        if (pd < notice) e.mad = true;
+        else if (e.mad && pd > notice + 520) e.mad = false;
         if (!e.mad) for (const a of R.allies) {   // 仲間が至近にいれば気づく
           if (!a.waitAt && Math.hypot(a.x - e.x, a.y - e.y) < e.aggro) { e.mad = true; break; }
         }
@@ -1210,15 +1256,20 @@ const Run = (() => {
 
       // 体の大きさ(ゴーレム・ボス等はsizeMulで大きい)を考慮した接触半径
       const er = e.def.r * (e.sizeMul || 1);
-      // 接触ダメージ(プレイヤー) ※混乱中は敵を狙うので当たらない
+      // 接触ダメージ(プレイヤー) ※混乱中は敵を狙うので当たらない。
+      // 割って入っている仲間がいれば、そちらが身代わりになる ― 軍勢に囲まれているのに
+      // 主人公だけが殴られ続けるのは、仲間を連れている意味がない
       if (!confused && pd < er + 16 && e.contactCd <= 0) {
         e.contactCd = 0.6;
-        damagePlayer(e.dmg, e);
+        const shield = blockerFor(e, p, er);
+        if (shield) damageAlly(shield, e.dmg * 0.35, e);
+        else damagePlayer(e.dmg, e);
       }
       // 接触ダメージ(仲間)。合流中は無敵なので狙わない
       if (!confused) for (const a of R.allies) {
         if (a.joining) continue;
-        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r + 4) {
+        // 仲間の体の大きさも当たり判定に入れる(大型を仲間にしたら、その体で受ける)
+        if (e.contactCd <= 0 && Math.hypot(a.x - e.x, a.y - e.y) < er + a.def.r * (a.sizeMul || 1) + 4) {
           e.contactCd = 0.6;
           damageAlly(a, e.dmg * 0.35, e);  // 仲間への接触ダメージはかなり控えめ
           break;
@@ -2314,6 +2365,15 @@ const Run = (() => {
           }
         }
       }
+      // 街道の行商人(バイオドームごと): ここでは採れない素材を担いでいる
+      if (!R.interact) {
+        for (const pd of R.peddlers || []) {
+          if (Math.hypot(p.x - pd.x, p.y - pd.y) < 62) {
+            R.interact = { type:'roadped', ped: pd, label:'E: 行商人の荷を見る' };
+            break;
+          }
+        }
+      }
       // ランドマーク: 見晴らし台(登る)と古の祠(祈る。周回に一度)
       if (!R.interact) {
         for (const lm of R.landmarks || []) {
@@ -2340,6 +2400,7 @@ const Run = (() => {
     if (!it) return;
     if (it.type === 'enterport') Game.enterPortFromRun(it.port.id);
     else if (it.type === 'peddler') openTrade('ped_' + it.base.id, '行商人');
+    else if (it.type === 'roadped') openRoadTrade(it.ped);
     else if (it.type === 'enterbase') Game.enterBaseFromRun(it.base.id);
     else if (it.type === 'board') boardBoat(it.port.seaX, it.port.seaY, it.port);
     else if (it.type === 'reboard') boardBoat(p.boatAnchor.x, p.boatAnchor.y, null);
@@ -2434,11 +2495,49 @@ const Run = (() => {
     Game.dialogChoice(who || '貿易商', 'npc_scholar', greeting, opts);
   }
 
+  // 街道の行商人: そのバイオドームでは採れない素材だけを担いでいる。
+  // 「ここでは出ない素材が、どうしても要る」という時の逃げ道 ―
+  // 隣のバイオドームで拾えるものは扱わないので、歩く代わりにはならない
+  const BIOME_JP = { grass:'草原', jungle:'密林', mist:'霧', chalk:'白亜', bones:'骨の原',
+    desert:'砂漠', storm:'嵐', frost:'氷原', moon:'月光', twilight:'黄昏', obsidian:'黒曜',
+    volcano:'火山', magma:'溶岩', makai:'魔界', void:'虚無', end:'最果て' };
+  function openRoadTrade(pd, page){
+    // 一人が扱う品はそのバイオドームで採れない素材の全て。数が多い時は
+    // 「別の荷」で見せ切る ― 分担にして買えない素材を作ると、ただの足止めになる
+    const all = (pd.goods || []).filter(m => Skills.matUnlocked(m));
+    const PER = 4;
+    const pages = Math.max(1, Math.ceil(all.length / PER));
+    const pg = ((page || 0) % pages + pages) % pages;
+    const goods = all.slice(pg * PER, pg * PER + PER);
+    const wallet = SaveSys.data.coins + R.coins;
+    const opts = [];
+    for (const m of goods) {
+      const t = DATA.MATERIALS[m].tier || 0;
+      const price = Math.round((t + 1) * 60);   // 遠くの土地の品ほど高い
+      opts.push({ label: DATA.MATERIALS[m].name + '×5(🪙' + price + ')', disabled: wallet < price,
+        cb(){
+          const fromRun = Math.min(R.coins, price);
+          R.coins -= fromRun; SaveSys.data.coins -= (price - fromRun); SaveSys.save();
+          Skills.addMat(m, 5); Sfx.buy();
+          popup(R.player.x, R.player.y - 30, DATA.MATERIALS[m].name + '×5を仕入れた', '#7ee787');
+        } });
+    }
+    if (pages > 1) opts.push({ label:'別の荷を見る(' + (pg + 1) + '/' + pages + ')', sub:true,
+      cb(){ R.noInteractT = 0; openRoadTrade(pd, pg + 1); } });
+    opts.push({ label:'やめる', sub:true });
+    const here = BIOME_JP[pd.biome] || 'この土地';
+    const line = all.length
+      ? 'この' + here + 'じゃ出ないものばかり担いでる。よそで仕入れた荷だ、値は張るよ。'
+      : 'あいにく、あんたに売れるものが今日は無い。もっと世界を見てから来な。';
+    Game.dialogChoice('行商人', 'npc_mapper', line, opts);
+  }
+
   function boardBoat(x, y, port){
     const p = R.player;
     p.onBoat = true;
     p.x = x; p.y = y;
     p.boatAnchor = null;
+    p.boatGrace = 2.2;   // 出航してすぐ岸に押し戻されない猶予
     Sfx.boat();
     // 陸の仲間は待機
     const spot = port ? { x:port.x, y:port.y } : { x:p.x, y:p.y };
@@ -2590,8 +2689,15 @@ const Run = (() => {
     }
     const nx = p.x + p.vx * dt, ny = p.y + p.vy * dt;
     if (p.onBoat) {
+      if (p.boatGrace > 0) p.boatGrace -= dt;
       const landHit = World.isLand(nx, ny);
       if (!landHit) { p.x = nx; p.y = ny; }
+      else if (p.boatGrace > 0) {
+        // 出航した直後は上陸しない。乗船地点は渚のすぐ沖なので、そのままだと
+        // 一歩動いただけで陸に戻ってしまう。この間は岸に沿って滑る
+        if (!World.isLand(nx, p.y)) p.x = nx;
+        else if (!World.isLand(p.x, ny)) p.y = ny;
+      }
       else {
         // 上陸: 少し陸側へ進めた位置に降りる
         const a = Math.atan2(ny - p.y, nx - p.x);
@@ -2618,6 +2724,7 @@ const Run = (() => {
     cragPush(p, PLAYER_BODY);
     // ランドマーク(見晴らし台・古の祠)
     R.landmarks = World.nearbyLandmarks(p.x, p.y, (R.offscreenR || 700) + 400);
+    R.peddlers = World.nearbyPeddlers(p.x, p.y, (R.offscreenR || 700) + 300);
     R.relics = World.nearbyRelics(p.x, p.y, (R.offscreenR || 700) + 400);
 
     // 探索記録(行ったことのある場所がマップに残る)
@@ -2687,6 +2794,10 @@ const Run = (() => {
     // しに戻り後の射程強化(眼力=altar_range)で伸びる。初期は敵のアグロ圏内でしか
     // 攻撃できない(近づかないと届かない)。
     R.rangeCapPx = 68 * (R.stats.range || 1);
+    // こちらの得物が実際に届く距離。敵の「気づく距離」の下限に使う ―
+    // 射程を伸ばすほど、撃たれているのに寄って来ない案山子が増えてしまうため。
+    // 素の68pxは敵のアグロ(75〜115)より短いので、初期の間合いは今までどおり変わらない
+    R.reachPx = R.rangeCapPx;
 
     Quest.tick(dt);   // 防衛クエストの進行
     director(dt);
@@ -2780,6 +2891,15 @@ const Run = (() => {
       g.beginPath(); g.arc(e.x, e.y + 3, e.def.r + 7 + Math.sin(R.time * 6) * 2, 0, 7); g.stroke();
       g.globalAlpha = 1;
     }
+    // 今こちらを殴っている相手には赤い輪と名札を出す ― 混戦で
+    // 「どれにやられているのか」が分からないまま削られるのを防ぐ
+    if (e.blameT > 0) {
+      const rr2 = e.def.r * (e.sizeMul || 1) + 8 + Math.sin(R.time * 14) * 2;
+      g.strokeStyle = 'rgba(248,81,73,' + Math.min(0.9, e.blameT) + ')'; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(e.x, e.y, rr2, 0, 7); g.stroke();
+      g.strokeStyle = 'rgba(248,81,73,' + Math.min(0.5, e.blameT * 0.5) + ')'; g.lineWidth = 1.6;
+      g.beginPath(); g.moveTo(p.x, p.y); g.lineTo(e.x, e.y); g.stroke();
+    }
     if (e.flash > 0) { g.globalAlpha = 0.6; }
     // 色違い・大きさは段階ごとに体そのものが変わる(体つきの比率と肌の質)。
     // 付け足した飾りではないので、遠目の混戦でも輪郭だけで格が分かる
@@ -2795,7 +2915,7 @@ const Run = (() => {
     if (e.hp < e.maxHp) {
       const bw = e.boss ? Math.max(48, e.def.r * (e.sizeMul || 1) * 1.3) : 28;
       const bh = e.boss ? 7 : 4;   // ボスは太めのバーで残りが読める
-      const by2 = e.y - e.def.r * (e.sizeMul || 1) - 12;
+      const by2 = e.y - e.def.r * (e.sizeMul || 1) - (e.blameT > 0 ? 26 : 12);
       if (e.boss) {
         g.fillStyle = 'rgba(0,0,0,.6)'; g.fillRect(e.x - bw / 2, by2, bw, bh);
         g.fillStyle = '#f85149';
@@ -2803,6 +2923,11 @@ const Run = (() => {
       } else {
         drawBar(g, e.x, by2, bw, e.hp / e.maxHp, '#f85149');
       }
+    }
+    // 殴ってきた相手は名前を出す(ボスの名札より優先。誰にやられたかを言葉でも示す)
+    if (e.blameT > 0 && !e.boss && !e.def.isReaper) {
+      labelChip(g, e.x, e.y - e.def.r * (e.sizeMul || 1) - 12,
+        (e.rank > 0 ? '色違いの' : '') + e.def.name, '#ff9a94');
     }
     // ボス・リーパーは名前を頭上に(名のある強敵だと一目で分かる)
     if (e.boss || e.def.isReaper) {
@@ -2971,6 +3096,19 @@ const Run = (() => {
         g.lineTo(rl.x + 6, rl.y - 22);
         g.closePath(); g.fill();
       }
+    }
+    // 街道の行商人: 荷を背負って立っている。近づくと名札が出る
+    for (const pd of R.peddlers || []) {
+      if (Math.abs(pd.x - p.x) > effW * 0.75 || Math.abs(pd.y - p.y) > effH * 0.75) continue;
+      g.fillStyle = 'rgba(0,0,0,.25)';
+      g.beginPath(); g.ellipse(pd.x, pd.y + 14, 18, 6, 0, 0, 7); g.fill();
+      g.fillStyle = '#6e4c30';                              // 背負った荷
+      rrPath(g, pd.x - 16, pd.y - 14, 15, 22, 4); g.fill();
+      g.fillStyle = '#8b5a2b';
+      rrPath(g, pd.x - 14, pd.y - 10, 11, 7, 2); g.fill();
+      Sprites.draw(g, 'npc_mapper', pd.x + 3, pd.y - 4, 40, false);
+      if (Math.hypot(p.x - pd.x, p.y - pd.y) < 240)
+        labelChip(g, pd.x, pd.y - 30, '行商人', '#ffd766');
     }
     // ランドマーク: 見晴らし台(旗の立つ高岩)と古の祠
     for (const lm of R.landmarks || []) {
@@ -3835,5 +3973,6 @@ const Run = (() => {
 
   return { start, update, draw, updateHud, doInteract, finishRun, toggleMap, tapMap, openTrade,
            warcry, startEscort, escortState, hasMark, spawnMark, spawnQuestWave,
+           __pickSizeForTest: pickSize,   // 検証用(大きさの段階の出方を測る)
            get state(){ return R; } };
 })();

@@ -283,7 +283,9 @@ body.pad-visible #touch-buttons { display:flex; }
 #dialog-hint { text-align:right; font-size:11px; color:#8b949e; margin-top:4px;
   animation:hint-bob 1.4s ease-in-out infinite; }
 @keyframes hint-bob { 0%,100% { opacity:.55; } 50% { opacity:1; } }
-#dialog-choices { display:flex; gap:8px; margin-top:8px; }
+/* 選択肢は数が増えたら折り返す(行商人の品書きのように6件並ぶことがある) */
+#dialog-choices { display:flex; flex-wrap:wrap; gap:8px; margin-top:8px; }
+#dialog-choices .dlg-choice { min-width:calc(50% - 4px); }
 .dlg-choice { flex:1; padding:12px; font-size:15px; font-weight:bold; border:none; border-radius:10px;
   background:linear-gradient(#2ea043,#1d7a33); color:#fff; cursor:pointer; }
 .dlg-choice.sub { background:#30363d; }

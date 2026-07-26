@@ -132,6 +132,10 @@ const Sfx = (() => {
     horde(){ tone(330,.12,'square',.05,80); setTimeout(()=>tone(440,.14,'square',.05,60),130); },
     die(){ tone(300,.5,'sawtooth',.08,-260); },
     boat(){ tone(200,.25,'triangle',.06, 120); },
+    // 宝箱: 買い物音(角の立つ矩形波)を流用していたうえ、中から飛び出す
+    // コイン一枚ごとにも音が鳴って、一箱でうるさく重なっていた。
+    // 柔らかい三角波の二音だけにして、コイン側は一定時間鳴らさない
+    chest(){ tone(660,.10,'triangle',.035); setTimeout(()=>tone(990,.14,'triangle',.03),90); },
     unlock(){ [523,659,784,1046].forEach((f,i)=>setTimeout(()=>tone(f,.18,'triangle',.06), i*110)); },
   };
 })();

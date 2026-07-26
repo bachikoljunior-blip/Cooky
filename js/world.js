@@ -348,6 +348,65 @@ const World = (() => {
     list.push({ key: 'lm' + cx + ',' + cy, x, y, kind: roll < 0.0022 ? 'vantage' : 'shrine' });
     return list;
   }
+  // 街道の行商人: バイオドームごとに、そこでは採れない素材を担いで立っている。
+  // 品目は DATA.BIOME_WANTS ― そのバイオドームでも、すぐ隣のバイオドームでも
+  // 採れない素材だけ。一歩隣で拾えるものは扱わないので、歩く代わりにはならない。
+  // 行商人が立てるチャンクか(陸で、街や出発点から離れていて、扱う品がある)
+  function pedSpot(cx, cy){
+    const x = (cx + 0.3 + hash(cx, cy, 152) * 0.4) * CHUNK;
+    const y = (cy + 0.3 + hash(cx, cy, 153) * 0.4) * CHUNK;
+    if (terrainAt(x, y) !== 'grass') return null;
+    if (Math.hypot(x, y) < 1400) return null;            // 出発点のすぐそばには立たない
+    for (const p of ports) if (Math.hypot(x - p.x, y - p.y) < 460) return null;
+    for (const b of bases) if (Math.hypot(x - b.x, y - b.y) < 460) return null;
+    const dome = biodomeAt(x, y);
+    const wants = (DATA.BIOME_WANTS || {})[dome.biome] || [];
+    if (!wants.length) return null;
+    return { x, y, biome: dome.biome, dcx: dome.cx, dcy: dome.cy, wants };
+  }
+  // バイオドームごとに必ず一人は立たせる。確率だけに任せると、陸の狭いドームでは
+  // たまたま誰も居ない土地が生まれ、そこで採れない素材の入手経路が消えてしまう。
+  // ドームの中で立てるチャンクのうち、決まった順で最初のものを「必ず居る一人」にする
+  // (ドームは約8チャンク四方なので、±10チャンク見れば同じ答えになる)
+  const anchorCache = new Map();
+  function domeAnchor(dcx, dcy, cx, cy){
+    const key = dcx + ',' + dcy;
+    if (anchorCache.has(key)) return anchorCache.get(key);
+    let best = null, bestH = 2;
+    for (let iy = cy - 10; iy <= cy + 10; iy++) {
+      for (let ix = cx - 10; ix <= cx + 10; ix++) {
+        const s = pedSpot(ix, iy);
+        if (!s || s.dcx !== dcx || s.dcy !== dcy) continue;
+        const h = hash(ix, iy, 157);
+        if (h < bestH) { bestH = h; best = ix + ',' + iy; }
+      }
+    }
+    anchorCache.set(key, best);
+    return best;
+  }
+  function chunkPeddlers(cx, cy){
+    const list = [];
+    const s = pedSpot(cx, cy);
+    if (!s) return list;
+    // だいたい10チャンクに1人。外れても、そのドームの「必ず居る一人」なら立つ
+    if (hash(cx, cy, 151) > 0.10 && domeAnchor(s.dcx, s.dcy, cx, cy) !== cx + ',' + cy) return list;
+    // 一人がそのバイオドームの「採れない素材」を全て担ぐ。分担にすると、
+    // 陸の少ないバイオドームでは誰にも当たらない素材が生まれてしまう
+    list.push({ key: 'ped' + cx + ',' + cy, x: s.x, y: s.y, biome: s.biome, goods: s.wants });
+    return list;
+  }
+  let pedCache = { cx: 1e9, cy: 1e9, rng: 0, list: [] };
+  function nearbyPeddlers(px, py, radius){
+    const cx = Math.floor(px / CHUNK), cy = Math.floor(py / CHUNK);
+    const rng = Math.ceil(radius / CHUNK);
+    if (pedCache.cx === cx && pedCache.cy === cy && pedCache.rng >= rng) return pedCache.list;
+    const list = [];
+    for (let iy = cy - rng; iy <= cy + rng; iy++)
+      for (let ix = cx - rng; ix <= cx + rng; ix++) list.push(...chunkPeddlers(ix, iy));
+    pedCache = { cx, cy, rng, list };
+    return list;
+  }
+
   // 先人の遺物: 朽ちた野営跡・折れた剣の塚・風化した旗。
   // 先代の死に戻り(城主オウ)の旅路を、テキストではなく地形そのものが語る。
   // 装飾のみ(当たり判定・インタラクトなし)
@@ -788,6 +847,7 @@ const World = (() => {
 
   return { isLand, landAt, coastGap, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks, nearbyRelics,
+           nearbyPeddlers,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,
            biodomeAt, seaBiomeAt, roadOf, roadDist, currentAt, routeCurrentAt, voidFactorAt };

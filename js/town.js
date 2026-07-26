@@ -453,17 +453,36 @@ const Town = (() => {
   // 港町: 東は海。岸に桟橋が伸び、西の一段高い土地に町家が並ぶ
   ARCH.harbor = (b, r, cfg) => {
     const town = { x0:b.x0 + 40, y0:b.y0 + 30, x1:-140, y1:340, lv:1 };
+    // 町家は西の高台に一列。家の高さを先に決めてから、帯の中に等間隔で割りつける。
+    // 間隔を決め打ちにすると背の高い家が下の家に食い込み、詰めすぎると路地を通れない
     const houses = [];
-    const n = 3 + Math.floor(r() * 3);
+    const top = b.y0 + 100, bot = 240;
+    const span = Math.max(200, bot - top);
+    const GAP = 40;                                   // 人がすれ違える路地幅
+    let n = Math.max(2, Math.min(5, Math.floor(span / 150)));
+    const hs = [];
+    for (let i = 0; i < n; i++) hs.push(118 + Math.floor(r() * 26));
+    let totalH = hs.reduce((s, v) => s + v, 0);
+    // 帯に収まらなければ軒数を減らす。はみ出すと門や船大工の立ち位置に家が乗る
+    while (n > 2 && totalH + (n - 1) * GAP > span) { hs.pop(); n--; totalH = hs.reduce((s, v) => s + v, 0); }
+    const gap = Math.max(GAP, (span - totalH) / Math.max(1, n - 1));
+    const ware = bld(-330, 60, 220, 150, 'e', { lv:1, kind:'ware', fac:0 });
+    let cy = top;
     for (let i = 0; i < n; i++) {
-      const hy = b.y0 + 100 + i * 108 + Math.floor(r() * 24);
-      houses.push(bld(b.x0 + 170 + Math.floor(r() * 90), hy, 180 + Math.floor(r() * 40), 120 + Math.floor(r() * 30), 'e', { lv:1, kind:'house' }));
+      const h = bld(b.x0 + 170 + Math.floor(r() * 60), cy + hs[i] / 2,
+        176 + Math.floor(r() * 34), hs[i], 'e', { lv:1, kind:'house' });
+      cy += hs[i] + gap;
+      // 荷揚げ場(船大工の仕事場)の前は空けておく。ここに家が建つと、
+      // 船大工が自分の建物の壁に埋まってしまう
+      const near = Math.abs(h.x - ware.x) < (h.w + ware.w) / 2 + 40 &&
+                   Math.abs(h.y - ware.y) < (h.h + ware.h) / 2 + 40;
+      if (!near) houses.push(h);
     }
     return {
       levels: [town],
       stairs: [{ x:-120, y:-40, w:52, h:130, lo:0, hi:1, dir:'w' },
                { x:-120, y:230, w:52, h:120, lo:0, hi:1, dir:'w' }],
-      buildings: [bld(-330, 60, 220, 150, 'e', { lv:1, kind:'ware', fac:0 })].concat(houses),
+      buildings: [ware].concat(houses),
       water: [{ x0:70, y0:b.y0, x1:b.x1, y1:b.y1, kind:'sea' }],
       shore: { x0:34, y0:b.y0, x1:70, y1:b.y1 },
       pier: { x0:-80, y0:120, x1:330, y1:210 },
@@ -587,7 +606,14 @@ const Town = (() => {
     const lv0 = levelAt(p, ox, oy);
     const tryAxis = (tx, ty) => {
       const t = { x:tx, y:ty };
-      for (const r2 of solidsOf(p)) pushOut(t, r2, rad);
+      // 一度押し出しただけだと、押し出した先がもう一つの壁の中ということがある。
+      // 角や路地では、それで壁をすり抜けて建物の中へ入れてしまっていたので、
+      // どこにも食い込まなくなるまで繰り返す
+      for (let pass = 0; pass < 4; pass++) {
+        let moved = false;
+        for (const r2 of solidsOf(p)) if (pushOut(t, r2, rad)) moved = true;
+        if (!moved) break;
+      }
       // 段の乗り換えは石段の上だけ
       const lv1 = levelAt(p, t.x, t.y);
       if (lv1 !== lv0) {

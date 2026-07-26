@@ -19,21 +19,21 @@ const Sprites = (() => {
 
     en_slime:   { kind:'blob',    c:'#7ee787', a:'#2ea043' },
     en_bat:     { kind:'flying',  c:'#8b949e', a:'#c9d1d9' },
-    en_skel:    { kind:'humanoid',c:'#e6edf3', a:'#8b949e', opt:{bones:true} },
+    en_skel:    { kind:'undead',  c:'#e6edf3', a:'#8b949e', opt:{bones:true} },
     en_wolf:    { kind:'beast',   c:'#b08968', a:'#6e4c30' },
-    en_goblin:  { kind:'humanoid',c:'#57ab5a', a:'#8b5a2b', opt:{bow:true} },
-    en_shaman:  { kind:'humanoid',c:'#c084fc', a:'#7ee787', opt:{staff:true,skullstaff:true} },
+    en_goblin:  { kind:'caster',  c:'#57ab5a', a:'#8b5a2b', opt:{bow:true} },
+    en_shaman:  { kind:'caster',  c:'#c084fc', a:'#7ee787', opt:{staff:true,skullstaff:true} },
     en_crab:    { kind:'crab',    c:'#f0883e', a:'#9aa5b1' },
-    en_orc:     { kind:'humanoid',c:'#3fb950', a:'#8b1e24', opt:{big:true,tusk:true} },
+    en_orc:     { kind:'brute',   c:'#3fb950', a:'#8b1e24', opt:{big:true,tusk:true} },
     en_golem:   { kind:'golem',   c:'#9aa5b1', a:'#58a6ff' },
     en_wisp:    { kind:'ghost',   c:'#a5d8ff', a:'#ffffff' },
     en_jelly:   { kind:'jellyfish',c:'#d2a8ff',a:'#f778ba' },
     en_shark:   { kind:'fish',    c:'#8b949e', a:'#e6edf3', opt:{fin:true} },
-    en_siren:   { kind:'humanoid',c:'#76e3ea', a:'#f778ba', opt:{staff:true,fintail:true} },
-    en_lizard:  { kind:'humanoid',c:'#2dd4bf', a:'#116329', opt:{tail:true} },
-    en_ogre:    { kind:'humanoid',c:'#d29922', a:'#8b1e24', opt:{big:true,oneeye:true} },
+    en_siren:   { kind:'caster',  c:'#76e3ea', a:'#f778ba', opt:{staff:true,fintail:true} },
+    en_lizard:  { kind:'saurian', c:'#2dd4bf', a:'#116329', opt:{} },
+    en_ogre:    { kind:'brute',   c:'#d29922', a:'#8b1e24', opt:{big:true,oneeye:true} },
     en_knight:  { kind:'armor',   c:'#484f58', a:'#f85149' },
-    en_necro:   { kind:'ghost',   c:'#6e40c9', a:'#7ee787', opt:{hood:true} },
+    en_necro:   { kind:'caster',  c:'#6e40c9', a:'#7ee787', opt:{staff:true,skullstaff:true,hood:true} },
     en_serpent: { kind:'serpent', c:'#1f6feb', a:'#76e3ea' },
     en_whelp:   { kind:'dragon',  c:'#2dd4bf', a:'#ffd766' },
     en_dragon:  { kind:'dragon',  c:'#f85149', a:'#ffd766', opt:{big:true} },
@@ -46,14 +46,14 @@ const Sprites = (() => {
     en_mush:     { kind:'blob',     c:'#f0883e', a:'#7ee787', opt:{mush:true} },
     en_iceslime: { kind:'blob',     c:'#a5d8ff', a:'#58a6ff', opt:{icy:true} },
     en_frostwolf:{ kind:'beast',    c:'#cbe6f0', a:'#5a7585', opt:{frost:true} },
-    en_yeti:     { kind:'humanoid', c:'#e6edf3', a:'#8fa8b5', opt:{big:true,fur:true} },
+    en_yeti:     { kind:'brute',    c:'#e6edf3', a:'#8fa8b5', opt:{big:true,fur:true} },
     en_icewisp:  { kind:'ghost',    c:'#a5d8ff', a:'#ffffff', opt:{icy:true} },
     en_lavaslime:{ kind:'blob',     c:'#ff6b35', a:'#8b1e24', opt:{lava:true} },
     en_emberbat: { kind:'flying',   c:'#f85149', a:'#ffa657', opt:{ember:true} },
     en_fireimp:  { kind:'demon',    c:'#ff6b35', a:'#ffd766', opt:{imp:true} },
     en_magmagolem:{kind:'golem',    c:'#733220', a:'#ff6b35', opt:{crack:true} },
     en_scarab:   { kind:'crab',     c:'#d29922', a:'#8a6d35', opt:{scarab:true} },
-    en_mummy:    { kind:'humanoid', c:'#b8b098', a:'#8a6d35', opt:{wrap:true} },
+    en_mummy:    { kind:'undead',   c:'#b8b098', a:'#8a6d35', opt:{wrap:true} },
     en_sandwurm: { kind:'serpent',  c:'#b09252', a:'#d29922', opt:{wurm:true} },
     en_shade:    { kind:'ghost',    c:'#6e40c9', a:'#c084fc', opt:{hood:true,tatter:true} },
     en_voidwisp: { kind:'ghost',    c:'#a78bfa', a:'#76e3ea', opt:{voidEye:true} },
@@ -61,7 +61,7 @@ const Sprites = (() => {
     en_stormwisp:{ kind:'ghost',    c:'#fde047', a:'#8b949e', opt:{bolt:true} },
     en_galehound:{ kind:'beast',    c:'#8b949e', a:'#76e3ea', opt:{gale:true} },
     en_kingslime: { kind:'blob',     c:'#2ea043', a:'#7ee787', opt:{king:true} },
-    en_frostgiant:{ kind:'humanoid', c:'#a5d8ff', a:'#5a7585', opt:{big:true,icicle:true} },
+    en_frostgiant:{ kind:'brute',    c:'#a5d8ff', a:'#5a7585', opt:{big:true,icicle:true} },
     en_magmatitan:{ kind:'golem',    c:'#8b1e24', a:'#ff6b35', opt:{arms:true} },
     en_voidtitan: { kind:'golem',    c:'#2d1b4e', a:'#a78bfa', opt:{shards:true} },
 
@@ -250,8 +250,9 @@ const Sprites = (() => {
           g.fillStyle=c; g.beginPath(); g.ellipse(0,4,bw,bh,0,0,7); g.fill();
         }
         g.fillStyle=a; g.beginPath(); g.ellipse(0,7,bw*0.68,7,0,0,7); g.fill();
-        if(o.mush){                                  // キノコ: 斑点のある傘
-          g.fillStyle=a; g.beginPath(); g.arc(0,-6,15,Math.PI,0); g.closePath(); g.fill();
+        if(o.mush){                                  // キノコ: 体より広い傘(輪郭でキノコと分かる)
+          g.fillStyle=a; g.beginPath();
+          g.moveTo(-22,-4); g.quadraticCurveTo(0,-24,22,-4); g.lineTo(14,-1); g.lineTo(-14,-1); g.closePath(); g.fill();
           g.fillStyle='#fff8e7';
           for(const[dx,dy,r2]of[[-8,-10,2.6],[0,-14,3.2],[8,-9,2.4]]){g.beginPath();g.arc(dx,dy,r2,0,7);g.fill();}
         }
@@ -261,10 +262,13 @@ const Sprites = (() => {
           g.beginPath(); g.moveTo(9,-3); g.lineTo(4,5); g.stroke(); g.lineCap='butt';
           g.fillStyle=a; g.beginPath(); g.arc(-9,16,2.4,0,7); g.arc(7,17,1.8,0,7); g.fill();
         }
-        if(o.king){                                  // 王: 小さな体を背に乗せる
-          g.fillStyle=c; g.beginPath(); g.ellipse(-9,-11,8,6.5,0,0,7); g.fill();
-          g.fillStyle=a; g.beginPath(); g.ellipse(-9,-9,5,3.4,0,0,7); g.fill();
-          g.fillStyle='#0d1117'; g.beginPath(); g.arc(-11,-12,1.4,0,7); g.arc(-6,-12,1.4,0,7); g.fill();
+        if(o.king){                  // 王: 幅広の体の上に、小さな体を三つ積み上げた輪郭
+          g.fillStyle=c;
+          g.beginPath(); g.ellipse(-11,-9,7.5,6,0,0,7); g.fill();
+          g.beginPath(); g.ellipse(2,-13,6,5,0,0,7); g.fill();
+          g.beginPath(); g.ellipse(13,-8,5,4.2,0,0,7); g.fill();
+          g.fillStyle=a; g.beginPath(); g.ellipse(-11,-8,4.6,3,0,0,7); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(-13,-10,1.3,0,7); g.arc(-8.6,-10,1.3,0,7); g.fill();
         }
         eye(-5,0); eye(5,0); break; }
       case 'flying':
@@ -281,6 +285,100 @@ const Sprites = (() => {
             g.beginPath(); g.arc(dx,dy,r2,0,7); g.fill(); }
         }
         eye(-3,-1,2); eye(3,-1,2); break;
+      // 重量級(殴る): 肩が異様に張った台形の胴。頭は肩に沈み、腕は膝まで垂れる。
+      // 遠目でも「近づかれたら潰される」と分かる骨格
+      case 'brute': {
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-15,-6); g.lineTo(15,-6); g.lineTo(11,17); g.lineTo(-11,17); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(-16,-9); g.quadraticCurveTo(0,-15,16,-9); g.lineTo(15,-4); g.lineTo(-15,-4); g.closePath(); g.fill();
+        g.beginPath(); g.arc(0,-13,6.6,0,7); g.fill();                 // 肩に沈んだ小さな頭
+        g.fillStyle=c;
+        for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*14,-6); g.lineTo(sx*20,-4);
+          g.lineTo(sx*18,13); g.lineTo(sx*12,12); g.closePath(); g.fill(); }   // 垂れた太い腕
+        g.fillStyle='rgba(0,0,0,.18)'; g.fillRect(-11,4,22,3);         // 胴の帯(重心を下に見せる)
+        if(o.fur){ g.fillStyle=c;                                      // 毛むくじゃら: 肩の輪郭がギザギザ
+          for(let i=-5;i<=5;i++){ g.beginPath();
+            g.moveTo(i*3-1.6,-9); g.lineTo(i*3,-15); g.lineTo(i*3+1.6,-9); g.closePath(); g.fill(); } }
+        if(o.icicle){ g.fillStyle='#cfeaf5';                           // 肩当てから下がる氷柱
+          for(const sx of[-1,1]) for(let i=0;i<2;i++){ g.beginPath();
+            g.moveTo(sx*(14+i*4),12); g.lineTo(sx*(16+i*4),22); g.lineTo(sx*(18+i*4),12); g.closePath(); g.fill(); } }
+        if(o.tusk){ g.fillStyle='#f0f4f8';                             // 下あごから跳ね上がる2本牙
+          for(const sx of[-1,1]){ g.beginPath();
+            g.moveTo(sx*3,-9); g.lineTo(sx*5,-17); g.lineTo(sx*6.4,-9); g.closePath(); g.fill(); } }
+        if(o.oneeye){                                                  // 一つ目の鬼: 単眼と担いだ棍棒
+          g.fillStyle='#6e4c30'; g.save(); g.translate(20,0); g.rotate(-0.35);
+          g.fillRect(-3.4,-18,7,28); g.fillStyle='#8b5a2b'; rr(g,-7,-25,14,11,3); g.restore();
+          g.fillStyle='#fff'; g.beginPath(); g.arc(0,-13,4.4,0,7); g.fill();
+          g.fillStyle='#0d1117'; g.beginPath(); g.arc(0,-13,2.2,0,7); g.fill();
+        } else { eye(-3,-13,2.2); eye(3,-13,2.2); }
+        break; }
+      // 不死(よろめく): 縦に細く、肩が落ち、胴に隙間が空いて向こうが透ける
+      case 'undead': {
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-7,-6); g.lineTo(7,-6); g.lineTo(6,16); g.lineTo(-6,16); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(-9,-5); g.quadraticCurveTo(0,-9,9,-5); g.lineTo(8,-2); g.lineTo(-8,-2); g.closePath(); g.fill();
+        g.beginPath(); g.arc(0,-14,7.2,0,7); g.fill();                 // 頭は大きめ(骨と頭蓋)
+        g.strokeStyle=c; g.lineWidth=2.6; g.lineCap='round';            // 細い垂れた腕
+        for(const sx of[-1,1]){ g.beginPath(); g.moveTo(sx*8,-3); g.lineTo(sx*12,9); g.stroke(); }
+        g.lineCap='butt';
+        g.globalCompositeOperation='destination-out';                   // 胴に空く隙間(向こうが透ける)
+        for(let i=0;i<3;i++){ g.fillRect(-4,0+i*5,8,2); }
+        g.globalCompositeOperation='source-over';
+        if(o.bones){ g.strokeStyle=a; g.lineWidth=1.5;                  // 骨: あばらと背骨
+          for(let i=0;i<3;i++){ g.beginPath(); g.moveTo(-5,1+i*5); g.lineTo(5,1+i*5); g.stroke(); }
+          g.beginPath(); g.moveTo(0,-1); g.lineTo(0,15); g.stroke(); }
+        if(o.wrap){ g.strokeStyle='#e6dcc4'; g.lineWidth=2.2;           // 包帯: 斜めの巻きと垂れた端
+          for(let i=0;i<4;i++){ g.beginPath(); g.moveTo(-7,-2+i*5); g.lineTo(7,-4+i*5); g.stroke(); }
+          g.beginPath(); g.moveTo(-6,-16); g.lineTo(5,-12); g.stroke();
+          g.fillStyle='#e6dcc4'; g.fillRect(6,-1,2.2,13); }
+        g.fillStyle='#0d1117'; g.beginPath(); g.arc(-2.8,-15,2,0,7); g.arc(2.8,-15,2,0,7); g.fill();   // 落ちくぼんだ眼窩
+        break; }
+      // 術者(遠くから撃つ・癒す): 細身に、体の外へ大きく突き出る得物と広がった裾
+      case 'caster': {
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-6,-8); g.lineTo(6,-8); g.lineTo(13,18); g.lineTo(-13,18); g.closePath(); g.fill();  // 広がる裾
+        g.beginPath(); g.arc(0,-14,7,0,7); g.fill();
+        g.fillStyle=a; g.beginPath();                                   // 肩の掛け布(左右非対称で術者と分かる)
+        g.moveTo(-8,-8); g.lineTo(8,-8); g.lineTo(4,-1); g.lineTo(-4,-1); g.closePath(); g.fill();
+        if(o.fintail){ g.fillStyle=a; g.beginPath();                    // 脚ではなく尾ひれ
+          g.moveTo(-13,16); g.lineTo(0,12); g.lineTo(13,16);
+          g.lineTo(18,25); g.lineTo(0,19); g.lineTo(-18,25); g.closePath(); g.fill(); }
+        if(o.staff){ g.strokeStyle=a; g.lineWidth=3;                    // 体の外へ長く突き出る杖
+          g.beginPath(); g.moveTo(15,-24); g.lineTo(15,14); g.stroke();
+          if(o.skullstaff){ g.fillStyle='#e6edf3'; g.beginPath(); g.arc(15,-25,5,0,7); g.fill();
+            g.fillStyle='#0d1117'; g.beginPath(); g.arc(13.3,-25.6,1.4,0,7); g.arc(16.7,-25.6,1.4,0,7); g.fill();
+            g.fillRect(14,-23,2,2.2);
+          } else { g.fillStyle=a; g.beginPath(); g.arc(15,-24,4.4,0,7); g.fill(); } }
+        if(o.bow){ g.strokeStyle=a; g.lineWidth=2.6;                    // 大きく張った弓
+          g.beginPath(); g.arc(15,-2,12,-1.25,1.25); g.stroke();
+          g.strokeStyle='#e6dcc4'; g.lineWidth=1; g.beginPath();
+          g.moveTo(19,-13); g.lineTo(19,10); g.stroke(); }
+        eye(-3,-14,2.2); eye(3,-14,2.2); break; }
+      // 竜人(前かがみ・尾): 首が前に出て、後ろへ長い尾が伸びる
+      case 'saurian': {
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-10,-2); g.lineTo(8,-4); g.lineTo(10,16); g.lineTo(-8,16); g.closePath(); g.fill();
+        g.beginPath(); g.moveTo(-9,2); g.quadraticCurveTo(-24,6,-22,-6);   // 太い尾
+        g.quadraticCurveTo(-14,0,-8,-2); g.closePath(); g.fill();
+        g.beginPath(); g.ellipse(7,-11,9,6.5,0.25,0,7); g.fill();       // 前へ突き出た頭
+        g.fillStyle=a; g.beginPath();                                   // 背びれ
+        for(let i=0;i<3;i++){ g.moveTo(-4+i*5,-4); g.lineTo(-2+i*5,-11); g.lineTo(0+i*5,-4); }
+        g.fill();
+        eye(9,-12,2.2); break; }
+      // 重装(硬い): 角ばった鎧。兜のスリット・張り出した肩当て・構えた長剣
+      case 'armor': {
+        g.fillStyle=c;
+        g.beginPath(); g.moveTo(-11,-4); g.lineTo(11,-4); g.lineTo(8,18); g.lineTo(-8,18); g.closePath(); g.fill();
+        for(const sx of[-1,1]){ g.beginPath();                          // 張り出した肩当て(角つき)
+          g.moveTo(sx*9,-8); g.lineTo(sx*21,-5); g.lineTo(sx*19,4); g.lineTo(sx*10,2); g.closePath(); g.fill(); }
+        g.beginPath(); g.moveTo(-8,-20); g.lineTo(8,-20); g.lineTo(7,-6); g.lineTo(-7,-6); g.closePath(); g.fill();  // 兜
+        g.fillStyle='#0d1117'; g.fillRect(-6,-15,12,3.4);               // 面頬のスリット
+        g.fillStyle=a; g.fillRect(-6.5,-14.4,4,2.2);                    // 隙間から覗く眼光
+        g.fillStyle='#9aa5b1';                                          // 長剣(体の外へ長く突き出る)
+        g.save(); g.translate(17,2); g.rotate(-0.28);
+        g.fillRect(-2,-26,4,32); g.fillStyle=a; g.fillRect(-5,4,10,3); g.restore();
+        g.fillStyle='rgba(255,255,255,.14)'; g.fillRect(-8,0,16,2.6);   // 胸当ての光
+        break; }
       case 'humanoid':
         g.fillStyle=c; rr(g,-9,-4,18,20,5);
         g.beginPath(); g.arc(0,-12,8,0,7); g.fill();
@@ -447,17 +545,28 @@ const Sprites = (() => {
         }
         eye(-4,-2,2.4); eye(4,-2,2.4); break;
       case 'golem':
-        if(o.shards){                 // 虚無: 本体の周りに欠片が浮く
-          g.fillStyle=c; g.globalAlpha=.9; rr(g,-12,-12,24,24,6); g.globalAlpha=1;
+        if(o.shards){                 // 虚無: 台形の胴の周りに欠片が浮く
+          g.fillStyle=c; g.globalAlpha=.9; g.beginPath();
+          g.moveTo(-10,-14); g.lineTo(10,-14); g.lineTo(15,15); g.lineTo(-15,15); g.closePath(); g.fill();
+          g.globalAlpha=1;
           g.fillStyle=a;
-          for(const[dx,dy,r2]of[[-19,-6,4],[18,-10,3.4],[16,8,3],[-17,10,3.4]]){
+          for(const[dx,dy,r2]of[[-21,-8,4.4],[20,-12,3.8],[18,9,3.4],[-19,12,3.8],[0,-22,3.4]]){
             g.beginPath(); g.moveTo(dx,dy-r2); g.lineTo(dx+r2,dy); g.lineTo(dx,dy+r2); g.lineTo(dx-r2,dy); g.closePath(); g.fill(); }
-        } else if(o.arms){            // 巨腕: 左右に張り出す太い腕
-          g.fillStyle=c; rr(g,-13,-12,26,26,6);
-          g.fillStyle=c; rr(g,-24,-4,11,16,4); rr(g,13,-4,11,16,4);
-          g.fillStyle='rgba(255,255,255,.12)'; rr(g,-22,-2,7,5,2); rr(g,15,-2,7,5,2);
+        } else if(o.arms){            // 巨腕: 台形の胴から、地面近くまで届く極太の腕
+          g.fillStyle=c; g.beginPath();
+          g.moveTo(-9,-14); g.lineTo(9,-14); g.lineTo(13,14); g.lineTo(-13,14); g.closePath(); g.fill();
+          for(const sx of[-1,1]){ g.beginPath();
+            g.moveTo(sx*10,-12); g.lineTo(sx*26,-7); g.lineTo(sx*23,18); g.lineTo(sx*12,16); g.closePath(); g.fill(); }
+          g.fillStyle='rgba(255,255,255,.12)'; rr(g,-24,0,8,6,2); rr(g,16,0,8,6,2);
         } else {
-          g.fillStyle=c; rr(g,-14,-14,28,28,6);
+          // 岩の巨人: 上が狭く下が広い台形の胴に、地面近くまで垂れる太い腕。
+          // ただの角丸四角だと「四角い塊」以上の情報がなく、他の敵と区別できない
+          g.fillStyle=c;
+          g.beginPath(); g.moveTo(-11,-15); g.lineTo(11,-15); g.lineTo(16,16); g.lineTo(-16,16); g.closePath(); g.fill();
+          for(const sx of[-1,1]){ g.beginPath();
+            g.moveTo(sx*11,-12); g.lineTo(sx*23,-9); g.lineTo(sx*21,15); g.lineTo(sx*13,14); g.closePath(); g.fill(); }
+          g.fillStyle='rgba(0,0,0,.20)';                                // 岩の継ぎ目
+          g.fillRect(-10,-2,20,2.4); g.fillRect(-13,8,26,2.4);
         }
         if(o.crack){                  // 溶岩: 体を走る割れ目と、足元へ滴る溶岩
           g.fillStyle=a;
@@ -521,9 +630,13 @@ const Sprites = (() => {
         }
         break;
       case 'jellyfish':
+        // 傘より触手を主役にする。細い線だと輪郭に出ず、ただのドームに見えてしまう
+        g.strokeStyle=c; g.lineWidth=4.6; g.lineCap='round';
+        for(let i=-2;i<=2;i++){ g.beginPath(); g.moveTo(i*5,-2);
+          g.quadraticCurveTo(i*7+5,10,i*8,22); g.stroke(); }
+        g.lineCap='butt';
         g.fillStyle=c; g.beginPath(); g.arc(0,-3,13,Math.PI,0); g.closePath(); g.fill();
-        g.strokeStyle=a; g.lineWidth=2.5;
-        for(let i=-2;i<=2;i++){ g.beginPath(); g.moveTo(i*5,-2); g.quadraticCurveTo(i*5+3,8,i*5,15); g.stroke(); }
+        g.strokeStyle=a; g.lineWidth=2; g.beginPath(); g.arc(0,-3,9,Math.PI,0); g.stroke();
         eye(-4,-6,2); eye(4,-6,2); break;
       case 'fish':
         g.fillStyle=c; g.beginPath(); g.ellipse(0,0,17,9,0,0,7); g.fill();
