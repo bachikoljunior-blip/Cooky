@@ -19,6 +19,7 @@
       <div id="hp-wrap"><div id="hp-bar"></div><span id="hp-text"></span></div>
       <div id="timer">00:00</div>
       <div id="coin-view">🪙 <span id="coin-text">0</span></div>
+      <div id="army-view">⚑ <span id="army-text">0</span></div>
       <div id="danger-view"></div>
       <div id="dist-view"></div>
     </div>
@@ -95,7 +96,7 @@
   <div id="help-panel" class="panel hidden">
     <h2>あそびかた</h2>
     <div class="help-body">
-      <p>■ <b>移動</b>: WASD / 矢印キー / 画面左の移動パネル。<b>攻撃は自動</b>。</p>
+      <p>■ <b>移動</b>: WASD / 矢印キー / 触れる画面では左下の移動パネル。<b>攻撃は自動</b>。</p>
       <p>■ <b>Space</b>: 突撃の号令 ― 少しの間、自分と軍勢が奮い立つ。</p>
       <p>■ <b>E</b>: 調べる・話す / <b>Tab</b>: スキル / <b>N</b>: 地図 / <b>P</b>: 一時停止 / <b>M</b>: ミュート</p>
       <p>■ 敵や木・岩をこわすと<b>素材</b>と<b>お金</b>が出る。素材が揃ったスキルは<b>スキル画面(Tab)</b>に現れ、その場で取れる。</p>
@@ -112,8 +113,10 @@
   <div id="pause-panel" class="panel hidden">
     <h2>一時停止</h2>
     <div class="help-body"><p id="pause-info"></p></div>
-    <button id="pause-pad" class="big-btn sub">移動パネル: 表示</button>
     <button id="pause-resume" class="big-btn">再開 (P)</button>
+    <button id="pause-help" class="big-btn quiet">あそびかた</button>
+    <button id="pause-pad" class="big-btn quiet">移動パネル: 表示</button>
+    <button id="pause-title" class="big-btn quiet hidden">タイトルへ戻る</button>
     <button id="pause-retire" class="big-btn danger">リタイアして魂の広場へ</button>
   </div>
 </div>

@@ -29,8 +29,11 @@ const Input = (() => {
   const knob = document.getElementById('stick-knob');
   const R = 52;
 
+  // 触れる画面の端末かどうか。自動のときは、指で遊ぶ端末なら最初から出し、
+  // 鍵盤しかない机上の画面には出さない(一度でも画面に触れたらそこから出す)
+  const touchDevice = ('ontouchstart' in window) || (navigator.maxTouchPoints || 0) > 0;
   function padVisible(){
-    return padMode === 'on' || (padMode === 'auto' && touchedOnce);
+    return padMode === 'on' || (padMode === 'auto' && (touchedOnce || touchDevice));
   }
   function refreshPad(){
     document.body.classList.toggle('pad-visible', padVisible());
@@ -101,5 +104,6 @@ const Input = (() => {
   function endFrame(){ for (const k in pressedOnce) pressedOnce[k] = false; }
 
   refreshPad();
-  return { takeSig(){ const q = sigQueued; sigQueued = false; return q; }, axis, once, endFrame, keys, setPadMode, getPadMode };
+  return { takeSig(){ const q = sigQueued; sigQueued = false; return q; }, axis, once, endFrame, keys,
+           setPadMode, getPadMode, padOn: padVisible };
 })();

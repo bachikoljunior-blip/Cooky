@@ -1197,130 +1197,123 @@ const Sprites = (() => {
   }
 
   // ---- 色違い(段階)・大きさ(段階)ごとの固有の姿 ----
-  // 色を塗る/拡大するだけでは「同じ魔物」に見えてしまう。段階ごとに造形そのものを
-  // 変え、姿かたちで「格が違う」と分かるようにする(生成は一度だけでキャッシュ)。
-  // 段階ごとに「造形の言語」自体を変える ― 同じモチーフ(尖った突起・肩の装甲…)を
-  // 使い回すと、色や大小が違うだけの同じ絵に見えてしまう。
-  //   色違い: 1金=硬い双角 / 2紅=立ち上る炎 / 3紫=装身具(王冠と宝珠) / 4青白=浮かぶ氷の光輪
-  //   大きさ: 1大=体を巻く革帯と古傷(線) / 2巨=足元の地割れと砂埃(地形と量感)
-  const RANK_ORN = [
+  // 色を塗る/拡大するだけでは「同じ魔物」に見えてしまう。段階ごとに**体そのもの**を
+  // 変える ― 角や王冠のような「付け足した物」は置かない。
+  // 変えるのは (1) 体つき(縦横の比率) (2) 体の表面の質 (3) 輪郭の硬さ の3つだけで、
+  // どれも体の内側に収まる。生成は一度だけでキャッシュする。
+  //   色違い: 1金=body硬化(厚い縁で装甲のような体) / 2紅=膨れて体に赤熱の亀裂 /
+  //           3紫=細く伸び、下半身が影に溶ける / 4青白=体が結晶の面に割れる
+  //   大きさ: 1大=肉厚(横に張り、下半分が重く沈む) / 2巨=岩のような粗い肌
+  const RANK_BODY = [
     null,
-    { c:'#ffd766', e:'#8a6a1e' },
-    { c:'#f85149', e:'#7a1f1a' },
-    { c:'#c084fc', e:'#4a2a7a' },
-    { c:'#a5f3fc', e:'#2a6a80' },
+    { sx:0.96, sy:1.06, edge:'#8a6a1e', glow:null },              // 金: 硬化
+    { sx:1.07, sy:1.06, edge:null,      glow:'#ff7b4a' },         // 紅: 膨張と亀裂
+    { sx:0.92, sy:1.14, edge:null,      glow:null },              // 紫: 細く伸びる
+    { sx:1.00, sy:1.00, edge:'#bfefff', glow:null },              // 青白: 結晶化
   ];
-  function drawRankOrn(g, rank){
-    const o = RANK_ORN[rank]; if (!o) return;
-    g.save(); g.translate(S / 2, S / 2);
-    g.lineJoin = 'round';
-    if (rank === 1) {          // 双角: 頭の両脇から反り上がる金の角
-      g.strokeStyle = o.e; g.lineWidth = 6; g.lineCap = 'round';
-      for (const sx of [-1, 1]) {
-        g.beginPath(); g.moveTo(sx * 7, -17);
-        g.quadraticCurveTo(sx * 15, -23, sx * 13, -30); g.stroke();
-      }
-      g.strokeStyle = o.c; g.lineWidth = 3;
-      for (const sx of [-1, 1]) {
-        g.beginPath(); g.moveTo(sx * 7, -17);
-        g.quadraticCurveTo(sx * 15, -23, sx * 13, -30); g.stroke();
-      }
-    } else if (rank === 2) {   // 立ち上る炎: 頭上で揺らめく紅い火(角とは似ない柔らかい波形)
-      g.fillStyle = o.e;
-      g.beginPath();
-      g.moveTo(-12, -14);
-      g.bezierCurveTo(-14, -22, -6, -22, -5, -30);
-      g.bezierCurveTo(-1, -23, 3, -27, 3, -31);
-      g.bezierCurveTo(7, -25, 13, -21, 12, -14);
-      g.closePath(); g.fill();
-      g.fillStyle = o.c;
-      g.beginPath();
-      g.moveTo(-7, -14);
-      g.bezierCurveTo(-8, -19, -3, -20, -2, -26);
-      g.bezierCurveTo(1, -21, 5, -22, 5, -25);
-      g.bezierCurveTo(7, -20, 8, -18, 7, -14);
-      g.closePath(); g.fill();
-      g.fillStyle = '#ffe0a8';
-      g.beginPath();
-      g.moveTo(-3, -14);
-      g.bezierCurveTo(-4, -17, 0, -18, 0, -22);
-      g.bezierCurveTo(2, -18, 3, -17, 3, -14);
-      g.closePath(); g.fill();
-    } else if (rank === 3) {   // 王冠と宝珠: 頭上の紫の冠、両脇に浮かぶ珠
-      g.fillStyle = o.e;
-      g.beginPath();
-      g.moveTo(-11, -17); g.lineTo(-11, -25); g.lineTo(-5.5, -20); g.lineTo(0, -28);
-      g.lineTo(5.5, -20); g.lineTo(11, -25); g.lineTo(11, -17);
-      g.closePath(); g.fill();
-      g.fillStyle = o.c; g.fillRect(-11, -19.5, 22, 3.2);
-      for (const [x, y] of [[-16, -22], [16, -22], [0, -30]]) {
-        g.fillStyle = o.c; g.beginPath(); g.arc(x, y, 2.8, 0, 7); g.fill();
-        g.fillStyle = '#fff'; g.globalAlpha = 0.7;
-        g.beginPath(); g.arc(x - 0.9, y - 0.9, 1, 0, 7); g.fill(); g.globalAlpha = 1;
-      }
-    } else if (rank === 4) {   // 氷の光輪: 頭上に浮かぶ輪(突起でも装身具でもない環)
-      g.save(); g.translate(0, -23);
-      g.strokeStyle = o.e; g.lineWidth = 5;
-      g.beginPath(); g.ellipse(0, 0, 15, 5, 0, 0, 7); g.stroke();
-      g.strokeStyle = o.c; g.lineWidth = 2.4;
-      g.beginPath(); g.ellipse(0, 0, 15, 5, 0, 0, 7); g.stroke();
-      g.fillStyle = '#fff'; g.globalAlpha = 0.75;   // 輪の上で光る粒
-      for (const a2 of [0.4, 2.5, 4.4]) {
-        g.beginPath(); g.arc(Math.cos(a2) * 15, Math.sin(a2) * 5, 1.7, 0, 7); g.fill();
-      }
-      g.globalAlpha = 1;
+  const SIZE_BODY = [null, { sx:1.13, sy:0.95 }, { sx:1.21, sy:0.90 }];
+
+  // 体つき(縦横比)を変えて描く。付け足しではなく、体そのものの形が変わる
+  function drawBody(g, src, rank, tier){
+    const r = RANK_BODY[rank] || null, t = SIZE_BODY[tier] || null;
+    const sx = (r ? r.sx : 1) * (t ? t.sx : 1);
+    const sy = (r ? r.sy : 1) * (t ? t.sy : 1);
+    // 金: 体の縁を厚くして装甲のような肌にする(輪郭を体の一部として太らせる)
+    if (r && r.edge && rank === 1) {
+      g.save(); g.translate(S / 2, S / 2); g.scale(sx, sy);
+      g.globalAlpha = 0.85;
+      for (const [dx, dy] of [[-2, 0], [2, 0], [0, -2], [0, 2], [-1.5, -1.5], [1.5, 1.5]])
+        g.drawImage(src, -S / 2 + dx, -S / 2 + dy, S, S);
+      g.globalCompositeOperation = 'source-atop';
+      g.globalAlpha = 0.55; g.fillStyle = r.edge; g.fillRect(-S / 2, -S / 2, S, S);
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
       g.restore();
     }
+    g.save(); g.translate(S / 2, S / 2); g.scale(sx, sy);
+    g.drawImage(src, -S / 2, -S / 2, S, S);
     g.restore();
   }
-  function drawSizeOrn(g, tier){
-    if (!tier) return;
-    g.save(); g.translate(S / 2, S / 2);
-    // 顔(目・口)は隠さない。色違いの飾りは頭上、大きさは体の下半分と足元 ―
-    // 造形の言語も分ける(大=線、巨=地形)ので、見た目のモチーフが被らない
-    if (tier === 1) {          // 大: 体を巻く革帯と古傷(線の造形)
-      g.strokeStyle = '#5a4632'; g.lineWidth = 3.4; g.lineCap = 'butt';
-      g.beginPath(); g.moveTo(-16, 4); g.quadraticCurveTo(0, 9, 16, 4); g.stroke();
-      g.strokeStyle = '#7a6144'; g.lineWidth = 1.2;
-      g.beginPath(); g.moveTo(-16, 3.2); g.quadraticCurveTo(0, 8.2, 16, 3.2); g.stroke();
-      g.fillStyle = '#c9a227';   // 帯の留め金
-      g.beginPath(); g.arc(0, 6.4, 2.4, 0, 7); g.fill();
-      g.strokeStyle = 'rgba(255,235,235,.6)'; g.lineWidth = 1.5; g.lineCap = 'round';
-      g.beginPath(); g.moveTo(-10, 10); g.lineTo(-4, 16); g.stroke();   // 古傷
-      g.lineCap = 'butt';
-    } else {                   // 巨: 踏み割れた地面と舞い上がる砂埃(地形の造形)
-      g.strokeStyle = '#2a313b'; g.lineWidth = 2.2; g.lineCap = 'round';
-      const cracks = [[-18, 20, -8, 15], [-8, 15, -2, 21], [4, 22, 12, 16], [12, 16, 20, 20]];
-      for (const [x1, y1, x2, y2] of cracks) {
-        g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
+
+  // 体の表面の質を変える。source-atop で「体の中だけ」に乗るので、
+  // 貼り付けた物には見えず、その魔物の肌そのものが変わったように見える
+  function skinOf(g, rank, tier){
+    g.save();
+    g.globalCompositeOperation = 'source-atop';
+    g.translate(S / 2, S / 2);
+    if (rank === 2) {                    // 紅: 体を走る赤熱の亀裂
+      g.strokeStyle = 'rgba(255,120,70,.85)'; g.lineWidth = 2; g.lineCap = 'round';
+      for (const p2 of [[[-13, -8], [-5, 0], [-9, 9]], [[8, -11], [3, -1], [11, 6]], [[-2, 6], [4, 13]]]) {
+        g.beginPath(); g.moveTo(p2[0][0], p2[0][1]);
+        for (let i = 1; i < p2.length; i++) g.lineTo(p2[i][0], p2[i][1]);
+        g.stroke();
       }
-      g.strokeStyle = 'rgba(20,26,34,.5)'; g.lineWidth = 4.5;   // 沈み込む影
-      g.beginPath(); g.moveTo(-15, 18.5); g.lineTo(15, 18.5); g.stroke();
-      g.fillStyle = 'rgba(190,180,160,.5)';   // 舞い上がる砂埃
-      for (const [x, y, r2] of [[-21, 13, 3.4], [-16, 8, 2.2], [20, 12, 3.8], [16, 7, 2.4]]) {
+      g.strokeStyle = 'rgba(255,220,150,.55)'; g.lineWidth = 0.9;
+      g.beginPath(); g.moveTo(-13, -8); g.lineTo(-5, 0); g.lineTo(-9, 9); g.stroke();
+    } else if (rank === 3) {             // 紫: 下半身が影に溶ける(体の存在が薄れる)
+      const gr = g.createLinearGradient(0, 2, 0, 24);
+      gr.addColorStop(0, 'rgba(60,30,90,0)');
+      gr.addColorStop(1, 'rgba(30,12,50,.72)');
+      g.fillStyle = gr; g.fillRect(-S / 2, 2, S, S / 2 - 2);
+    } else if (rank === 4) {             // 青白: 体が結晶の面に割れる
+      g.fillStyle = 'rgba(235,252,255,.30)';
+      for (const p2 of [[[-14, -6], [-4, -12], [-2, 2], [-12, 6]], [[3, -10], [13, -3], [8, 8], [1, 3]],
+                        [[-7, 8], [2, 6], [0, 17], [-8, 15]]]) {
+        g.beginPath(); g.moveTo(p2[0][0], p2[0][1]);
+        for (let i = 1; i < p2.length; i++) g.lineTo(p2[i][0], p2[i][1]);
+        g.closePath(); g.fill();
+      }
+      g.strokeStyle = 'rgba(160,230,255,.6)'; g.lineWidth = 1;
+      g.beginPath(); g.moveTo(-4, -12); g.lineTo(-2, 2); g.lineTo(2, 6); g.stroke();
+    }
+    if (tier === 1) {                    // 大: 下半分が重く沈む(肉の厚み)
+      const gr = g.createLinearGradient(0, 0, 0, 22);
+      gr.addColorStop(0, 'rgba(0,0,0,0)'); gr.addColorStop(1, 'rgba(0,0,0,.38)');
+      g.fillStyle = gr; g.fillRect(-S / 2, 0, S, S / 2);
+    } else if (tier === 2) {             // 巨: 岩のような粗い肌
+      g.fillStyle = 'rgba(0,0,0,.26)';
+      for (const [x, y, r2] of [[-12, -4, 4.5], [5, -9, 3.6], [10, 4, 5.2], [-6, 9, 4.2], [1, 15, 3.4]]) {
         g.beginPath(); g.arc(x, y, r2, 0, 7); g.fill();
       }
-      g.lineCap = 'butt';
+      g.fillStyle = 'rgba(255,255,255,.12)';
+      for (const [x, y, r2] of [[-14, -6, 2.6], [3, -11, 2.2], [8, 2, 3], [-8, 7, 2.4]]) {
+        g.beginPath(); g.arc(x, y, r2, 0, 7); g.fill();
+      }
     }
     g.restore();
   }
-  // 段階つきの姿(キャッシュ付き)。tintを渡すと体の色も変える(仲間の緑など)
+
+  // 仲間の色: 敵だった時の色をそのまま残し、全員に同じ量の緑を一枚重ねるだけ。
+  // source-atop で体の内側にしか乗らないので、形は変わらず、
+  // 元が赤い魔物は「赤みの残る緑」、青い魔物は「青みの残る緑」になる。
+  const ALLY_TINT = '#3fb950', ALLY_ALPHA = 0.34;
+
+  // 段階つきの姿(キャッシュ付き)。tint は色違いの体色、ally は仲間の重ね色
   const varCache = {};
-  function variant(id, rank, sizeTier, tint, strength){
-    const key = id + '|' + (rank || 0) + '|' + (sizeTier || 0) + '|' + (tint || '') + '|' + (strength || '');
+  let varCount = 0;
+  function variant(id, rank, sizeTier, tint, strength, ally){
+    const key = id + '|' + (rank || 0) + '|' + (sizeTier || 0) + '|' + (tint || '') +
+                '|' + (strength || '') + '|' + (ally ? 'a' : '');
     if (varCache[key]) return varCache[key];
     const base = tint ? tinted(id, tint, strength) : get(id);
-    if (!rank && !sizeTier) return (varCache[key] = base);
+    if (!rank && !sizeTier && !ally) return (varCache[key] = base);
+    // 種類が増えすぎたら一度捨てる(長時間の周回でも画像が積み上がらない)
+    if (varCount > 900) { for (const k in varCache) delete varCache[k]; varCount = 0; }
     const cv = document.createElement('canvas');
     cv.width = S; cv.height = S;
     const g = cv.getContext('2d');
-    g.drawImage(base, 0, 0, S, S);
-    drawSizeOrn(g, sizeTier || 0);   // 体の装甲が先(角や棘はその上に出る)
-    drawRankOrn(g, rank || 0);
+    drawBody(g, base, rank || 0, sizeTier || 0);   // 体つきそのものを変える
+    skinOf(g, rank || 0, sizeTier || 0);           // 体の表面の質を変える
+    if (ally) {                                    // 仲間: 全員に同じ量の緑を一枚
+      g.globalCompositeOperation = 'source-atop';
+      g.globalAlpha = ALLY_ALPHA; g.fillStyle = ALLY_TINT;
+      g.fillRect(0, 0, S, S);
+      g.globalCompositeOperation = 'source-over'; g.globalAlpha = 1;
+    }
+    varCount++;
     return (varCache[key] = cv);
   }
-  function drawVariant(g, id, x, y, size, flip, rank, sizeTier, tint, strength){
-    const im = variant(id, rank, sizeTier, tint, strength);
+  function drawVariant(g, id, x, y, size, flip, rank, sizeTier, tint, strength, ally){
+    const im = variant(id, rank, sizeTier, tint, strength, ally);
     g.save(); g.translate(x, y);
     if (flip) g.scale(-1, 1);
     g.drawImage(im, -size / 2, -size / 2, size, size);

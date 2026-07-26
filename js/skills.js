@@ -258,7 +258,7 @@ const Skills = (() => {
     const rows = [
       ['HP', Math.ceil(Math.max(0, R.player.hp)) + ' / ' + Math.round(st.maxHp)],
       ['攻撃倍率', pct(st.atk)],
-      ['移動速度', Math.round(st.speed)],
+      ['移動速度', Math.round(st.speed) + ' (px/秒)'],
       ['射程', pct(st.range)],
       ['効果範囲', pct(st.area)],
       ['攻撃間隔短縮', Math.round(st.cdr * 100) + '%'],
@@ -266,10 +266,13 @@ const Skills = (() => {
       ['被ダメ軽減', Math.round(st.armor * 100) + '%'],
       ['回避率', Math.round(st.dodge * 100) + '%'],
       ['HP自動回復', st.regen.toFixed(1) + '/秒'],
-      ['回収範囲', Math.round(st.magnet)],
+      ['回収範囲', Math.round(st.magnet) + ' (px)'],
       ['勧誘率', (st.recruit * 100).toFixed(1) + '%'],
       ['仲間攻撃/HP', pct(st.allyAtk) + ' / ' + pct(st.allyHp)],
-      ['コイン/ドロップ', pct(st.coinMul) + ' / ' + pct(st.dropMul)],
+      ['コイン倍率', pct(st.coinMul)],
+      // ドロップ率は倍率ではなく「出る確率」そのもの。倍率と同じ書き方(±%)にすると、
+      // 初期値の60%が「-40%」と出て、覚えのない罰のように見えてしまう
+      ['素材ドロップ率', Math.round(st.dropMul * 100) + '%'],
       ['リーパー被ダメ減/与ダメ増', Math.round(st.reaperRes * 100) + '% / ' + pct(st.reaperDmg)],
       ['仲間の数', R.allies.length + '体'],
     ];
@@ -365,10 +368,11 @@ const Skills = (() => {
       b.onclick = () => { if (acquire(b.dataset.skill)) render(); };
     });
 
-    // 所持サマリ
+    // 所持サマリ。画面の一番下に離れて出るので、何の一覧かを必ず添える
     let oh = '';
     for (const id in owned) oh += `<span class="owned-chip">${DATA.SKILLS[id].name} Lv${owned[id]}</span>`;
-    ownedEl.innerHTML = oh || '<span class="small">まだスキルなし</span>';
+    ownedEl.innerHTML = '<span class="small owned-head">この周回で取ったスキル:</span>' +
+      (oh || '<span class="small">まだなし</span>');
   }
 
   function open(){

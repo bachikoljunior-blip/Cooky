@@ -786,7 +786,7 @@ const World = (() => {
     return Math.floor(Math.max(0, r));
   }
 
-  return { isLand, landAt, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
+  return { isLand, landAt, coastGap, terrainAt, tileAt, ports, bases, resetRun, tick, setObjHp,
            nearbyObjects, destroyObject, objectDrops, nearbyCrags, nearbyLandmarks, nearbyRelics,
            worldImage, minimapView, MM_SIZE, ringOf, edgeR, CHUNK, bounds,
            initExplored, recordExplore, exploredArray, fogCanvas, isExplored,

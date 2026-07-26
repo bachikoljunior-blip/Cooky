@@ -33,8 +33,9 @@ const Game = (() => {
   function toHub(){
     state = 'hub'; overlay = null;
     document.body.classList.remove('in-title');
-    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-sig'); hide('btn-pause');
+    hide('title-screen'); hide('hud'); hide('result-panel'); hide('station-panel'); hide('btn-sig');
     show('btn-skill');   // 街でもスキル画面は開ける
+    show('btn-pause');   // 街でも一時停止(あそびかた・タイトルへ戻る)を開ける
     hide('quest-obj'); hide('interact-hint'); hide('help-panel');   // 周回の帯・開きっぱなしのヘルプを持ち込まない
     Hub.enter();
     Sfx.setScene('hub');
@@ -93,11 +94,13 @@ const Game = (() => {
   }
 
   // ---------------- 周回中のNPC会話 ----------------
+  // 進め方の案内は端末に合わせる。鍵盤しかない画面に「タップ」とだけ出しても伝わらない
+  function advanceHint(){ return (Input.padOn() ? 'タップ / E' : 'E キー') + ' で進む ▼'; }
   let runDlg = null;
   function openRunDialog(name, lines, onDone, face){
     overlay = 'dialog';
     el('interact-hint').classList.add('hidden');   // 会話中は「E:〜」のピルを重ねない
-    el('dialog-hint').textContent = 'タップ / E で進む ▼';
+    el('dialog-hint').textContent = advanceHint();
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -131,7 +134,8 @@ const Game = (() => {
   function dialogChoice(name, face, text, choices){
     overlay = 'dialog';
     el('interact-hint').classList.add('hidden');
-    el('dialog-hint').textContent = '選んでください(Eで やめておく)';   // 選択肢中の実態に合わせる
+    // 選択肢中の実態に合わせる。やめ方は端末ごとに押すものが違う
+    el('dialog-hint').textContent = '選んでください(' + (Input.padOn() ? '「実行」' : 'E キー') + 'で やめておく)';
     const faceEl = el('dialog-face');
     if (face) { faceEl.src = Sprites.get(face).toDataURL(); faceEl.classList.remove('hidden'); }
     else faceEl.classList.add('hidden');
@@ -201,6 +205,9 @@ const Game = (() => {
 
   function pauseFor(kind){
     overlay = kind;
+    // 画面を開いている間、街の歩き回りは止まる。足元の[E]の案内はその時のまま
+    // 残ってしまうので、ここで消しておく(閉じれば次の巡回で出し直される)
+    hide('interact-hint'); hide('btn-act');
     if (kind === 'station') show('station-panel');
   }
   function closeStation(){
@@ -213,18 +220,26 @@ const Game = (() => {
   function toggleSkillPanel(){
     if (state !== 'run' && state !== 'hub') return;
     if (overlay === 'skill') { Skills.close(); overlay = null; }
-    else if (!overlay) { Skills.open(); overlay = 'skill'; }
+    else if (!overlay) { Skills.open(); overlay = 'skill'; hide('interact-hint'); hide('btn-act'); }
   }
+  // 街(魂の広場・基地・港)でも開ける ― 「あそびかた」がタイトルにしかないと、
+  // 一度旅に出た後は操作の一覧を二度と読めない行き止まりになるため
   function togglePause(){
-    if (state !== 'run') return;
-    if (overlay === 'pause') { hide('pause-panel'); overlay = null; }
-    else if (!overlay) {
+    if (state !== 'run' && state !== 'hub') return;
+    if (overlay === 'pause') { hide('pause-panel'); hide('help-panel'); overlay = null; return; }
+    if (overlay) return;
+    const inRun = state === 'run';
+    if (inRun) {
       const R = Run.state;
       el('pause-info').textContent =
         '経過 ' + fmtTime(R.time) + ' / 撃破 ' + R.kills + ' / 🪙 ' + fmtNum(R.coins) +
         ' / 仲間 ' + R.allies.length + '。リタイアすると獲得コインと余り素材の換金分を持ち帰る。';
-      show('pause-panel'); overlay = 'pause';
+    } else {
+      el('pause-info').textContent = '街にいる間は時も敵も動かない。貯えは自動で残る。';
     }
+    el('pause-retire').classList.toggle('hidden', !inRun);   // 街では帰る先がない
+    el('pause-title').classList.toggle('hidden', inRun);     // 旅の途中では抜けさせない
+    show('pause-panel'); overlay = 'pause'; hide('interact-hint'); hide('btn-act');
   }
 
   function showResult(res){
@@ -254,6 +269,9 @@ const Game = (() => {
 
   // ---------------- 入力(フレーム毎) ----------------
   function handleKeys(){
+    // 画面を開いている間の Space は捨てる。溜めたままにすると、
+    // 画面を閉じた瞬間に覚えのない号令が飛ぶ
+    if (overlay) Input.takeSig();
     if (Input.once('Tab')) toggleSkillPanel();
     if (Input.once('KeyN') && state === 'run') Run.toggleMap();
     if (Input.once('KeyM')) {
@@ -265,7 +283,11 @@ const Game = (() => {
         Run.state.warnT = 1.2;
       }
     }
-    if (Input.once('KeyE') || Input.once('Space')) {
+    // Space は「突撃の号令」専用(会話中だけは読み進めに使う)。
+    // 調べる・話すは E だけ ― 両方に割り当てると、桟橋や人の前で押した一回が
+    // 号令と調べるを同時に起こしてしまう
+    if (Input.once('Space') && overlay === 'dialog') { advanceRunDialog(); return; }
+    if (Input.once('KeyE')) {
       if (overlay === 'dialog') advanceRunDialog();
       else if (!overlay) {
         if (state === 'run') Run.doInteract();
@@ -421,6 +443,8 @@ const Game = (() => {
   };
   el('result-ok').onclick = () => { hide('result-panel'); toHub(); };
   el('pause-resume').onclick = () => togglePause();
+  el('pause-help').onclick = () => { show('help-panel'); };
+  el('pause-title').onclick = () => { hide('pause-panel'); hide('help-panel'); toTitle(); };
   el('pause-retire').onclick = () => { endRun(true); };
   el('btn-skill').onclick = () => toggleSkillPanel();
   el('btn-pause').onclick = () => togglePause();   // タッチ端末でも一時停止・リタイアできる

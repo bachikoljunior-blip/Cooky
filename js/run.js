@@ -617,15 +617,29 @@ const Run = (() => {
     const def = DATA.ENEMIES[defKey];
     const p = R.player;
     let x, y;
-    if (opts.x !== undefined) { x = opts.x; y = opts.y; }
+    if (opts.x !== undefined) {
+      x = opts.x; y = opts.y;
+      // 場所を指定された湧きも、その魔物が立てる所かを必ず確かめる。
+      // 確かめずに置いていたため、色違いの「仲間を呼んで果てる」が渚で発動すると
+      // 陸の魔物が海の上に湧いていた(指名討伐の印が岩場に重なる場合も同じ)
+      if (!canStand(def, x, y)) {
+        let ok = false;
+        for (let i = 0; i < 16 && !ok; i++) {
+          const a2 = (i / 16) * Math.PI * 2, r2 = 26 + (i % 4) * 28;
+          const tx = opts.x + Math.cos(a2) * r2, ty = opts.y + Math.sin(a2) * r2;
+          if (canStand(def, tx, ty)) { x = tx; y = ty; ok = true; }
+        }
+        if (!ok) return null;
+      }
+    }
     else {
       const a = opts.ang !== undefined ? opts.ang : Math.random() * Math.PI * 2;
       const dist = opts.dist || rnd(560, 760);
       x = p.x + Math.cos(a) * dist; y = p.y + Math.sin(a) * dist;
-      // 環境の合う場所へ補正(海岸沿いでは半分が海に落ちるため、多めに試行)
+      // 立てる場所へ補正(海岸沿いでは半分が海に落ちるため、多めに試行)。
+      // 岩場の中も「立てない場所」なので canStand で見る
       for (let i = 0; i < 14; i++) {
-        const land = World.isLand(x, y);
-        if ((def.env === 'land' && land) || (def.env === 'sea' && !land) || def.env === 'both') break;
+        if (canStand(def, x, y)) break;
         const a2 = Math.random() * Math.PI * 2;
         x = p.x + Math.cos(a2) * dist; y = p.y + Math.sin(a2) * dist;
         if (i === 13) return null;
@@ -982,10 +996,14 @@ const Run = (() => {
     let v = landCache.get(k);
     if (v === undefined) {
       if (landCache.size > 30000) landCache.clear();
-      v = World.isLand(x, y);
+      // 40pxの格子ひとつに海岸線が通っていることがある。そこで格子の代表点の答えを
+      // そのまま使うと、格子の海側にいる魔物まで「陸」と見なされ、陸の魔物が
+      // 波打ち際からじわじわ海へはみ出していた。海岸に近い格子は覚えずに毎回きちんと測る
+      const g = World.coastGap(x, y).gap;
+      v = Math.abs(g) < 60 ? null : (g < 0);   // null = この格子は海岸をまたぐ
       landCache.set(k, v);
     }
-    return v;
+    return v === null ? World.isLand(x, y) : v;
   }
   function canStand(def, x, y){
     // 岩場(地形の障害)の中には立てない・湧かない
@@ -2726,13 +2744,13 @@ const Run = (() => {
       const lunge = Math.sin((a.atkAnim / 0.24) * Math.PI) * (a.atkBack ? -5 : 9);
       ax += Math.cos(a.atkDir) * lunge; ay += Math.sin(a.atkDir) * lunge;
     }
-    // 仲間は全員統一の緑がかった色で描く ― 敵の色違い(金/紅/紫/青白)と被らず、
-    // 混戦でも敵味方がひと目で分かる。大きさ(sizeMul)は敵だった時のまま。
-    // 段階の造形(角・棘・王冠・霜/肩当て・背甲)は引き継ぐので、
-    // 「どの格の魔物を仲間にしたか」が姿で分かる(体の色は緑のまま)
+    // 仲間の色は「敵だった時の色」を残したまま、全員に同じ量の緑を一枚重ねる ―
+    // どの魔物を仲間にしたのかが色でも分かり、それでいて味方だと分かる。
+    // 大きさ(sizeMul)も段階の体つきも敵だった時のまま引き継ぐ。
     const asz = a.def.r * 2.6 * (a.sizeMul || 1);
     Sprites.drawVariant(g, a.def.sprite, ax, ay, asz, false,
-      a.rank || 0, a.sizeTier || 0, '#2ea043', 0.42);
+      a.rank || 0, a.sizeTier || 0,
+      a.rank > 0 ? RANK_COLORS[a.rank] : null, 0.4, true);
     const atop = a.def.r * (a.sizeMul || 1);
     if (a.hp < a.maxHp) drawBar(g, a.x, a.y - atop - 12, 26, a.hp / a.maxHp, '#7ee787');
     if (a.waitAt) labelChip(g, a.x, a.y - atop - 16, '待機中', '#7ee787');
@@ -2763,8 +2781,8 @@ const Run = (() => {
       g.globalAlpha = 1;
     }
     if (e.flash > 0) { g.globalAlpha = 0.6; }
-    // 色違い・大きさは段階ごとに固有の姿(角・棘・王冠・霜/肩当て・背甲)。
-    // 色と大きさだけでなく造形そのものが変わるので、遠目でも格が分かる
+    // 色違い・大きさは段階ごとに体そのものが変わる(体つきの比率と肌の質)。
+    // 付け足した飾りではないので、遠目の混戦でも輪郭だけで格が分かる
     Sprites.drawVariant(g, e.def.sprite, e.x, e.y, sz, e.x > p.x,
       e.rank || 0, e.sizeTier || 0,
       e.rank > 0 ? RANK_COLORS[e.rank] : null, 0.4);
@@ -3008,8 +3026,11 @@ const Run = (() => {
     // 影(ユニットの足元)
     g.fillStyle = 'rgba(0,0,0,.25)';
     for (const e of R.enemies) { g.beginPath(); g.ellipse(e.x, e.y + e.def.r * (e.sizeMul||1) * 0.9, e.def.r * (e.sizeMul||1) * 0.8, 4, 0, 0, 7); g.fill(); }
-    for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.7, 3.5, 0, 0, 7); g.fill(); } }
     g.beginPath(); g.ellipse(p.x, p.y + 20, 16, 5, 0, 0, 7); g.fill();
+    // 仲間の足元だけは影が緑を帯びる。元から緑の魔物(スライム等)を仲間にした時、
+    // 重ね色だけでは敵と見分けがつかないので、足元で分かるようにしておく
+    g.fillStyle = 'rgba(26,86,40,.42)';
+    for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.75, 3.8, 0, 0, 7); g.fill(); } }
 
     // ゾーン(毒沼)
     for (const z of R.zones) {
@@ -3602,7 +3623,10 @@ const Run = (() => {
     g.strokeStyle = 'rgba(255,255,255,.20)'; g.lineWidth = 1;
     rrPath(g, x0, y0, sz, sz, 6); g.stroke();
     g.fillStyle = '#8b949e'; g.font = '10px sans-serif'; g.textAlign = 'center';
-    g.fillText('周辺図 [タップで全体図]', x0 + sz / 2, y0 + sz + 14);
+    // 開き方は端末に合わせて書く。鍵盤しかない画面に「タップ」とだけ書くと、
+    // 全体図の開き方が分からないまま終わる
+    g.fillText('周辺図 [' + (Input.padOn() ? 'タップ' : 'N キー') + 'で全体図]',
+      x0 + sz / 2, y0 + sz + 14);
   }
   // タップで開く全画面の全体図
   function drawFullMap(g, W, H){
@@ -3619,7 +3643,7 @@ const Run = (() => {
     g.strokeStyle = 'rgba(255,255,255,.18)';
     rrPath(g, W / 2 - 116, y0 + 8, 232, 27, 13); g.stroke();
     g.fillStyle = '#c9d1d9';
-    g.fillText('全体図 [タップで閉じる]', W / 2, y0 + 27);
+    g.fillText('全体図 [' + (Input.padOn() ? 'タップ' : 'N / E キー') + 'で閉じる]', W / 2, y0 + 27);
     // 見当ピンの読み方(ヒントを持っている間だけ表示。場所は教えず「探し方」だけ教える)
     if (Object.keys(SaveSys.data.hints || {}).length || SaveSys.data.nextHint) {
       g.fillStyle = 'rgba(5,8,14,0.72)';
@@ -3688,6 +3712,7 @@ const Run = (() => {
     dEl.textContent = '☠ 危険度 ' + danger;
     dEl.style.color = danger <= 2 ? '#7ee787' : danger <= 4 ? '#ffd766' : danger <= 8 ? '#f85149' : '#c084fc';
     document.getElementById('dist-view').textContent = '📍 ' + fmtNum(Math.hypot(p.x, p.y));
+    document.getElementById('army-text').textContent = fmtNum(R.allies.length);
     const waiting = R.allies.filter(a => a.waitAt).length;
     allyView.textContent = waiting ? '待機中の仲間 ' + waiting : '';
     // スキルボタン: 今その場で取得/強化できるスキルがある限り光り、数を表示する
@@ -3695,8 +3720,9 @@ const Run = (() => {
     const skBtn = document.getElementById('btn-skill');
     skBtn.classList.toggle('ready', rc > 0);
     document.getElementById('skill-badge').textContent = rc > 0 ? rc : '';
-    // 周回が終わっている(リザルト中): 帯・ヒント・ボタンを全て引っ込める
-    if (R.over || R.settled) {
+    // 周回が終わっている(リザルト中)か、何かの画面を開いている:
+    // 帯・ヒント・ボタンを全て引っ込める(画面の下に案内が残って見えてしまう)
+    if (R.over || R.settled || document.querySelector('.panel:not(.hidden)')) {
       warnEl.classList.add('hidden');
       hintEl.classList.add('hidden');
       document.getElementById('quest-obj').classList.add('hidden');
