@@ -130,6 +130,7 @@ const Skills = (() => {
   }
   function readyIds(){
     const out = [];
+    if (!inRun()) return out;   // 旅の外では取れない ― 釦を光らせない
     for (const id in DATA.SKILLS) {
       if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) continue;
       const cost = nextCost(id);
@@ -290,9 +291,18 @@ const Skills = (() => {
     return h + '</div>';
   }
 
+  // 「今すぐ取れる」= 素材が揃っているだけでは足りない。前提スキルを満たし、
+  // 旅の最中であること。ここを素材だけで数えていたので、押しても取れないものが
+  // 「取れる」と数えられ、緑の印だけが出ていた
+  function canTakeNow(id){
+    if (!inRun()) return false;
+    if (!skillUnlocked(id) || !reqMet(id) || hiddenByUser(id)) return false;
+    const c = nextCost(id);
+    return !!(c && costMet(c));
+  }
   function catCount(catKey, ids){
     return ids.filter(id => catKey === 'all' || DATA.SKILLS[id].cat === catKey)
-              .filter(id => { const c = nextCost(id); return c && costMet(c); }).length;
+              .filter(canTakeNow).length;
   }
 
   function render(){
@@ -323,7 +333,7 @@ const Skills = (() => {
     });
     baseSort(upIds); baseSort(newIds);
 
-    const isReady = id => { const c = nextCost(id); return c && costMet(c); };
+    const isReady = canTakeNow;
     // 並び: 未見(新登場) → 今すぐ取得/強化できるもの → それ以外。
     // 素材が揃ったスキルはピン止めと同じ扱いで最上段に固定される(各ブロック内はピン順)。
     // 初回閲覧(まだ何も見ていない)時は全部が未見なので、通常どおりピン順で並べる。

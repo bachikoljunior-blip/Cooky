@@ -180,7 +180,8 @@ const Run = (() => {
     R.cd = {}; R.shield = { stocks:0, timer:0 };
     R.spawnAcc = 0; R.bossDone = {}; R.reaperAcc = 0; R.hordeT = rnd(60, 90); R.hordeWaves = [];
     R.clearedCells = new Map();   // 倒した場所 cellKey -> リスポーン解禁時刻(1分間は湧かない)
-    R.dmgLog = []; R.hitFlashT = 0; R.hitDir = null; R.traitBursts = [];
+    R.dmgLog = []; R.hitFlashT = 0; R.hitDir = null; R.traitBursts = []; R.slams = [];
+    R.blame = null; R.quietCoinUntil = 0;
     R.sigCd = 0; R.sigUntil = 0; R.bioFxT = 0; R.bioFxColors = null; R.boardDone = {}; R.escort = null;
     // 周回ごとの世界イベント: 世界の様子が毎回少し違う(開始時に告知される)
     {
@@ -326,13 +327,24 @@ const Run = (() => {
       const ms = (e.def.drops || []).filter(dr => Skills.matUnlocked(dr.m)).slice(0, 2).map(dr => dr.m);
       dropPickup(e.x, e.y, { type:'chest', value: Math.max(24, c * 2), mats: ms });
     }
-    // 素材ドロップ: その敵自身のドロップテーブルのみ。バイオドームごとの素材の違いは
-    // 敵の顔ぶれ(BIOME_FAUNA)から自然に生まれる ― 場所によるドロップ率の細工はしない
+    // 素材ドロップ: その敵自身のドロップテーブル。バイオドームごとの顔つきは
+    // 敵の顔ぶれ(BIOME_FAUNA)から生まれる
     for (const dr of e.def.drops || []) {
       if (!Skills.matUnlocked(dr.m)) continue;
       if (Math.random() < dr.c * st.dropMul) {
         const n = Math.random() < st.luck2 ? 2 : 1;
         for (let i = 0; i < n; i++) dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14), { type:'mat', mat:dr.m });
+      }
+    }
+    // その土地では採れないはずの素材も、ごく低い確率で出る ―
+    // 「ここでは絶対に手に入らない」を作らないための細い道。
+    // 主な入手はあくまで、その素材が採れる土地へ行くか行商人から買うか
+    if (!e.def.isReaper) {
+      const wants = (DATA.BIOME_WANTS || {})[R.curBiome] || [];
+      if (wants.length && Math.random() < 0.012 * st.dropMul) {
+        const pool = wants.filter(m => Skills.matUnlocked(m));
+        if (pool.length) dropPickup(e.x + rnd(-14,14), e.y + rnd(-14,14),
+          { type:'mat', mat: pool[Math.floor(Math.random() * pool.length)] });
       }
     }
     // ポーション
@@ -1291,13 +1303,13 @@ const Run = (() => {
             const d2 = Math.hypot(a.x - e.x, a.y - e.y);
             if (d2 < td2) { tgt = a; td2 = d2; }
           }
-          if (tgt) {   // 対象の足元に振り下ろす
+          if (tgt) {
+            // 対象の足元へ振り下ろす。落ちる場所を先に示してから当てる ―
+            // 予兆なしで当てると、相手と重なってもいないのに殴られたようにしか見えない。
+            // 示している間に外へ出れば当たらない
             e.slamCd = e.def.slam.cd;
-            effect('ring', tgt.x, tgt.y, { color:'#ffa657', r: rad });
-            if (Math.hypot(p.x - tgt.x, p.y - tgt.y) < rad + 10) damagePlayer(e.dmg, e);
-            for (const a of R.allies) {
-              if (!a.waitAt && !a.joining && Math.hypot(a.x - tgt.x, a.y - tgt.y) < rad + a.def.r) damageAlly(a, e.dmg * 0.35, e);
-            }
+            R.slams = R.slams || [];
+            R.slams.push({ x: tgt.x, y: tgt.y, r: rad, dmg: e.dmg, t: 0.55, src: e });
           } else e.slamCd = 0.3;
         }
       }
@@ -2650,6 +2662,21 @@ const Run = (() => {
       }
       R.traitBursts = R.traitBursts.filter(tb => tb.t > 0);
     }
+    // 大型の薙ぎ: 示していた場所へ落ちる。落ちる瞬間にそこに居た者だけが受ける
+    if (R.slams && R.slams.length) {
+      for (const sl of R.slams) {
+        sl.t -= dt;
+        if (sl.t > 0) continue;
+        effect('ring', sl.x, sl.y, { color:'#ffa657', r: sl.r });
+        Sfx.hit();
+        if (Math.hypot(R.player.x - sl.x, R.player.y - sl.y) < sl.r + 10) damagePlayer(sl.dmg, sl.src);
+        for (const a of R.allies) {
+          if (!a.waitAt && !a.joining && Math.hypot(a.x - sl.x, a.y - sl.y) < sl.r + a.def.r * (a.sizeMul || 1))
+            damageAlly(a, sl.dmg * 0.35, sl.src);
+        }
+      }
+      R.slams = R.slams.filter(sl => sl.t > 0);
+    }
     if (R.over) return;
     R.time += dt;
     R.stats = applyMods(R.baseStats);   // スキルのパッシブ効果をライブ反映
@@ -3170,6 +3197,16 @@ const Run = (() => {
     g.fillStyle = 'rgba(26,86,40,.42)';
     for (const a of R.allies) { if (!a.waitAt) { g.beginPath(); g.ellipse(a.x, a.y + a.def.r * 0.9, a.def.r * 0.75, 3.8, 0, 0, 7); g.fill(); } }
 
+    // 大型の薙ぎの予兆: 落ちる場所を地面に示す。縁の輪が縮みきった時に落ちる
+    for (const sl of R.slams || []) {
+      const k = 1 - Math.max(0, Math.min(1, sl.t / 0.55));   // 0→1で詰まっていく
+      g.fillStyle = 'rgba(255,166,87,' + (0.10 + 0.16 * k) + ')';
+      g.beginPath(); g.arc(sl.x, sl.y, sl.r, 0, 7); g.fill();
+      g.strokeStyle = 'rgba(255,166,87,.85)'; g.lineWidth = 2;
+      g.beginPath(); g.arc(sl.x, sl.y, sl.r, 0, 7); g.stroke();
+      g.strokeStyle = 'rgba(255,214,166,.95)'; g.lineWidth = 3;
+      g.beginPath(); g.arc(sl.x, sl.y, sl.r * (1 - k * 0.85), 0, 7); g.stroke();
+    }
     // ゾーン(毒沼)
     for (const z of R.zones) {
       g.fillStyle = z.trail ? 'rgba(255,215,102,.18)' : 'rgba(126,231,135,.20)';
